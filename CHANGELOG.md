@@ -9,11 +9,14 @@ The format follows Keep a Changelog principles and this project uses date-based 
 ### Docs
 
 - Added AI Production OS v1 documentation pack in `docs/`.
+- Added reusable workflow setup guide: `docs/WORKFLOW_AUTOMATION_PLAYBOOK.md`.
 
 ### Infra
 
 - Added CI workflow (`.github/workflows/ci.yml`).
 - Added issue templates and PR template for disciplined delivery.
+- Added PR policy enforcement workflow (`.github/workflows/policy-check.yml`).
+- Added issue triage automation workflow (`.github/workflows/issue-triage.yml`).
 
 ### Changed
 

@@ -58,6 +58,7 @@ npm run build
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Roadmap](./docs/ROADMAP.md)
 - [Decisions Log](./docs/DECISIONS_LOG.md)
+- [Workflow Automation Playbook](./docs/WORKFLOW_AUTOMATION_PLAYBOOK.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 - [Changelog](./CHANGELOG.md)
   

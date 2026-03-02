@@ -21,6 +21,15 @@ This project follows an Issue -> PR -> Deploy workflow.
 6. Update `CHANGELOG.md` in every merge-worthy PR.
 7. Include a demo artifact (screenshot or Loom).
 
+## Automated Enforcement
+
+- CI build is enforced in `.github/workflows/ci.yml`.
+- PR policy checks are enforced in `.github/workflows/policy-check.yml`:
+  - Branch naming convention
+  - Issue-closing reference in PR body (`Closes #<id>`)
+  - `CHANGELOG.md` required for `feature`, `chore`, and `bug` PR labels
+- Issue triage automation is in `.github/workflows/issue-triage.yml`.
+
 ## Scope Governance
 
 - Max active scope: 1 in-progress feature issue at a time.
@@ -33,4 +42,3 @@ This project follows an Issue -> PR -> Deploy workflow.
 - Build passes.
 - Changelog updated.
 - Demo artifact attached.
-

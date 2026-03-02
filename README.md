@@ -36,19 +36,16 @@ npm run build
 
 ## Deploy
 
-- Current production URL: `TBD`
-- Deployment path configured: GitHub Pages workflow scaffold in `.github/workflows/deploy-pages.yml`
-- To activate GitHub Pages deploys:
-1. Push this repository to GitHub.
-2. In repo settings, enable Pages with source set to GitHub Actions.
-3. Push to `main`.
+- Current production URL: https://job-sprint-ten.vercel.app/
+- Hosting: Vercel
 
 ## Screenshots
 
-Add screenshots to `docs/assets/` and reference them here:
+### Dashboard
+![JobSprint Dashboard](./docs/assets/dashboard.png)
 
-- `docs/assets/dashboard.png`
-- `docs/assets/analytics.png`
+### Analytics
+![JobSprint Analytics](./docs/assets/analytics.png)
 
 ## Documentation
 

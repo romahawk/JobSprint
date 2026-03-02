@@ -1,0 +1,58 @@
+name: Feature Request
+description: Propose a scoped feature with clear user value and acceptance criteria.
+title: "feat: "
+labels:
+  - feature
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem are we solving?
+      placeholder: Users cannot...
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: User Value
+      description: Why this matters now.
+      placeholder: This improves...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: In Scope
+      description: Concrete implementation boundaries.
+      placeholder: 1) ... 2) ...
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of Scope
+      description: Explicit non-goals for this issue.
+      placeholder: Not included...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Testable requirements for completion.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: dropdown
+    id: demo
+    attributes:
+      label: Demo Artifact Required
+      options:
+        - Screenshot
+        - Loom
+    validations:
+      required: true
+

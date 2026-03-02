@@ -13,8 +13,11 @@ The format follows Keep a Changelog principles and this project uses date-based 
 ### Infra
 
 - Added CI workflow (`.github/workflows/ci.yml`).
-- Added GitHub Pages deploy workflow scaffold (`.github/workflows/deploy-pages.yml`).
 - Added issue templates and PR template for disciplined delivery.
+
+### Changed
+
+- Removed GitHub Pages deploy workflow in favor of Vercel deploy path.
 
 ## [2026-03-02] - Retroactive OS Adoption Baseline
 
@@ -29,4 +32,3 @@ The format follows Keep a Changelog principles and this project uses date-based 
 ### Changed
 
 - Replaced template README with product-focused project README.
-

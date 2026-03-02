@@ -10,6 +10,8 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 - Added AI Production OS v1 documentation pack in `docs/`.
 - Added reusable workflow setup guide: `docs/WORKFLOW_AUTOMATION_PLAYBOOK.md`.
+- Added README screenshots using committed assets and removed duplicate image blocks.
+- Updated roadmap Week 2 deployment references from generic static hosting to Vercel.
 
 ### Infra
 

@@ -46,11 +46,6 @@ npm run build
 
 ### Analytics
 ![JobSprint Analytics](./docs/assets/analytics.png)
-![JobSprint Dashboard](docs/assets/dashboard.png)
-
-### Analytics
-![JobSprint Analytics](docs/assets/analytics.png)
-
 
 ## Documentation
 

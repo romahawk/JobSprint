@@ -4,6 +4,7 @@ import { KPICard } from "../components/KPICard";
 import { PipelineBoard } from "../components/PipelineBoard";
 import { WeeklyExecutionPanel } from "../components/WeeklyExecutionPanel";
 import { ProbabilityEnginePanel } from "../components/ProbabilityEnginePanel";
+import { ActivitySignalCard } from "../components/ActivitySignalCard";
 import { ApplicationModal } from "../components/ApplicationModal";
 import { ApplicationDetailsModal } from "../components/ApplicationDetailsModal";
 import { Button } from "../components/ui/button";
@@ -147,6 +148,7 @@ export default function Dashboard() {
 
           {/* Right Side Panels */}
           <div className="xl:col-span-1 space-y-6">
+            <ActivitySignalCard />
             <WeeklyExecutionPanel />
             <ProbabilityEnginePanel />
           </div>

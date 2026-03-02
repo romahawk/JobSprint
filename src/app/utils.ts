@@ -248,3 +248,66 @@ export function getConversionFunnel(applications: Application[]) {
     { stage: "Offer", count: offer },
   ];
 }
+
+export function getActivitySignal(applications: Application[]) {
+  // Compare two fixed 7-day windows: today-6..today vs today-13..today-7.
+  const today = startOfDay(new Date());
+  const currentStart = addDays(today, -6);
+  const previousStart = addDays(today, -13);
+  const previousEnd = addDays(today, -7);
+
+  let currentCount = 0;
+  let previousCount = 0;
+
+  applications.forEach((app) => {
+    const parsed = new Date(app.dateApplied);
+    if (Number.isNaN(parsed.getTime())) return;
+
+    const appliedDay = startOfDay(parsed);
+    const appliedTime = appliedDay.getTime();
+
+    if (
+      appliedTime >= currentStart.getTime() &&
+      appliedTime <= today.getTime()
+    ) {
+      currentCount += 1;
+      return;
+    }
+
+    if (
+      appliedTime >= previousStart.getTime() &&
+      appliedTime <= previousEnd.getTime()
+    ) {
+      previousCount += 1;
+    }
+  });
+
+  const delta = currentCount - previousCount;
+  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const percentChange =
+    previousCount > 0
+      ? (delta / previousCount) * 100
+      : currentCount > 0
+      ? 100
+      : 0;
+
+  return {
+    currentCount,
+    previousCount,
+    delta,
+    direction,
+    percentChange,
+  };
+}
+
+function startOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}

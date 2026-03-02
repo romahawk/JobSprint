@@ -6,6 +6,15 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ## [Unreleased]
 
+### Added
+
+- Added 7-day activity signal card with prior-week comparison on dashboard.
+- Added app-level error boundary fallback with reload and return-to-dashboard actions.
+
+### Fixed
+
+- Hardened application form validation (required fields, URL validation, date validity, future-date guard, inline errors).
+
 ### Docs
 
 - Added AI Production OS v1 documentation pack in `docs/`.

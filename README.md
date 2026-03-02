@@ -45,10 +45,12 @@ npm run build
 
 ## Screenshots
 
-Add screenshots to `docs/assets/` and reference them here:
+### Dashboard
+![JobSprint Dashboard](docs/assets/dashboard.png)
 
-- `docs/assets/dashboard.png`
-- `docs/assets/analytics.png`
+### Analytics
+![JobSprint Analytics](docs/assets/analytics.png)
+
 
 ## Documentation
 

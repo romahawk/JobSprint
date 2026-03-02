@@ -34,18 +34,18 @@ Project has deploy and release discipline visible to external reviewers.
 
 - Add CI workflow for build checks.
 - Add issue templates and PR template.
-- Add deploy workflow scaffold for static hosting.
+- Ensure Vercel deployment is active and documented in README.
 - Add changelog with first adoption entry.
 
 ### Definition of Done
 
 - CI runs on pushes and pull requests.
-- Deploy workflow exists and is documented for activation.
+- Vercel deployment URL is live and documented.
 - Changelog updated with dated entry.
 
 ### Demo Artifact
 
-- Screenshot or Loom of successful CI run and deploy workflow file.
+- Screenshot or Loom of successful CI run and live Vercel deploy.
 
 ## Week 3: Add One Signal Feature
 
@@ -109,4 +109,3 @@ Data entry errors decrease and destructive actions are safer.
 - No large-scale component library refactor.
 - No multi-user collaboration features.
 - No ATS integrations before persistence/auth baseline.
-

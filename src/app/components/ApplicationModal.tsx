@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -14,44 +14,131 @@ interface ApplicationModalProps {
   existingApp?: Application;
 }
 
-export function ApplicationModal({
-  open,
-  onClose,
-  onSave,
-  existingApp,
-}: ApplicationModalProps) {
-  const [formData, setFormData] = useState<Omit<Application, "id">>({
+type ApplicationFormData = Omit<Application, "id">;
+type FormErrors = Partial<Record<keyof ApplicationFormData, string>>;
+
+function getInitialForm(existingApp?: Application): ApplicationFormData {
+  return {
     company: existingApp?.company || "",
     role: existingApp?.role || "",
     location: existingApp?.location || "",
     type: existingApp?.type || "product",
     salary: existingApp?.salary || "",
     jobLink: existingApp?.jobLink || "",
-    dateApplied: existingApp?.dateApplied || new Date().toISOString().split("T")[0],
+    dateApplied:
+      existingApp?.dateApplied || new Date().toISOString().split("T")[0],
     referral: existingApp?.referral || false,
     notes: existingApp?.notes || "",
     status: existingApp?.status || "targeted",
     priority: existingApp?.priority || "medium",
-  });
+  };
+}
+
+function isValidHttpUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function validateForm(formData: ApplicationFormData): FormErrors {
+  const errors: FormErrors = {};
+  const company = formData.company.trim();
+  const role = formData.role.trim();
+  const jobLink = formData.jobLink.trim();
+  const dateApplied = formData.dateApplied.trim();
+
+  if (!company) {
+    errors.company = "Company is required.";
+  }
+
+  if (!role) {
+    errors.role = "Role is required.";
+  }
+
+  if (!dateApplied) {
+    errors.dateApplied = "Date applied is required.";
+  } else {
+    const parsedDate = new Date(dateApplied);
+    const isInvalidDate = Number.isNaN(parsedDate.getTime());
+    if (isInvalidDate) {
+      errors.dateApplied = "Date applied must be a valid date.";
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      parsedDate.setHours(0, 0, 0, 0);
+      if (parsedDate > today) {
+        errors.dateApplied = "Date applied cannot be in the future.";
+      }
+    }
+  }
+
+  if (jobLink && !isValidHttpUrl(jobLink)) {
+    errors.jobLink = "Job link must be a valid http(s) URL.";
+  }
+
+  return errors;
+}
+
+export function ApplicationModal({
+  open,
+  onClose,
+  onSave,
+  existingApp,
+}: ApplicationModalProps) {
+  const [formData, setFormData] = useState<ApplicationFormData>(() =>
+    getInitialForm(existingApp)
+  );
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  useEffect(() => {
+    if (!open) return;
+    setFormData(getInitialForm(existingApp));
+    setErrors({});
+  }, [existingApp, open]);
+
+  const liveErrors = useMemo(() => validateForm(formData), [formData]);
+  const isFormValid = Object.keys(liveErrors).length === 0;
+
+  const clearError = (field: keyof ApplicationFormData) => {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const updateField = <K extends keyof ApplicationFormData>(
+    field: K,
+    value: ApplicationFormData[K]
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    clearError(field);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    onClose();
-    // Reset form
-    setFormData({
-      company: "",
-      role: "",
-      location: "",
-      type: "product",
-      salary: "",
-      jobLink: "",
-      dateApplied: new Date().toISOString().split("T")[0],
-      referral: false,
-      notes: "",
-      status: "targeted",
-      priority: "medium",
+    const nextErrors = validateForm(formData);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    onSave({
+      ...formData,
+      company: formData.company.trim(),
+      role: formData.role.trim(),
+      location: formData.location.trim(),
+      salary: formData.salary.trim(),
+      jobLink: formData.jobLink.trim(),
+      notes: formData.notes.trim(),
     });
+    onClose();
+    setFormData(getInitialForm());
+    setErrors({});
   };
 
   return (
@@ -70,11 +157,14 @@ export function ApplicationModal({
               <Input
                 id="company"
                 value={formData.company}
-                onChange={(e) =>
-                  setFormData({ ...formData, company: e.target.value })
-                }
-                required
+                onChange={(e) => updateField("company", e.target.value)}
+                aria-invalid={Boolean(errors.company)}
               />
+              {errors.company && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  {errors.company}
+                </p>
+              )}
             </div>
 
             <div>
@@ -82,9 +172,14 @@ export function ApplicationModal({
               <Input
                 id="role"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                required
+                onChange={(e) => updateField("role", e.target.value)}
+                aria-invalid={Boolean(errors.role)}
               />
+              {errors.role && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  {errors.role}
+                </p>
+              )}
             </div>
           </div>
 
@@ -94,9 +189,7 @@ export function ApplicationModal({
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
+                onChange={(e) => updateField("location", e.target.value)}
               />
             </div>
 
@@ -105,7 +198,7 @@ export function ApplicationModal({
               <Select
                 value={formData.type}
                 onValueChange={(value: ApplicationType) =>
-                  setFormData({ ...formData, type: value })
+                  updateField("type", value)
                 }
               >
                 <SelectTrigger>
@@ -126,7 +219,7 @@ export function ApplicationModal({
               <Select
                 value={formData.priority}
                 onValueChange={(value: Priority) =>
-                  setFormData({ ...formData, priority: value })
+                  updateField("priority", value)
                 }
               >
                 <SelectTrigger>
@@ -145,7 +238,7 @@ export function ApplicationModal({
               <Select
                 value={formData.status}
                 onValueChange={(value: PipelineStatus) =>
-                  setFormData({ ...formData, status: value })
+                  updateField("status", value)
                 }
               >
                 <SelectTrigger>
@@ -170,9 +263,7 @@ export function ApplicationModal({
               <Input
                 id="salary"
                 value={formData.salary}
-                onChange={(e) =>
-                  setFormData({ ...formData, salary: e.target.value })
-                }
+                onChange={(e) => updateField("salary", e.target.value)}
                 placeholder="e.g. $120k - $150k"
               />
             </div>
@@ -183,10 +274,14 @@ export function ApplicationModal({
                 id="dateApplied"
                 type="date"
                 value={formData.dateApplied}
-                onChange={(e) =>
-                  setFormData({ ...formData, dateApplied: e.target.value })
-                }
+                onChange={(e) => updateField("dateApplied", e.target.value)}
+                aria-invalid={Boolean(errors.dateApplied)}
               />
+              {errors.dateApplied && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  {errors.dateApplied}
+                </p>
+              )}
             </div>
           </div>
 
@@ -196,11 +291,15 @@ export function ApplicationModal({
               id="jobLink"
               type="url"
               value={formData.jobLink}
-              onChange={(e) =>
-                setFormData({ ...formData, jobLink: e.target.value })
-              }
+              onChange={(e) => updateField("jobLink", e.target.value)}
               placeholder="https://..."
+              aria-invalid={Boolean(errors.jobLink)}
             />
+            {errors.jobLink && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                {errors.jobLink}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -209,7 +308,7 @@ export function ApplicationModal({
               id="referral"
               checked={formData.referral}
               onChange={(e) =>
-                setFormData({ ...formData, referral: e.target.checked })
+                updateField("referral", e.target.checked)
               }
               className="rounded border-neutral-300 dark:border-neutral-700"
             />
@@ -223,7 +322,7 @@ export function ApplicationModal({
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => updateField("notes", e.target.value)}
               rows={3}
             />
           </div>
@@ -232,7 +331,9 @@ export function ApplicationModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">Save Application</Button>
+            <Button type="submit" disabled={!isFormValid}>
+              Save Application
+            </Button>
           </div>
         </form>
       </DialogContent>

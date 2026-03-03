@@ -148,20 +148,67 @@ function createFirebaseRepository(storage: StorageLike): AppRepository {
   return {
     mode: "firebase",
     async loadAppData(userId: string) {
-      const migration = migrateLegacyLocalData(storage, userId);
-      if (migration.migrated && migration.data) {
-        const migrationDocRef = doc(firebase.db, "users", userId, "state", "app");
-        await setDoc(migrationDocRef, migration.data, { merge: true });
-      }
+      try {
+        const migration = migrateLegacyLocalData(storage, userId);
+        if (migration.migrated && migration.data) {
+          const migrationDocRef = doc(firebase.db, "users", userId, "state", "app");
+          await setDoc(migrationDocRef, migration.data, { merge: true });
+        }
 
-      const stateDocRef = doc(firebase.db, "users", userId, "state", "app");
-      const stateDoc = await getDoc(stateDocRef);
-      if (!stateDoc.exists()) return null;
-      return normalizeData(stateDoc.data());
+        const stateDocRef = doc(firebase.db, "users", userId, "state", "app");
+        const stateDoc = await getDoc(stateDocRef);
+        if (!stateDoc.exists()) {
+          const localRaw = storage.getItem(userDataKey(userId));
+          if (!localRaw) return null;
+          try {
+            return normalizeData(JSON.parse(localRaw));
+          } catch {
+            return null;
+          }
+        }
+
+        const normalized = normalizeData(stateDoc.data());
+        if (normalized) {
+          storage.setItem(userDataKey(userId), JSON.stringify(normalized));
+        }
+        return normalized;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : "";
+        const offlineLike =
+          message.includes("offline") ||
+          message.includes("network") ||
+          message.includes("unavailable");
+
+        if (!offlineLike) {
+          throw error;
+        }
+
+        const localRaw = storage.getItem(userDataKey(userId));
+        if (!localRaw) return null;
+        try {
+          return normalizeData(JSON.parse(localRaw));
+        } catch {
+          return null;
+        }
+      }
     },
     async saveAppData(userId: string, data: AppData) {
+      storage.setItem(userDataKey(userId), JSON.stringify(data));
       const stateDocRef = doc(firebase.db, "users", userId, "state", "app");
-      await setDoc(stateDocRef, data, { merge: true });
+      try {
+        await setDoc(stateDocRef, data, { merge: true });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : "";
+        const offlineLike =
+          message.includes("offline") ||
+          message.includes("network") ||
+          message.includes("unavailable");
+        if (!offlineLike) {
+          throw error;
+        }
+      }
       storage.setItem(userSyncKey(userId), new Date().toISOString());
     },
     getDarkMode() {

@@ -52,18 +52,41 @@ export function createAuthService(storage: StorageLike): AuthService {
         }
 
         return await new Promise<UserSession | null>((resolve) => {
-          const unsubscribe = onAuthStateChanged(firebase.auth, (user) => {
-            unsubscribe();
-            if (!user?.uid || !user.email) {
-              resolve(null);
-              return;
+          let settled = false;
+          let unsubscribe: (() => void) | null = null;
+
+          const finish = (session: UserSession | null) => {
+            if (settled) return;
+            settled = true;
+            if (unsubscribe) {
+              unsubscribe();
             }
-            resolve({
-              userId: user.uid,
-              email: user.email,
-              provider: "firebase",
-            });
-          });
+            resolve(session);
+          };
+
+          const timeoutId = setTimeout(() => {
+            finish(null);
+          }, 5000);
+
+          unsubscribe = onAuthStateChanged(
+            firebase.auth,
+            (user) => {
+              clearTimeout(timeoutId);
+              if (!user?.uid || !user.email) {
+                finish(null);
+                return;
+              }
+              finish({
+                userId: user.uid,
+                email: user.email,
+                provider: "firebase",
+              });
+            },
+            () => {
+              clearTimeout(timeoutId);
+              finish(null);
+            }
+          );
         });
       },
       async signIn(email, password, options) {

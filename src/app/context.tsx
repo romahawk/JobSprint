@@ -200,19 +200,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     const bootstrap = async () => {
-      const storedDarkMode = repository.getDarkMode();
-      if (mounted) {
-        setDarkMode(storedDarkMode);
-      }
-      const existingSession = await auth.bootstrapSession();
-      if (!mounted) return;
-      setSession(existingSession);
-      if (existingSession) {
-        await loadUserData(existingSession.userId);
-      } else {
+      try {
+        const storedDarkMode = repository.getDarkMode();
+        if (mounted) {
+          setDarkMode(storedDarkMode);
+        }
+        const existingSession = await auth.bootstrapSession();
+        if (!mounted) return;
+        setSession(existingSession);
+        if (existingSession) {
+          await loadUserData(existingSession.userId);
+        } else {
+          hydratedRef.current = true;
+        }
+      } catch (error) {
+        console.error("Session bootstrap failed:", error);
         hydratedRef.current = true;
+      } finally {
+        if (mounted) {
+          setAuthLoading(false);
+        }
       }
-      setAuthLoading(false);
     };
     bootstrap();
     return () => {

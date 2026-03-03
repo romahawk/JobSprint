@@ -31,10 +31,8 @@ export function ApplicationDetailsModal({
               variant="ghost"
               size="sm"
               onClick={() => {
-                if (confirm("Delete this application?")) {
-                  onDelete(application.id);
-                  onClose();
-                }
+                onDelete(application.id);
+                onClose();
               }}
               className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
             >

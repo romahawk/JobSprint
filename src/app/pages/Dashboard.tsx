@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../context";
 import { KPICard } from "../components/KPICard";
 import { PipelineBoard } from "../components/PipelineBoard";
@@ -8,6 +8,7 @@ import { ActivitySignalCard } from "../components/ActivitySignalCard";
 import { ApplicationModal } from "../components/ApplicationModal";
 import { ApplicationDetailsModal } from "../components/ApplicationDetailsModal";
 import { Button } from "../components/ui/button";
+import { SyncStatusBadge } from "../components/SyncStatusBadge";
 import {
   Target,
   Calendar,
@@ -19,20 +20,39 @@ import {
   BarChart3,
   Moon,
   Sun,
+  Undo2,
+  LogOut,
 } from "lucide-react";
 import { calculateMetrics } from "../utils";
 import type { Application, PipelineStatus } from "../types";
 import { Link } from "react-router";
 
 export default function Dashboard() {
-  const { applications, addApplication, updateApplication, deleteApplication, darkMode, toggleDarkMode } =
-    useApp();
+  const {
+    applications,
+    addApplication,
+    updateApplication,
+    scheduleDeleteApplication,
+    undoDeleteApplication,
+    pendingDeletions,
+    darkMode,
+    toggleDarkMode,
+    session,
+    signOut,
+  } = useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const [now, setNow] = useState(Date.now());
 
   const metrics = calculateMetrics(applications);
+  const latestPendingDeletion = pendingDeletions[0] || null;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleCardClick = (app: Application) => {
     setSelectedApp(app);
@@ -69,8 +89,14 @@ export default function Dashboard() {
               <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 hidden sm:block">
                 Your job search is a numbers game. This makes the numbers visible.
               </p>
+              {session?.email && (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  Signed in as {session.email}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
+              <SyncStatusBadge />
               <Button
                 variant="ghost"
                 size="sm"
@@ -89,6 +115,17 @@ export default function Dashboard() {
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">New Application</span>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void signOut();
+                }}
+                className="gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -96,6 +133,24 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-[1800px] mx-auto px-6 py-6">
+        {latestPendingDeletion && (
+          <div className="mb-6 border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 rounded-lg px-4 py-3 flex items-center justify-between gap-4">
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              Removed <strong>{latestPendingDeletion.company}</strong>. Undo available for{" "}
+              {Math.max(0, Math.ceil((latestPendingDeletion.expiresAt - now) / 1000))}s.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => undoDeleteApplication(latestPendingDeletion.id)}
+            >
+              <Undo2 className="w-4 h-4" />
+              Undo
+            </Button>
+          </div>
+        )}
+
         {/* KPI Strip */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <KPICard
@@ -174,7 +229,7 @@ export default function Dashboard() {
         }}
         application={selectedApp}
         onEdit={handleEdit}
-        onDelete={deleteApplication}
+        onDelete={scheduleDeleteApplication}
       />
     </div>
   );

@@ -39,6 +39,6 @@ This project follows an Issue -> PR -> Deploy workflow.
 ## Definition of Done
 
 - Acceptance criteria checked.
-- Build passes.
+- Tests and build pass.
 - Changelog updated.
 - Demo artifact attached.

@@ -1,5 +1,13 @@
 # Roadmap
 
+## Completion Snapshot (as of 2026-03-03)
+
+- Week 1 complete: baseline docs and repo clarity.
+- Week 2 complete: workflow governance and release discipline.
+- Week 3 complete: 7-day activity signal + app-level error boundary.
+- Week 4 complete: form hardening, safe delete with undo, smoke tests.
+- Month 2 complete: persistence boundary, migration helper, auth/session, sync status, Firebase integration.
+
 ## Next 4 Weeks
 
 ## Week 1: Stabilize Baseline
@@ -102,6 +110,14 @@ Data entry errors decrease and destructive actions are safer.
 - Publish structured demo narrative and case-study assets.
 - Add import/export path for portability.
 - Add release KPI snapshots for visible progress trend.
+- Add first E2E suite for auth + CRUD + pipeline + refresh persistence.
+- Add offline/connection UX polish for Firebase sync errors.
+
+## Next Session Starting Point
+
+1. Create issues for Month 3 scope (E2E baseline, import/export, case-study docs).
+2. Implement E2E scaffolding first (Playwright + CI integration for a happy-path flow).
+3. Ship one visible portfolio artifact update (case-study section in README with Loom link).
 
 ## Freeze List
 

@@ -29,6 +29,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Added reusable workflow setup guide: `docs/WORKFLOW_AUTOMATION_PLAYBOOK.md`.
 - Added README screenshots using committed assets and removed duplicate image blocks.
 - Updated roadmap Week 2 deployment references from generic static hosting to Vercel.
+- Updated roadmap/readme status to reflect completed Month 2 and added `docs/NEXT_SESSION_START.md`.
 
 ### Infra
 

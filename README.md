@@ -9,9 +9,10 @@ Most job searches fail from inconsistent execution, not lack of talent. JobSprin
 
 ## Current Status
 
-- Stage: MVP (single-user, local-first)
-- Scope: dashboard, pipeline tracking, analytics, weekly execution panel
-- Adoption: AI Production OS v1 process added on March 2, 2026
+- Stage: MVP+ (Firebase auth + Firestore persistence enabled)
+- Scope: dashboard, pipeline tracking, analytics, weekly execution panel, sync status, safe delete undo
+- Adoption: AI Production OS v1 process active since March 2, 2026
+- Milestone checkpoint: Month 2 foundation completed on March 3, 2026
 
 ## Tech Stack
 
@@ -28,7 +29,7 @@ npm install
 npm run dev
 ```
 
-App access now requires sign-in with email (local session bootstrap).
+App access requires sign-in. If Firebase env vars are configured, auth uses Firebase email/password + Google sign-in.
 If Firebase env vars are configured, sign-in uses Firebase email/password auth.
 
 Build for production:
@@ -48,6 +49,7 @@ npm run test
 - Current production URL: https://job-sprint-ten.vercel.app/
 - Hosting: Vercel
 - Optional remote persistence can be configured with `VITE_JSPRINT_REMOTE_API_URL`.
+- Firebase mode (Auth + Firestore) is enabled automatically when required `VITE_FIREBASE_*` variables are set.
 - Firebase mode (auth + Firestore) is enabled when required `VITE_FIREBASE_*` values are set.
 
 ## Screenshots
@@ -66,6 +68,7 @@ npm run test
 - [Decisions Log](./docs/DECISIONS_LOG.md)
 - [Workflow Automation Playbook](./docs/WORKFLOW_AUTOMATION_PLAYBOOK.md)
 - [Cross-Device Sync Checklist](./docs/CROSS_DEVICE_SYNC_CHECKLIST.md)
+- [Next Session Start](./docs/NEXT_SESSION_START.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 - [Changelog](./CHANGELOG.md)
   

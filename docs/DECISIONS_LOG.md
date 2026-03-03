@@ -69,3 +69,23 @@
 - Consequences:
   - Positive: immediate route protection and per-user state separation.
   - Negative: not production-grade identity until hosted auth is integrated.
+
+## ADR-008: Adopt Firebase Auth + Firestore for M2 Delivery
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Needed production-credible identity and persistence without building custom backend services.
+- Decision: Use Firebase email/password and Google auth, with Firestore document storage per user.
+- Consequences:
+  - Positive: faster production-grade auth + data persistence.
+  - Negative: dependency on Firebase network availability and browser privacy settings.
+
+## ADR-009: Offline-Tolerant Fallback in Firebase Mode
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Firestore connectivity errors caused degraded startup UX despite valid auth sessions.
+- Decision: Fallback to local cached state when Firestore returns temporary offline/unavailable errors.
+- Consequences:
+  - Positive: app remains usable during transient network failures.
+  - Negative: data may be temporarily stale until successful resync.

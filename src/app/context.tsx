@@ -279,6 +279,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [auth, loadUserData]
   );
 
+  const signInWithGoogle = useCallback(async () => {
+    setAuthLoading(true);
+    try {
+      const nextSession = await auth.signInWithGoogle();
+      setSession(nextSession);
+      await loadUserData(nextSession.userId);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [auth, loadUserData]);
+
   const signOut = useCallback(async () => {
     await auth.signOut();
     setSession(null);
@@ -373,6 +384,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updateWeeklyGoals,
         toggleChecklistItem,
         signIn,
+        signInWithGoogle,
+        supportsGoogleSignIn: auth.supportsGoogleSignIn,
         signOut,
         refreshData,
         toggleDarkMode,

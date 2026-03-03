@@ -17,6 +17,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Added smoke tests for CRUD and pipeline movement.
 - Added cross-device sync checklist doc.
 - Added optional Firebase integration (email/password auth + Firestore state persistence).
+- Added Firebase Google sign-in support in the sign-in screen when Firebase is configured.
 
 ### Fixed
 

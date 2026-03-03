@@ -6,7 +6,7 @@ import { Label } from "../components/ui/label";
 import { useApp } from "../context";
 
 export default function SignIn() {
-  const { session, signIn, authLoading } = useApp();
+  const { session, signIn, signInWithGoogle, supportsGoogleSignIn, authLoading } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [createAccount, setCreateAccount] = useState(false);
@@ -25,6 +25,18 @@ export default function SignIn() {
       await signIn(email, password, { createAccount });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to sign in.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setSubmitting(true);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to sign in with Google.");
     } finally {
       setSubmitting(false);
     }
@@ -88,6 +100,31 @@ export default function SignIn() {
               ? "Create Account"
               : "Sign In"}
           </Button>
+
+          {supportsGoogleSignIn && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-neutral-200 dark:border-neutral-800" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white dark:bg-neutral-950 px-2 text-neutral-500">
+                    Or
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => void handleGoogleSignIn()}
+                disabled={submitting || authLoading}
+              >
+                Continue with Google
+              </Button>
+            </>
+          )}
         </form>
       </div>
     </div>

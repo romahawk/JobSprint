@@ -49,7 +49,8 @@ All data types are declared in `src/app/types.ts`.
 - Storage: repository adapter
   - Local mode: user-scoped `localStorage` keys.
   - Remote mode: API calls to `VITE_JSPRINT_REMOTE_API_URL`.
-- Authentication: local email session bootstrap (MVP), designed to swap with hosted auth provider.
+- Firebase mode: Firestore state + Firebase email/password auth when `VITE_FIREBASE_*` env vars are present.
+- Authentication: local email session bootstrap fallback if Firebase is not configured.
 
 ## Key Tradeoffs
 

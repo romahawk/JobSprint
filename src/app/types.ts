@@ -45,14 +45,14 @@ export interface AppData {
 export interface UserSession {
   userId: string;
   email: string;
-  provider: "local";
+  provider: "local" | "firebase";
 }
 
 export interface SyncState {
   isSyncing: boolean;
   lastSyncedAt: string | null;
   error: string | null;
-  storageMode: "local" | "remote";
+  storageMode: "local" | "remote" | "firebase";
 }
 
 export interface PendingDeletion {
@@ -75,7 +75,11 @@ export interface AppContextType {
   undoDeleteApplication: (id: string) => void;
   updateWeeklyGoals: (goals: Partial<WeeklyGoals>) => void;
   toggleChecklistItem: (id: string) => void;
-  signIn: (email: string) => Promise<void>;
+  signIn: (
+    email: string,
+    password?: string,
+    options?: { createAccount?: boolean }
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   refreshData: () => Promise<void>;
   toggleDarkMode: () => void;

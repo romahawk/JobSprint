@@ -1,5 +1,6 @@
 import { useApp } from "../context";
 import { Button } from "../components/ui/button";
+import { SyncStatusBadge } from "../components/SyncStatusBadge";
 import { ArrowLeft, Moon, Sun } from "lucide-react";
 import { Link } from "react-router";
 import {
@@ -21,7 +22,7 @@ import {
 } from "../utils";
 
 export default function Analytics() {
-  const { applications, darkMode, toggleDarkMode } = useApp();
+  const { applications, darkMode, toggleDarkMode, signOut } = useApp();
 
   const weeklyStats = getWeeklyStats(applications);
   const responseRateTrend = getResponseRateTrend(applications);
@@ -58,6 +59,10 @@ export default function Analytics() {
               className="gap-2"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+            <SyncStatusBadge />
+            <Button variant="outline" size="sm" onClick={() => void signOut()}>
+              Sign Out
             </Button>
           </div>
         </div>

@@ -2,13 +2,17 @@
 
 ## High-Level Overview
 
-JobSprint is a client-side single-page application built with Vite + React + TypeScript. It uses React Router for page navigation and a global context provider for application state. Data is persisted to browser `localStorage`.
+JobSprint is a client-side single-page application built with Vite + React + TypeScript. It uses React Router for page navigation, a sign-in gate, and a global context provider for application state. Persistence is handled behind a repository boundary with local fallback and optional remote API mode.
 
 ## Key Components
 
 - `src/app/context.tsx`
-  - Central state container for applications, weekly goals, and theme mode.
-  - Handles persistence load/save behavior.
+  - Central state container for auth session, applications, weekly goals, theme mode, sync state, and delete-undo queue.
+- `src/app/services/storage.ts`
+  - Repository interface and adapters (local + optional remote API).
+  - Includes legacy local-data migration helper.
+- `src/app/services/auth.ts`
+  - Session bootstrap and local email-based sign-in/sign-out.
 - `src/app/pages/Dashboard.tsx`
   - Main execution page containing KPI strip, pipeline board, and weekly/probability panels.
 - `src/app/pages/Analytics.tsx`
@@ -37,13 +41,15 @@ All data types are declared in `src/app/types.ts`.
 2. Component calls context action from `useApp()`.
 3. Context updates in-memory React state.
 4. Derived metrics are recalculated in utility functions.
-5. Updated state is persisted to `localStorage`.
+5. Updated state is persisted via repository adapter (`local` or `remote`).
 6. UI rerenders with updated KPI/pipeline/chart values.
 
 ## Storage and Auth Choices
 
-- Storage: browser `localStorage` (`jobsprint_data` and `jobsprint_darkmode` keys)
-- Authentication: not implemented (single-user local use)
+- Storage: repository adapter
+  - Local mode: user-scoped `localStorage` keys.
+  - Remote mode: API calls to `VITE_JSPRINT_REMOTE_API_URL`.
+- Authentication: local email session bootstrap (MVP), designed to swap with hosted auth provider.
 
 ## Key Tradeoffs
 
@@ -60,4 +66,3 @@ All data types are declared in `src/app/types.ts`.
 - Add schema validation at input boundaries.
 - Add API-backed persistence and auth once test and CI baseline is stable.
 - Add instrumentation for funnel events to improve metric trust.
-

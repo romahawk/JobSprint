@@ -2,15 +2,26 @@ import { createBrowserRouter } from "react-router";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
+import SignIn from "./pages/SignIn";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
-    path: "/",
-    Component: Dashboard,
+    path: "/signin",
+    Component: SignIn,
   },
   {
-    path: "/analytics",
-    Component: Analytics,
+    Component: ProtectedRoute,
+    children: [
+      {
+        path: "/",
+        Component: Dashboard,
+      },
+      {
+        path: "/analytics",
+        Component: Analytics,
+      },
+    ],
   },
   {
     path: "*",

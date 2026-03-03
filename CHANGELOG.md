@@ -10,6 +10,12 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 - Added 7-day activity signal card with prior-week comparison on dashboard.
 - Added app-level error boundary fallback with reload and return-to-dashboard actions.
+- Added repository/service boundary for persistence with local fallback and optional remote API mode.
+- Added local session auth bootstrap with sign-in page and protected routes.
+- Added sync status badge with manual refresh action.
+- Added safe delete flow with undo window.
+- Added smoke tests for CRUD and pipeline movement.
+- Added cross-device sync checklist doc.
 
 ### Fixed
 
@@ -28,6 +34,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Added issue templates and PR template for disciplined delivery.
 - Added PR policy enforcement workflow (`.github/workflows/policy-check.yml`).
 - Added issue triage automation workflow (`.github/workflows/issue-triage.yml`).
+- CI now runs smoke tests before build.
 
 ### Changed
 

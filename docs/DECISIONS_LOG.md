@@ -50,3 +50,22 @@
   - Positive: clear before/after operational boundary for portfolio narrative.
   - Negative: initial documentation lift required.
 
+## ADR-006: Repository Boundary Before Full Backend Cutover
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Persistence needed to evolve from local-only to remote without UI rewrites.
+- Decision: Add `AppRepository` interface with local adapter fallback and optional remote API adapter.
+- Consequences:
+  - Positive: enables incremental backend adoption and migration safety.
+  - Negative: introduces adapter complexity before full backend exists.
+
+## ADR-007: Local Session Auth for MVP Bootstrap
+
+- Date: 2026-03-03
+- Status: Accepted
+- Context: Authentication flow was needed for user-scoped data behavior before provider integration.
+- Decision: Implement local email session bootstrap now, keep provider swap path open.
+- Consequences:
+  - Positive: immediate route protection and per-user state separation.
+  - Negative: not production-grade identity until hosted auth is integrated.

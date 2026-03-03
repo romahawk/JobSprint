@@ -28,16 +28,25 @@ npm install
 npm run dev
 ```
 
+App access now requires sign-in with email (local session bootstrap).
+
 Build for production:
 
 ```bash
 npm run build
 ```
 
+Run smoke tests:
+
+```bash
+npm run test
+```
+
 ## Deploy
 
 - Current production URL: https://job-sprint-ten.vercel.app/
 - Hosting: Vercel
+- Optional remote persistence can be configured with `VITE_JSPRINT_REMOTE_API_URL`.
 
 ## Screenshots
 
@@ -54,6 +63,7 @@ npm run build
 - [Roadmap](./docs/ROADMAP.md)
 - [Decisions Log](./docs/DECISIONS_LOG.md)
 - [Workflow Automation Playbook](./docs/WORKFLOW_AUTOMATION_PLAYBOOK.md)
+- [Cross-Device Sync Checklist](./docs/CROSS_DEVICE_SYNC_CHECKLIST.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 - [Changelog](./CHANGELOG.md)
   

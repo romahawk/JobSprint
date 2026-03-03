@@ -16,6 +16,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Added safe delete flow with undo window.
 - Added smoke tests for CRUD and pipeline movement.
 - Added cross-device sync checklist doc.
+- Added optional Firebase integration (email/password auth + Firestore state persistence).
 
 ### Fixed
 

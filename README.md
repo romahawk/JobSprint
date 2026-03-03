@@ -29,6 +29,7 @@ npm run dev
 ```
 
 App access now requires sign-in with email (local session bootstrap).
+If Firebase env vars are configured, sign-in uses Firebase email/password auth.
 
 Build for production:
 
@@ -47,6 +48,7 @@ npm run test
 - Current production URL: https://job-sprint-ten.vercel.app/
 - Hosting: Vercel
 - Optional remote persistence can be configured with `VITE_JSPRINT_REMOTE_API_URL`.
+- Firebase mode (auth + Firestore) is enabled when required `VITE_FIREBASE_*` values are set.
 
 ## Screenshots
 

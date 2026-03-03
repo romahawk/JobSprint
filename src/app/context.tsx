@@ -262,12 +262,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [loadUserData, session]);
 
   const signIn = useCallback(
-    async (email: string) => {
+    async (
+      email: string,
+      password?: string,
+      options?: { createAccount?: boolean }
+    ) => {
       setAuthLoading(true);
-      const nextSession = await auth.signIn(email);
-      setSession(nextSession);
-      await loadUserData(nextSession.userId);
-      setAuthLoading(false);
+      try {
+        const nextSession = await auth.signIn(email, password, options);
+        setSession(nextSession);
+        await loadUserData(nextSession.userId);
+      } finally {
+        setAuthLoading(false);
+      }
     },
     [auth, loadUserData]
   );
@@ -383,4 +390,3 @@ export function useApp() {
   }
   return context;
 }
-

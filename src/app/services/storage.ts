@@ -1,4 +1,6 @@
 import type { AppData, WeeklyGoals } from "../types";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirebaseContext } from "./firebase";
 
 interface StorageLike {
   getItem: (key: string) => string | null;
@@ -6,7 +8,7 @@ interface StorageLike {
 }
 
 export interface AppRepository {
-  mode: "local" | "remote";
+  mode: "local" | "remote" | "firebase";
   loadAppData: (userId: string) => Promise<AppData | null>;
   saveAppData: (userId: string, data: AppData) => Promise<void>;
   getDarkMode: () => boolean;
@@ -137,7 +139,46 @@ function createRemoteRepository(storage: StorageLike, remoteBaseUrl: string): Ap
   };
 }
 
+function createFirebaseRepository(storage: StorageLike): AppRepository {
+  const firebase = getFirebaseContext();
+  if (!firebase) {
+    throw new Error("Firebase configuration is missing.");
+  }
+
+  return {
+    mode: "firebase",
+    async loadAppData(userId: string) {
+      const migration = migrateLegacyLocalData(storage, userId);
+      if (migration.migrated && migration.data) {
+        const migrationDocRef = doc(firebase.db, "users", userId, "state", "app");
+        await setDoc(migrationDocRef, migration.data, { merge: true });
+      }
+
+      const stateDocRef = doc(firebase.db, "users", userId, "state", "app");
+      const stateDoc = await getDoc(stateDocRef);
+      if (!stateDoc.exists()) return null;
+      return normalizeData(stateDoc.data());
+    },
+    async saveAppData(userId: string, data: AppData) {
+      const stateDocRef = doc(firebase.db, "users", userId, "state", "app");
+      await setDoc(stateDocRef, data, { merge: true });
+      storage.setItem(userSyncKey(userId), new Date().toISOString());
+    },
+    getDarkMode() {
+      const raw = storage.getItem(LEGACY_DARKMODE_KEY);
+      return raw ? JSON.parse(raw) : true;
+    },
+    setDarkMode(darkMode: boolean) {
+      storage.setItem(LEGACY_DARKMODE_KEY, JSON.stringify(darkMode));
+    },
+  };
+}
+
 export function createRepository(storage: StorageLike): AppRepository {
+  const firebase = getFirebaseContext();
+  if (firebase) {
+    return createFirebaseRepository(storage);
+  }
   const remoteBaseUrl = (import.meta.env.VITE_JSPRINT_REMOTE_API_URL || "").trim();
   if (remoteBaseUrl) {
     return createRemoteRepository(storage, remoteBaseUrl);
@@ -149,4 +190,3 @@ export const DEFAULT_APP_DATA: AppData = {
   applications: [],
   weeklyGoals: DEFAULT_WEEKLY_GOALS,
 };
-

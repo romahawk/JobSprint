@@ -1,8 +1,10 @@
 import type { UserSession } from "../types";
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut as firebaseSignOut,
 } from "firebase/auth";
 import { getFirebaseContext } from "./firebase";
@@ -16,12 +18,14 @@ interface StorageLike {
 const SESSION_KEY = "jobsprint_session_v1";
 
 export interface AuthService {
+  supportsGoogleSignIn: boolean;
   bootstrapSession: () => Promise<UserSession | null>;
   signIn: (
     email: string,
     password?: string,
     options?: { createAccount?: boolean }
   ) => Promise<UserSession>;
+  signInWithGoogle: () => Promise<UserSession>;
   signOut: () => Promise<void>;
 }
 
@@ -33,7 +37,10 @@ export function createAuthService(storage: StorageLike): AuthService {
   const firebase = getFirebaseContext();
 
   if (firebase) {
+    const provider = new GoogleAuthProvider();
+
     return {
+      supportsGoogleSignIn: true,
       async bootstrapSession() {
         const current = firebase.auth.currentUser;
         if (current?.uid && current.email) {
@@ -91,6 +98,17 @@ export function createAuthService(storage: StorageLike): AuthService {
           provider: "firebase",
         };
       },
+      async signInWithGoogle() {
+        const credential = await signInWithPopup(firebase.auth, provider);
+        if (!credential.user.uid || !credential.user.email) {
+          throw new Error("Unable to establish Google session.");
+        }
+        return {
+          userId: credential.user.uid,
+          email: credential.user.email,
+          provider: "firebase",
+        };
+      },
       async signOut() {
         await firebaseSignOut(firebase.auth);
       },
@@ -98,6 +116,7 @@ export function createAuthService(storage: StorageLike): AuthService {
   }
 
   return {
+    supportsGoogleSignIn: false,
     async bootstrapSession() {
       const raw = storage.getItem(SESSION_KEY);
       if (!raw) return null;
@@ -121,6 +140,9 @@ export function createAuthService(storage: StorageLike): AuthService {
       };
       storage.setItem(SESSION_KEY, JSON.stringify(session));
       return session;
+    },
+    async signInWithGoogle() {
+      throw new Error("Google sign-in requires Firebase configuration.");
     },
     async signOut() {
       storage.removeItem(SESSION_KEY);

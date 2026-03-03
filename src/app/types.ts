@@ -80,6 +80,8 @@ export interface AppContextType {
     password?: string,
     options?: { createAccount?: boolean }
   ) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  supportsGoogleSignIn: boolean;
   signOut: () => Promise<void>;
   refreshData: () => Promise<void>;
   toggleDarkMode: () => void;

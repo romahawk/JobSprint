@@ -20,19 +20,23 @@ import type {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const LOCAL_STORAGE_KEY = "afa_vorschlaege_local";
+const LOCAL_STORAGE_KEY_PREFIX = "afa_vorschlaege_local_v2";
 
-function loadLocal(): AfaVorschlag[] {
+function localStorageKey(userId: string): string {
+  return `${LOCAL_STORAGE_KEY_PREFIX}_${userId}`;
+}
+
+function loadLocal(userId: string): AfaVorschlag[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(localStorageKey(userId));
     return raw ? (JSON.parse(raw) as AfaVorschlag[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveLocal(cases: AfaVorschlag[]): void {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cases));
+function saveLocal(userId: string, cases: AfaVorschlag[]): void {
+  localStorage.setItem(localStorageKey(userId), JSON.stringify(cases));
 }
 
 function generateCaseId(): string {
@@ -96,18 +100,23 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
   useEffect(() => {
     if (!userId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCases([]);
+      setError(null);
       setLoading(false);
       return;
     }
+
+    const cachedCases = loadLocal(userId).map(computeAll);
+    setCases(cachedCases);
+    setError(null);
 
     if (!firebase) {
       // Intentional: set initial state from localStorage in fallback mode.
-      setCases(loadLocal().map(computeAll));
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    setLoading(cachedCases.length === 0);
     const colRef = collection(firebase.db, "users", userId, "afa_vorschlaege");
     const unsubscribe = onSnapshot(
       colRef,
@@ -115,11 +124,22 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
         const docs = snapshot.docs.map((d) =>
           docToVorschlag(d.id, d.data() as Record<string, unknown>)
         );
-        setCases(docs);
+        const shouldKeepCached =
+          docs.length === 0 &&
+          cachedCases.length > 0 &&
+          snapshot.metadata.fromCache;
+
+        const nextCases = shouldKeepCached ? cachedCases : docs;
+        setCases(nextCases);
+        saveLocal(userId, nextCases);
+        setError(null);
         setLoading(false);
       },
       (err) => {
         setError(err.message);
+        if (cachedCases.length > 0) {
+          setCases(cachedCases);
+        }
         setLoading(false);
       }
     );
@@ -147,15 +167,17 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
       if (!firebase) {
         const local: AfaVorschlag = { ...skeleton, id: generateLocalId() };
         const updated = [...cases, local];
-        saveLocal(updated);
+        saveLocal(userId, updated);
         setCases(updated);
         return;
       }
 
       const { id: _id, ...payload } = skeleton;
       const colRef = collection(firebase.db, "users", userId, "afa_vorschlaege");
-      await addDoc(colRef, payload);
-      // onSnapshot will update state automatically
+      const created = await addDoc(colRef, payload);
+      const nextCases = [...cases, { ...skeleton, id: created.id }];
+      saveLocal(userId, nextCases);
+      setCases(nextCases);
     },
     [userId, firebase, cases]
   );
@@ -178,7 +200,7 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
 
       if (!firebase) {
         const updated = cases.map((c) => (c.id === id ? merged : c));
-        saveLocal(updated);
+        saveLocal(userId, updated);
         setCases(updated);
         return;
       }
@@ -186,7 +208,9 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
       const { id: _id, ...payload } = merged;
       const docRef = doc(firebase.db, "users", userId, "afa_vorschlaege", id);
       await setDoc(docRef, payload, { merge: true });
-      // onSnapshot will update state automatically
+      const updated = cases.map((c) => (c.id === id ? merged : c));
+      saveLocal(userId, updated);
+      setCases(updated);
     },
     [userId, firebase, cases]
   );
@@ -197,13 +221,16 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
 
       if (!firebase) {
         const updated = cases.filter((c) => c.id !== id);
-        saveLocal(updated);
+        saveLocal(userId, updated);
         setCases(updated);
         return;
       }
 
       const docRef = doc(firebase.db, "users", userId, "afa_vorschlaege", id);
       await deleteDoc(docRef);
+      const updated = cases.filter((c) => c.id !== id);
+      saveLocal(userId, updated);
+      setCases(updated);
     },
     [userId, firebase, cases]
   );

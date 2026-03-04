@@ -1,4 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="7" fill="#0a0a0a"/>
-  <polygon points="19,4 10,18 16,18 13,28 22,14 16,14" fill="#ffffff"/>
+  <!-- Body -->
+  <path d="M16 5 C16 5 22 8 22 16 L18 20 L14 20 L10 16 C10 8 16 5 16 5Z" fill="#ffffff"/>
+  <!-- Window -->
+  <circle cx="16" cy="13" r="2" fill="#0a0a0a"/>
+  <!-- Exhaust flame -->
+  <path d="M14 20 L12 26 L16 23 L20 26 L18 20Z" fill="#ffffff99"/>
 </svg>

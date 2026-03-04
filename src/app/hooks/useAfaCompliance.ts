@@ -107,6 +107,7 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
       return;
     }
 
+    setLoading(true);
     const colRef = collection(firebase.db, "users", userId, "afa_vorschlaege");
     const unsubscribe = onSnapshot(
       colRef,

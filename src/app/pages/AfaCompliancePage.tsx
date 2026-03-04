@@ -10,7 +10,7 @@ import { useApp } from "../context";
 import type { AfaVorschlag, AfaVorschlagFormData } from "../types/afa";
 
 export default function AfaCompliancePage() {
-  const { session, darkMode, toggleDarkMode, signOut } = useApp();
+  const { session, authLoading, darkMode, toggleDarkMode, signOut } = useApp();
   const {
     cases,
     loading,
@@ -113,7 +113,7 @@ export default function AfaCompliancePage() {
           </div>
         )}
 
-        {loading ? (
+        {authLoading || loading ? (
           <div className="flex items-center justify-center py-24 text-neutral-400 dark:text-neutral-600 text-sm">
             Loading compliance cases…
           </div>

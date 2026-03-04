@@ -95,6 +95,8 @@ export function ApplicationModal({
 
   useEffect(() => {
     if (!open) return;
+    // Intentional: reset form to latest existingApp data when modal opens.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData(getInitialForm(existingApp));
     setErrors({});
   }, [existingApp, open]);

@@ -1,4 +1,4 @@
-import { useDrag, useDrop } from "react-dnd";
+import { useDrag } from "react-dnd";
 import { StickyNote, ExternalLink } from "lucide-react";
 import type { Application, PipelineStatus } from "../types";
 
@@ -16,7 +16,7 @@ interface ApplicationCardProps {
 
 export function ApplicationCard({
   application,
-  onUpdateStatus,
+  onUpdateStatus: _onUpdateStatus,
   onClick,
 }: ApplicationCardProps) {
   const [{ isDragging }, drag] = useDrag(() => ({

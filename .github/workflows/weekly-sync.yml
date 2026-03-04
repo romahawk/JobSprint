@@ -1,0 +1,55 @@
+name: Weekly Roadmap Sync
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 09:00 UTC
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  issues: write
+
+jobs:
+  open-sync-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create weekly roadmap sync issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().slice(0, 10);
+
+            const body = `## Weekly Roadmap Sync — ${today}
+
+            Use this issue to review and set direction for the week.
+            Close it once all items are actioned.
+
+            ---
+
+            ### Checklist
+
+            - [ ] **Review open issues & PRs** — triage anything unresolved from last week; add labels, re-assign, or close as needed.
+            - [ ] **Pick the top 3 issues for this week** — comment below with the issue numbers you are committing to shipping.
+            - [ ] **Close or de-scope stale issues** — remove issues that are no longer relevant or have been superseded.
+            - [ ] **Update CHANGELOG / release notes** — record what shipped since the last sync.
+
+            ---
+
+            ### This week's focus (fill in)
+
+            1. #
+            2. #
+            3. #
+
+            ---
+
+            _Opened automatically by the [Weekly Roadmap Sync workflow](../actions/workflows/weekly-sync.yml).
+            Roadmap decisions are owned by the human maintainer — see [CLAUDE.md](../blob/main/CLAUDE.md)._
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Weekly Roadmap Sync — ${today}`,
+              body,
+              labels: ["roadmap", "sync"],
+            });

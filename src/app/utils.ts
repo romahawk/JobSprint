@@ -160,7 +160,7 @@ export function getWeeklyStats(applications: Application[]) {
   applications.forEach((app) => {
     const appDate = new Date(app.dateApplied);
     const weekLabel = formatWeekLabel(appDate);
-    if (weeks.hasOwnProperty(weekLabel)) {
+    if (Object.prototype.hasOwnProperty.call(weeks, weekLabel)) {
       weeks[weekLabel]++;
     }
   });

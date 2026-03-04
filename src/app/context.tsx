@@ -223,10 +223,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     };
     bootstrap();
+    const timers = deleteTimersRef.current;
     return () => {
       mounted = false;
-      deleteTimersRef.current.forEach((timerId) => clearTimeout(timerId));
-      deleteTimersRef.current.clear();
+      timers.forEach((timerId) => clearTimeout(timerId));
+      timers.clear();
     };
   }, [auth, loadUserData, repository]);
 

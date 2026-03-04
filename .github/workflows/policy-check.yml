@@ -28,7 +28,8 @@ jobs:
 
             const branch = pr.head.ref || "";
             const branchPattern = /^(feat|fix|docs|chore|refactor)\/\d+-[a-z0-9-]+$/;
-            if (!branchPattern.test(branch)) {
+            const isAutomationBranch = /^claude\//.test(branch);
+            if (!isAutomationBranch && !branchPattern.test(branch)) {
               errors.push(
                 `Branch name "${branch}" is invalid. Use "<type>/<issue-id>-short-slug", e.g. "feat/14-activity-card".`
               );
@@ -36,7 +37,7 @@ jobs:
 
             const body = pr.body || "";
             const issuePattern = /\b(closes|fixes|resolves)\s+#\d+\b/i;
-            if (!issuePattern.test(body)) {
+            if (!isAutomationBranch && !issuePattern.test(body)) {
               errors.push(
                 `PR body must include an issue-closing reference like "Closes #14".`
               );

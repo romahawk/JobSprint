@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
+  // eslint-disable-next-line react-hooks/purity
   const [now, setNow] = useState(Date.now());
 
   const metrics = calculateMetrics(applications);

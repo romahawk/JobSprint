@@ -18,6 +18,7 @@ import {
   Percent,
   Plus,
   BarChart3,
+  ShieldCheck,
   Moon,
   Sun,
   Undo2,
@@ -110,6 +111,12 @@ export default function Dashboard() {
                 <Button variant="outline" className="gap-2">
                   <BarChart3 className="w-4 h-4" />
                   <span className="hidden sm:inline">Analytics</span>
+                </Button>
+              </Link>
+              <Link to="/compliance/afa">
+                <Button variant="outline" className="gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">AfA Compliance</span>
                 </Button>
               </Link>
               <Button onClick={() => setModalOpen(true)} className="gap-2">

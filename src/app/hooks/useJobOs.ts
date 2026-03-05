@@ -267,13 +267,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   const [loading, setLoading] = useState(true);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [localOnly, setLocalOnly] = useState(false);
+  const effectiveState = userId ? state : EMPTY_STATE;
+  const effectiveLoading = userId ? loading : false;
+  const effectiveSyncNotice = userId ? syncNotice : null;
 
   useEffect(() => {
     if (!userId) {
-      setState(EMPTY_STATE);
-      setLoading(false);
-      setSyncNotice(null);
-      setLocalOnly(false);
       return;
     }
 
@@ -685,9 +684,9 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   );
 
   return {
-    ...state,
-    loading,
-    syncNotice,
+    ...effectiveState,
+    loading: effectiveLoading,
+    syncNotice: effectiveSyncNotice,
     ...actions,
   };
 }

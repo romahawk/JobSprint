@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Download, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Upload } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -62,6 +62,15 @@ function normalizeStatus(value: string): CompanyStatus | null {
   return match ?? null;
 }
 
+type CompanySortKey =
+  | "name"
+  | "industry"
+  | "size"
+  | "remotePolicy"
+  | "priority"
+  | "status"
+  | "notes";
+
 export default function JobOsCompaniesPage() {
   const { session } = useApp();
   const { companies, roles, outreach, applications, addCompany, addRole, addOutreach, addApplication, removeCompany, syncNotice } =
@@ -71,6 +80,8 @@ export default function JobOsCompaniesPage() {
   const [search, setSearch] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<CompanySortKey>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">>({
     name: "",
@@ -89,7 +100,68 @@ export default function JobOsCompaniesPage() {
     );
   }, [companies, search]);
 
+  const sortedCompanies = useMemo(() => {
+    const priorityRank: Record<CompanyPriority, number> = { A: 0, B: 1, C: 2 };
+    const statusRank: Record<CompanyStatus, number> = {
+      Research: 0,
+      Target: 1,
+      Active: 2,
+      Applied: 3,
+      Interviewing: 4,
+      Closed: 5,
+    };
+    const rows = [...filtered];
+    rows.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "priority":
+          cmp = priorityRank[a.priority] - priorityRank[b.priority];
+          break;
+        case "status":
+          cmp = statusRank[a.status] - statusRank[b.status];
+          break;
+        default:
+          cmp = (a[sortKey] || "").localeCompare(b[sortKey] || "", undefined, {
+            sensitivity: "base",
+          });
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return rows;
+  }, [filtered, sortDir, sortKey]);
+
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) ?? null;
+
+  function toggleSort(nextKey: CompanySortKey): void {
+    if (sortKey === nextKey) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDir("asc");
+  }
+
+  function SortHeader({
+    label,
+    column,
+  }: {
+    label: string;
+    column: CompanySortKey;
+  }) {
+    const active = sortKey === column;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(column)}
+        className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors"
+      >
+        {label}
+        {!active && <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />}
+        {active && sortDir === "asc" && <ArrowUp className="w-3.5 h-3.5 text-primary" />}
+        {active && sortDir === "desc" && <ArrowDown className="w-3.5 h-3.5 text-primary" />}
+      </button>
+    );
+  }
 
   async function handleImportCsv(file: File): Promise<void> {
     setIsImporting(true);
@@ -268,19 +340,21 @@ export default function JobOsCompaniesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Industry</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Remote</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-12 text-center">#</TableHead>
+                  <TableHead><SortHeader label="Company" column="name" /></TableHead>
+                  <TableHead><SortHeader label="Industry" column="industry" /></TableHead>
+                  <TableHead><SortHeader label="Size" column="size" /></TableHead>
+                  <TableHead><SortHeader label="Remote" column="remotePolicy" /></TableHead>
+                  <TableHead><SortHeader label="Priority" column="priority" /></TableHead>
+                  <TableHead><SortHeader label="Status" column="status" /></TableHead>
+                  <TableHead><SortHeader label="Notes" column="notes" /></TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((company) => (
+                {sortedCompanies.map((company, index) => (
                   <TableRow key={company.id}>
+                    <TableCell className="text-center text-xs text-neutral-500">{index + 1}</TableCell>
                     <TableCell className="font-medium">{company.name}</TableCell>
                     <TableCell>{company.industry}</TableCell>
                     <TableCell>{company.size}</TableCell>

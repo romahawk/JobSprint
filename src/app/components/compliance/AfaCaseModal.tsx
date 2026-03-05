@@ -162,8 +162,8 @@ interface AfaCaseModalProps {
   open: boolean;
   vorschlag: AfaVorschlag | null; // null = new case
   onClose: () => void;
-  onSave: (data: AfaVorschlagFormData) => void;
-  onDelete?: (id: string) => void;
+  onSave: (data: AfaVorschlagFormData) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,11 +179,17 @@ export function AfaCaseModal({
 }: AfaCaseModalProps) {
   const isEdit = vorschlag !== null;
   const [form, setForm] = useState<AfaVorschlagFormData>(EMPTY_FORM);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setForm(isEdit ? vorschlagToForm(vorschlag) : EMPTY_FORM);
+    setIsSaving(false);
+    setIsDeleting(false);
+    setSubmitError(null);
   }, [open, vorschlag, isEdit]);
 
   function update<K extends keyof AfaVorschlagFormData>(
@@ -203,10 +209,40 @@ export function AfaCaseModal({
     }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave(form);
-    onClose();
+    setSubmitError(null);
+    setIsSaving(true);
+    try {
+      await onSave(form);
+      onClose();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save case.";
+      setSubmitError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteClick(): Promise<void> {
+    if (!isEdit || !onDelete) return;
+    const confirmed = window.confirm(
+      "Delete this case permanently? This action cannot be undone."
+    );
+    if (!confirmed) return;
+    setSubmitError(null);
+    setIsDeleting(true);
+    try {
+      await onDelete(vorschlag.id);
+      onClose();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete case.";
+      setSubmitError(message);
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   return (
@@ -231,6 +267,12 @@ export function AfaCaseModal({
               {vorschlag.computed.days_left !== null &&
                 ` (${vorschlag.computed.days_left}d)`}
             </Badge>
+          </div>
+        )}
+
+        {submitError && (
+          <div className="rounded-md border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-400">
+            {submitError}
           </div>
         )}
 
@@ -547,21 +589,30 @@ export function AfaCaseModal({
                   type="button"
                   variant="ghost"
                   className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                  onClick={() => {
-                    onDelete(vorschlag.id);
-                    onClose();
-                  }}
+                  onClick={handleDeleteClick}
+                  disabled={isSaving || isDeleting}
                 >
-                  Delete Case
+                  {isDeleting ? "Deleting..." : "Delete Case"}
                 </Button>
               )}
             </div>
             <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSaving || isDeleting}
+              >
                 Cancel
               </Button>
-              <Button type="submit">
-                {isEdit ? "Save Changes" : "Create Case"}
+              <Button type="submit" disabled={isSaving || isDeleting}>
+                {isSaving
+                  ? isEdit
+                    ? "Saving..."
+                    : "Creating..."
+                  : isEdit
+                    ? "Save Changes"
+                    : "Create Case"}
               </Button>
             </div>
           </div>

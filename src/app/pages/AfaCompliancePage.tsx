@@ -41,12 +41,16 @@ export default function AfaCompliancePage() {
     setSelectedCase(null);
   }
 
-  function handleSave(data: AfaVorschlagFormData) {
+  async function handleSave(data: AfaVorschlagFormData): Promise<void> {
     if (selectedCase) {
-      updateCase(selectedCase.id, data);
-    } else {
-      addCase(data);
+      await updateCase(selectedCase.id, data);
+      return;
     }
+    await addCase(data);
+  }
+
+  async function handleDelete(id: string): Promise<void> {
+    await deleteCase(id);
   }
 
   return (
@@ -109,7 +113,7 @@ export default function AfaCompliancePage() {
       <main className="max-w-[1800px] mx-auto px-6 py-6 space-y-6">
         {error && (
           <div className="border border-red-200 dark:border-red-900/50 rounded-lg px-4 py-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm">
-            Failed to load compliance data: {error}
+            Compliance sync notice: {error}
           </div>
         )}
 
@@ -136,6 +140,9 @@ export default function AfaCompliancePage() {
                 onMarkApplied={markApplied}
                 onMarkFeedback={markFeedbackSubmitted}
                 onCloseCase={closeCase}
+                onDeleteCase={(id) => {
+                  void handleDelete(id);
+                }}
               />
             </div>
           </>
@@ -147,7 +154,7 @@ export default function AfaCompliancePage() {
         vorschlag={selectedCase}
         onClose={handleClose}
         onSave={handleSave}
-        onDelete={deleteCase}
+        onDelete={handleDelete}
       />
     </div>
   );

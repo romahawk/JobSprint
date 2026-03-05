@@ -61,6 +61,43 @@ const EMPTY_STATE: JobOsState = {
   outreach: [],
 };
 
+function normalizeCompanyName(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\u00A0/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function companyFreshness(company: JobOsCompany): number {
+  const updated = Date.parse(company.updatedAt || "");
+  if (!Number.isNaN(updated)) return updated;
+  const created = Date.parse(company.createdAt || "");
+  if (!Number.isNaN(created)) return created;
+  return 0;
+}
+
+function dedupeCompanies(items: JobOsCompany[]): JobOsCompany[] {
+  const byName = new Map<string, JobOsCompany>();
+  for (const company of items) {
+    const key = normalizeCompanyName(company.name);
+    if (!key) {
+      byName.set(`__${company.id}`, company);
+      continue;
+    }
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, company);
+      continue;
+    }
+    if (companyFreshness(company) >= companyFreshness(existing)) {
+      byName.set(key, company);
+    }
+  }
+  return Array.from(byName.values());
+}
+
 function localKey(userId: string): string {
   return `${LOCAL_KEY_PREFIX}_${userId}`;
 }
@@ -230,26 +267,29 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   const [loading, setLoading] = useState(true);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [localOnly, setLocalOnly] = useState(false);
+  const effectiveState = userId ? state : EMPTY_STATE;
+  const effectiveLoading = userId ? loading : false;
+  const effectiveSyncNotice = userId
+    ? firebase
+      ? syncNotice
+      : "Cloud unavailable. Using local Job OS storage."
+    : null;
 
   useEffect(() => {
     if (!userId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState(EMPTY_STATE);
-      setLoading(false);
-      setSyncNotice(null);
-      setLocalOnly(false);
       return;
     }
 
     const localState = readLocal(userId);
-    setState(localState);
-    setLoading(false);
+    const bootstrapTimeoutId = window.setTimeout(() => {
+      setState(localState);
+      setLoading(false);
+    }, 0);
 
     if (!firebase || localOnly) {
-      if (!firebase) {
-        setSyncNotice("Cloud unavailable. Using local Job OS storage.");
-      }
-      return;
+      return () => {
+        window.clearTimeout(bootstrapTimeoutId);
+      };
     }
 
     const unsubscribers: Array<() => void> = [];
@@ -269,9 +309,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         ref,
         (snapshot) => {
           setState((prev) => {
-            const items = snapshot.docs.map((d) =>
+            const mappedItems = snapshot.docs.map((d) =>
               mapper(d.id, d.data())
             ) as JobOsState[typeof name];
+            const items = name === "companies"
+              ? (dedupeCompanies(mappedItems as JobOsCompany[]) as JobOsState[typeof name])
+              : mappedItems;
             const latestLocal = readLocal(userId)[name];
             const shouldUseLocal =
               items.length === 0 &&
@@ -344,6 +387,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     );
 
     return () => {
+      window.clearTimeout(bootstrapTimeoutId);
       unsubscribers.forEach((fn) => fn());
     };
   }, [firebase, localOnly, userId]);
@@ -646,9 +690,9 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   );
 
   return {
-    ...state,
-    loading,
-    syncNotice,
+    ...effectiveState,
+    loading: effectiveLoading,
+    syncNotice: effectiveSyncNotice,
     ...actions,
   };
 }

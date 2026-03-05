@@ -63,6 +63,15 @@ function normalizeStatus(value: string): CompanyStatus | null {
   return match ?? null;
 }
 
+function normalizeCompanyKey(value: string): string {
+  return value
+    .normalize("NFKC")
+    .replace(/\u00A0/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 type CompanySortKey =
   | "name"
   | "industry"
@@ -243,7 +252,7 @@ export default function JobOsCompaniesPage() {
       let updated = 0;
       const errors: string[] = [];
       const existingByName = new Map(
-        companies.map((company) => [company.name.trim().toLowerCase(), company.id])
+        companies.map((company) => [normalizeCompanyKey(company.name), company.id])
       );
       const seenInCsv = new Set<string>();
       const pick = (row: string[], key: string): string => {
@@ -270,7 +279,7 @@ export default function JobOsCompaniesPage() {
           errors.push(`Row ${i + 1}: name is required`);
           continue;
         }
-        const normalizedName = name.toLowerCase();
+        const normalizedName = normalizeCompanyKey(name);
         if (seenInCsv.has(normalizedName)) {
           errors.push(`Row ${i + 1}: duplicate company "${name}" in CSV`);
           continue;

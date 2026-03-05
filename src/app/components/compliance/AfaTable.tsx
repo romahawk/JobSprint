@@ -90,6 +90,7 @@ interface AfaTableProps {
   onMarkApplied: (id: string) => void;
   onMarkFeedback: (id: string) => void;
   onCloseCase: (id: string) => void;
+  onDeleteCase: (id: string) => void;
 }
 
 const PAGE_SIZE = 10;
@@ -104,6 +105,7 @@ export function AfaTable({
   onMarkApplied,
   onMarkFeedback,
   onCloseCase,
+  onDeleteCase,
 }: AfaTableProps) {
   const [search, setSearch] = useState("");
   const [filterRisk, setFilterRisk] = useState<string>("all");
@@ -342,8 +344,25 @@ export function AfaTable({
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="h-7 text-xs px-2"
+                      onClick={() => onOpenDetails(v)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs px-2 text-red-500 hover:text-red-600"
+                      onClick={() => onDeleteCase(v.id)}
+                    >
+                      Delete
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       className="h-7 w-7 p-0"
                       onClick={() => onOpenDetails(v)}
+                      aria-label="Open details"
                     >
                       <ExternalLink className="w-3 h-3" />
                     </Button>

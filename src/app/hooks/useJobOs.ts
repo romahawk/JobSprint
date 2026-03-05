@@ -232,17 +232,9 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [localOnly, setLocalOnly] = useState(false);
 
-  const applyLocal = useCallback(
-    (nextState: JobOsState) => {
-      if (!userId) return;
-      writeLocal(userId, nextState);
-      setState(nextState);
-    },
-    [userId]
-  );
-
   useEffect(() => {
     if (!userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(EMPTY_STATE);
       setLoading(false);
       setSyncNotice(null);

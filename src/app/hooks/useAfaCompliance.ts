@@ -173,7 +173,7 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
         setLocalOnlyMode(false);
         setLoading(false);
       },
-      (err) => {
+      (_err) => {
         setError("Cloud sync unavailable. Working in local mode.");
         setLocalOnlyMode(true);
         if (cachedCases.length > 0) {

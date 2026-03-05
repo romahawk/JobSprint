@@ -74,7 +74,19 @@ type CompanySortKey =
 
 export default function JobOsCompaniesPage() {
   const { session } = useApp();
-  const { companies, roles, outreach, applications, addCompany, addRole, addOutreach, addApplication, removeCompany, syncNotice } =
+  const {
+    companies,
+    roles,
+    outreach,
+    applications,
+    addCompany,
+    updateCompany,
+    addRole,
+    addOutreach,
+    addApplication,
+    removeCompany,
+    syncNotice,
+  } =
     useJobOs(session?.userId ?? null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -196,35 +208,74 @@ export default function JobOsCompaniesPage() {
         return;
       }
 
-      const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
-      const expected = [
-        "name",
-        "industry",
-        "size",
-        "remotepolicy",
-        "priority",
-        "status",
-        "notes",
-      ];
-      const isHeaderValid = expected.every((key) => headers.includes(key));
+      const headerAliases: Record<string, string> = {
+        "#": "index",
+        index: "index",
+        company: "name",
+        name: "name",
+        industry: "industry",
+        size: "size",
+        remote: "remotepolicy",
+        remotepolicy: "remotepolicy",
+        "remote policy": "remotepolicy",
+        priority: "priority",
+        status: "status",
+        notes: "notes",
+      };
+      const headers = parseCsvLine(lines[0]).map((h) =>
+        h.replace(/^\uFEFF/, "").trim().toLowerCase()
+      );
+      const headerIndex = new Map<string, number>();
+      headers.forEach((header, index) => {
+        const normalized = headerAliases[header];
+        if (normalized) {
+          headerIndex.set(normalized, index);
+        }
+      });
+      const required = ["name", "industry", "size", "remotepolicy", "priority", "status", "notes"];
+      const isHeaderValid = required.every((key) => headerIndex.has(key));
       if (!isHeaderValid) {
         setImportNotice("Invalid CSV header. Download and use the template format.");
         return;
       }
 
       let created = 0;
+      let updated = 0;
       const errors: string[] = [];
+      const existingByName = new Map(
+        companies.map((company) => [company.name.trim().toLowerCase(), company.id])
+      );
+      const seenInCsv = new Set<string>();
+      const pick = (row: string[], key: string): string => {
+        const index = headerIndex.get(key);
+        if (typeof index !== "number") return "";
+        return row[index]?.trim() ?? "";
+      };
+
       for (let i = 1; i < lines.length; i += 1) {
         const row = parseCsvLine(lines[i]);
-        if (row.length < 7) {
+        if (row.length === 0) {
           errors.push(`Row ${i + 1}: missing columns`);
           continue;
         }
-        const [name, industry, size, remotePolicy, priorityRaw, statusRaw, notes] = row;
-        if (!name.trim()) {
+        const name = pick(row, "name");
+        const industry = pick(row, "industry");
+        const size = pick(row, "size");
+        const remotePolicy = pick(row, "remotepolicy");
+        const priorityRaw = pick(row, "priority");
+        const statusRaw = pick(row, "status");
+        const notes = pick(row, "notes");
+
+        if (!name) {
           errors.push(`Row ${i + 1}: name is required`);
           continue;
         }
+        const normalizedName = name.toLowerCase();
+        if (seenInCsv.has(normalizedName)) {
+          errors.push(`Row ${i + 1}: duplicate company "${name}" in CSV`);
+          continue;
+        }
+        seenInCsv.add(normalizedName);
         const priority = normalizePriority(priorityRaw);
         const status = normalizeStatus(statusRaw);
         if (!priority) {
@@ -235,23 +286,32 @@ export default function JobOsCompaniesPage() {
           errors.push(`Row ${i + 1}: invalid status "${statusRaw}"`);
           continue;
         }
-        await addCompany({
-          name: name.trim(),
-          industry: industry.trim(),
-          size: size.trim(),
-          remotePolicy: remotePolicy.trim(),
+        const payload = {
+          name,
+          industry,
+          size,
+          remotePolicy,
           priority,
           status,
-          notes: notes.trim(),
-        });
+          notes,
+        };
+
+        const existingId = existingByName.get(normalizedName);
+        if (existingId) {
+          await updateCompany(existingId, payload);
+          updated += 1;
+          continue;
+        }
+        await addCompany(payload);
+        existingByName.set(normalizedName, `pending-${i}`);
         created += 1;
       }
 
       if (errors.length === 0) {
-        setImportNotice(`Imported ${created} companies successfully.`);
+        setImportNotice(`Imported ${created} companies and updated ${updated}.`);
       } else {
         setImportNotice(
-          `Imported ${created} companies. ${errors.length} row(s) failed: ${errors
+          `Imported ${created} companies, updated ${updated}. ${errors.length} row(s) failed: ${errors
             .slice(0, 3)
             .join(" | ")}${errors.length > 3 ? " ..." : ""}`
         );

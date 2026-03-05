@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -533,13 +532,14 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         } as JobOsState),
         firebase && userId && !localOnly
           ? async () => {
-              const colRef = collection(
+              const docRef = doc(
                 firebase.db,
                 "users",
                 userId,
-                key
+                key,
+                localItem.id
               );
-              await addDoc(colRef, {
+              await setDoc(docRef, {
                 ...payload,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),

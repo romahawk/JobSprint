@@ -269,7 +269,11 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   const [localOnly, setLocalOnly] = useState(false);
   const effectiveState = userId ? state : EMPTY_STATE;
   const effectiveLoading = userId ? loading : false;
-  const effectiveSyncNotice = userId ? syncNotice : null;
+  const effectiveSyncNotice = userId
+    ? firebase
+      ? syncNotice
+      : "Cloud unavailable. Using local Job OS storage."
+    : null;
 
   useEffect(() => {
     if (!userId) {
@@ -277,14 +281,15 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     }
 
     const localState = readLocal(userId);
-    setState(localState);
-    setLoading(false);
+    const bootstrapTimeoutId = window.setTimeout(() => {
+      setState(localState);
+      setLoading(false);
+    }, 0);
 
     if (!firebase || localOnly) {
-      if (!firebase) {
-        setSyncNotice("Cloud unavailable. Using local Job OS storage.");
-      }
-      return;
+      return () => {
+        window.clearTimeout(bootstrapTimeoutId);
+      };
     }
 
     const unsubscribers: Array<() => void> = [];
@@ -382,6 +387,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     );
 
     return () => {
+      window.clearTimeout(bootstrapTimeoutId);
       unsubscribers.forEach((fn) => fn());
     };
   }, [firebase, localOnly, userId]);

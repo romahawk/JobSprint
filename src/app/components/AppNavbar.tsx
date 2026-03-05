@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import {
   BarChart3,
@@ -11,6 +12,7 @@ import {
 import { Button } from "./ui/button";
 import { useApp } from "../context";
 import { SyncStatusBadge } from "./SyncStatusBadge";
+import { trackPageView } from "../services/analytics";
 
 interface AppNavbarProps {
   title: string;
@@ -34,6 +36,10 @@ export function AppNavbar({
 }: AppNavbarProps) {
   const { darkMode, toggleDarkMode, signOut } = useApp();
   const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
 
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">

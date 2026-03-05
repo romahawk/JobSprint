@@ -313,6 +313,15 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
               ? (dedupeCompanies(mappedItems as JobOsCompany[]) as JobOsState[typeof name])
               : mappedItems;
             const next = { ...prev, [name]: items } as JobOsState;
+            const latestLocal = readLocal(userId)[name];
+            const shouldUseLocal =
+              items.length === 0 &&
+              latestLocal.length > 0 &&
+              snapshot.metadata.fromCache;
+            const next = {
+              ...prev,
+              [name]: shouldUseLocal ? latestLocal : items,
+            } as JobOsState;
             writeLocal(userId, next);
             return next;
           });
@@ -386,12 +395,16 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       localMutation: (prev: JobOsState) => JobOsState,
       remoteMutation: (() => Promise<T>) | null
     ): Promise<void> => {
-      if (!userId || !remoteMutation || localOnly) {
-        setState((prev) => {
-          const next = localMutation(prev);
-          writeLocal(userId || "", next);
-          return next;
-        });
+      if (!userId) return;
+
+      // Optimistic local-first persistence so refresh never drops recent changes.
+      setState((prev) => {
+        const next = localMutation(prev);
+        writeLocal(userId, next);
+        return next;
+      });
+
+      if (!remoteMutation || localOnly) {
         return;
       }
       try {

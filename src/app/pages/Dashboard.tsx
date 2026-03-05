@@ -19,6 +19,7 @@ import {
   Plus,
   BarChart3,
   ShieldCheck,
+  BriefcaseBusiness,
   Moon,
   Sun,
   Undo2,
@@ -117,6 +118,12 @@ export default function Dashboard() {
                 <Button variant="outline" className="gap-2">
                   <ShieldCheck className="w-4 h-4" />
                   <span className="hidden sm:inline">AfA Compliance</span>
+                </Button>
+              </Link>
+              <Link to="/job-os/dashboard">
+                <Button variant="outline" className="gap-2">
+                  <BriefcaseBusiness className="w-4 h-4" />
+                  <span className="hidden sm:inline">Job OS</span>
                 </Button>
               </Link>
               <Button onClick={() => setModalOpen(true)} className="gap-2">

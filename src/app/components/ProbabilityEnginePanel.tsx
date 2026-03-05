@@ -14,7 +14,7 @@ export function ProbabilityEnginePanel() {
   );
 
   return (
-    <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 bg-white dark:bg-neutral-900">
+    <div className="border border-green-200 dark:border-green-900/50 rounded-lg p-6 bg-green-50 dark:bg-green-950/30">
       <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 uppercase tracking-wide mb-6">
         Probability Engine
       </h3>

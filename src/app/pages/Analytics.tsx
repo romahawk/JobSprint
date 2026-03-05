@@ -1,8 +1,5 @@
 import { useApp } from "../context";
-import { Button } from "../components/ui/button";
-import { SyncStatusBadge } from "../components/SyncStatusBadge";
-import { ArrowLeft, Moon, Sun } from "lucide-react";
-import { Link } from "react-router";
+import { AppNavbar } from "../components/AppNavbar";
 import {
   BarChart,
   Bar,
@@ -22,7 +19,7 @@ import {
 } from "../utils";
 
 export default function Analytics() {
-  const { applications, darkMode, toggleDarkMode, signOut } = useApp();
+  const { applications, darkMode } = useApp();
 
   const weeklyStats = getWeeklyStats(applications);
   const responseRateTrend = getResponseRateTrend(applications);
@@ -36,37 +33,7 @@ export default function Analytics() {
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100">
       {/* Header */}
-      <header className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-        <div className="max-w-[1800px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-semibold">Analytics</h1>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                  Track your performance trends
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleDarkMode}
-              className="gap-2"
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
-            <SyncStatusBadge />
-            <Button variant="outline" size="sm" onClick={() => void signOut()}>
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppNavbar title="Analytics" subtitle="Track your performance trends" showSync />
 
       {/* Main Content */}
       <main className="max-w-[1800px] mx-auto px-6 py-6">

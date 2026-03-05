@@ -2,7 +2,6 @@ import { createBrowserRouter } from "react-router";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
 import AfaCompliancePage from "./pages/AfaCompliancePage";
-import JobOsDashboardPage from "./pages/job-os/JobOsDashboardPage";
 import JobOsAssetsPage from "./pages/job-os/JobOsAssetsPage";
 import JobOsCompaniesPage from "./pages/job-os/JobOsCompaniesPage";
 import JobOsRolesPage from "./pages/job-os/JobOsRolesPage";
@@ -34,11 +33,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "/job-os",
-        Component: JobOsDashboardPage,
+        Component: JobOsApplicationsPage,
       },
       {
         path: "/job-os/dashboard",
-        Component: JobOsDashboardPage,
+        Component: JobOsApplicationsPage,
       },
       {
         path: "/job-os/assets",

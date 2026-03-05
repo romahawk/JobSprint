@@ -12,7 +12,7 @@ export function WeeklyExecutionPanel() {
   const progressPercentage = (thisWeekApps.length / weeklyGoals.target) * 100;
 
   return (
-    <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 bg-white dark:bg-neutral-900">
+    <div className="border border-orange-200 dark:border-orange-900/50 rounded-lg p-6 bg-orange-50 dark:bg-orange-950/30">
       <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 uppercase tracking-wide mb-6">
         Weekly Execution
       </h3>

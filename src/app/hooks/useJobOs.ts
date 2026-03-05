@@ -61,6 +61,43 @@ const EMPTY_STATE: JobOsState = {
   outreach: [],
 };
 
+function normalizeCompanyName(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\u00A0/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function companyFreshness(company: JobOsCompany): number {
+  const updated = Date.parse(company.updatedAt || "");
+  if (!Number.isNaN(updated)) return updated;
+  const created = Date.parse(company.createdAt || "");
+  if (!Number.isNaN(created)) return created;
+  return 0;
+}
+
+function dedupeCompanies(items: JobOsCompany[]): JobOsCompany[] {
+  const byName = new Map<string, JobOsCompany>();
+  for (const company of items) {
+    const key = normalizeCompanyName(company.name);
+    if (!key) {
+      byName.set(`__${company.id}`, company);
+      continue;
+    }
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, company);
+      continue;
+    }
+    if (companyFreshness(company) >= companyFreshness(existing)) {
+      byName.set(key, company);
+    }
+  }
+  return Array.from(byName.values());
+}
+
 function localKey(userId: string): string {
   return `${LOCAL_KEY_PREFIX}_${userId}`;
 }
@@ -269,9 +306,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         ref,
         (snapshot) => {
           setState((prev) => {
-            const items = snapshot.docs.map((d) =>
+            const mappedItems = snapshot.docs.map((d) =>
               mapper(d.id, d.data())
             ) as JobOsState[typeof name];
+            const items = name === "companies"
+              ? (dedupeCompanies(mappedItems as JobOsCompany[]) as JobOsState[typeof name])
+              : mappedItems;
             const next = { ...prev, [name]: items } as JobOsState;
             writeLocal(userId, next);
             return next;

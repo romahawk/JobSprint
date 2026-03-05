@@ -311,7 +311,6 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
             const items = name === "companies"
               ? (dedupeCompanies(mappedItems as JobOsCompany[]) as JobOsState[typeof name])
               : mappedItems;
-            const next = { ...prev, [name]: items } as JobOsState;
             const latestLocal = readLocal(userId)[name];
             const shouldUseLocal =
               items.length === 0 &&

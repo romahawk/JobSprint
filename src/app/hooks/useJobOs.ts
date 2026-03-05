@@ -270,7 +270,6 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
 
   useEffect(() => {
     if (!userId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(EMPTY_STATE);
       setLoading(false);
       setSyncNotice(null);

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Download, Upload } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -19,12 +20,57 @@ const STATUS_VALUES: CompanyStatus[] = [
   "Closed",
 ];
 
+function parseCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      i += 1;
+      continue;
+    }
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  values.push(current.trim());
+  return values;
+}
+
+function normalizePriority(value: string): CompanyPriority | null {
+  const cleaned = value.trim().toUpperCase();
+  if (cleaned === "A" || cleaned === "B" || cleaned === "C") {
+    return cleaned;
+  }
+  return null;
+}
+
+function normalizeStatus(value: string): CompanyStatus | null {
+  const cleaned = value.trim().toLowerCase();
+  const match = STATUS_VALUES.find((status) => status.toLowerCase() === cleaned);
+  return match ?? null;
+}
+
 export default function JobOsCompaniesPage() {
   const { session } = useApp();
   const { companies, roles, outreach, applications, addCompany, addRole, addOutreach, addApplication, removeCompany, syncNotice } =
     useJobOs(session?.userId ?? null);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [search, setSearch] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">>({
     name: "",
@@ -45,10 +91,125 @@ export default function JobOsCompaniesPage() {
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) ?? null;
 
+  async function handleImportCsv(file: File): Promise<void> {
+    setIsImporting(true);
+    setImportNotice(null);
+    try {
+      const text = await file.text();
+      const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (lines.length < 2) {
+        setImportNotice("CSV is empty. Use the template and include at least one data row.");
+        return;
+      }
+
+      const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+      const expected = [
+        "name",
+        "industry",
+        "size",
+        "remotepolicy",
+        "priority",
+        "status",
+        "notes",
+      ];
+      const isHeaderValid = expected.every((key) => headers.includes(key));
+      if (!isHeaderValid) {
+        setImportNotice("Invalid CSV header. Download and use the template format.");
+        return;
+      }
+
+      let created = 0;
+      const errors: string[] = [];
+      for (let i = 1; i < lines.length; i += 1) {
+        const row = parseCsvLine(lines[i]);
+        if (row.length < 7) {
+          errors.push(`Row ${i + 1}: missing columns`);
+          continue;
+        }
+        const [name, industry, size, remotePolicy, priorityRaw, statusRaw, notes] = row;
+        if (!name.trim()) {
+          errors.push(`Row ${i + 1}: name is required`);
+          continue;
+        }
+        const priority = normalizePriority(priorityRaw);
+        const status = normalizeStatus(statusRaw);
+        if (!priority) {
+          errors.push(`Row ${i + 1}: invalid priority "${priorityRaw}"`);
+          continue;
+        }
+        if (!status) {
+          errors.push(`Row ${i + 1}: invalid status "${statusRaw}"`);
+          continue;
+        }
+        await addCompany({
+          name: name.trim(),
+          industry: industry.trim(),
+          size: size.trim(),
+          remotePolicy: remotePolicy.trim(),
+          priority,
+          status,
+          notes: notes.trim(),
+        });
+        created += 1;
+      }
+
+      if (errors.length === 0) {
+        setImportNotice(`Imported ${created} companies successfully.`);
+      } else {
+        setImportNotice(
+          `Imported ${created} companies. ${errors.length} row(s) failed: ${errors
+            .slice(0, 3)
+            .join(" | ")}${errors.length > 3 ? " ..." : ""}`
+        );
+      }
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
   return (
     <JobOsLayout title="Company Engine" subtitle="Account-based target company tracking" notice={syncNotice}>
       <Card>
-        <CardHeader><CardTitle className="text-sm">Add Company</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-sm">Add Company</CardTitle>
+            <div className="flex items-center gap-2">
+              <a href="/templates/job-os-companies-import-template.csv" download>
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Download className="w-3.5 h-3.5" />
+                  Template CSV
+                </Button>
+              </a>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                {isImporting ? "Importing..." : "Import CSV"}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  void handleImportCsv(file);
+                }}
+              />
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="grid md:grid-cols-4 gap-3">
           <Input value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} placeholder="Company" />
           <Input value={draft.industry} onChange={(e) => setDraft((p) => ({ ...p, industry: e.target.value }))} placeholder="Industry" />
@@ -89,6 +250,11 @@ export default function JobOsCompaniesPage() {
           <div className="md:col-span-4">
             <Textarea value={draft.notes} onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Research notes" />
           </div>
+          {importNotice && (
+            <div className="md:col-span-4 rounded border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-700 dark:text-blue-400">
+              {importNotice}
+            </div>
+          )}
         </CardContent>
       </Card>
 

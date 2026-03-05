@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, Upload } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -6,6 +6,7 @@ import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
+import { Checkbox } from "../../components/ui/checkbox";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
@@ -80,6 +81,8 @@ export default function JobOsCompaniesPage() {
   const [search, setSearch] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [lockAfterImport, setLockAfterImport] = useState(false);
+  const [companyListLocked, setCompanyListLocked] = useState(false);
   const [sortKey, setSortKey] = useState<CompanySortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -131,6 +134,22 @@ export default function JobOsCompaniesPage() {
   }, [filtered, sortDir, sortKey]);
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) ?? null;
+  const lockStorageKey = `job_os_companies_lock_${session?.userId ?? "anon"}`;
+
+  useEffect(() => {
+    if (!session?.userId) return;
+    try {
+      const raw = localStorage.getItem(lockStorageKey);
+      setCompanyListLocked(raw === "true");
+    } catch {
+      setCompanyListLocked(false);
+    }
+  }, [lockStorageKey, session?.userId]);
+
+  useEffect(() => {
+    if (!session?.userId) return;
+    localStorage.setItem(lockStorageKey, companyListLocked ? "true" : "false");
+  }, [companyListLocked, lockStorageKey, session?.userId]);
 
   function toggleSort(nextKey: CompanySortKey): void {
     if (sortKey === nextKey) {
@@ -237,12 +256,36 @@ export default function JobOsCompaniesPage() {
             .join(" | ")}${errors.length > 3 ? " ..." : ""}`
         );
       }
+      if (created > 0 && lockAfterImport) {
+        setCompanyListLocked(true);
+        setImportNotice((prev) =>
+          prev ? `${prev} Company list is now locked.` : "Company list is now locked."
+        );
+      }
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
+  }
+
+  async function clearAllCompanies(): Promise<void> {
+    if (companyListLocked) {
+      setImportNotice("Unlock the company list before clearing.");
+      return;
+    }
+    if (companies.length === 0) {
+      setImportNotice("There are no companies to clear.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete all ${companies.length} companies? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    await Promise.all(companies.map((company) => removeCompany(company.id)));
+    setSelectedCompanyId(null);
+    setImportNotice(`Deleted ${companies.length} companies.`);
   }
 
   return (
@@ -263,10 +306,26 @@ export default function JobOsCompaniesPage() {
                 variant="outline"
                 className="gap-1.5"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
+                disabled={isImporting || companyListLocked}
               >
                 <Upload className="w-3.5 h-3.5" />
                 {isImporting ? "Importing..." : "Import CSV"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCompanyListLocked((prev) => !prev)}
+              >
+                {companyListLocked ? "Unlock Companies" : "Lock Companies"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-red-500"
+                onClick={() => void clearAllCompanies()}
+                disabled={companyListLocked || companies.length === 0}
+              >
+                Clear All
               </Button>
               <input
                 ref={fileInputRef}
@@ -302,6 +361,7 @@ export default function JobOsCompaniesPage() {
           <div className="md:col-span-2">
             <Button
               className="w-full"
+              disabled={companyListLocked}
               onClick={() => {
                 if (!draft.name) return;
                 void addCompany(draft);
@@ -321,6 +381,16 @@ export default function JobOsCompaniesPage() {
           </div>
           <div className="md:col-span-4">
             <Textarea value={draft.notes} onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Research notes" />
+          </div>
+          <div className="md:col-span-4 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+            <Checkbox
+              id="lock-after-import"
+              checked={lockAfterImport}
+              onCheckedChange={(checked) => setLockAfterImport(Boolean(checked))}
+            />
+            <label htmlFor="lock-after-import" className="cursor-pointer">
+              Lock company list automatically after CSV import
+            </label>
           </div>
           {importNotice && (
             <div className="md:col-span-4 rounded border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-700 dark:text-blue-400">
@@ -364,7 +434,15 @@ export default function JobOsCompaniesPage() {
                     <TableCell className="max-w-[240px] truncate">{company.notes || "-"}</TableCell>
                     <TableCell className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => setSelectedCompanyId(company.id)}>View</Button>
-                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeCompany(company.id)}>Delete</Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500"
+                        disabled={companyListLocked}
+                        onClick={() => void removeCompany(company.id)}
+                      >
+                        Delete
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

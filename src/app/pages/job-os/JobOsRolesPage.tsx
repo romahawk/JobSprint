@@ -19,6 +19,8 @@ export default function JobOsRolesPage() {
 
   const [filterTrack, setFilterTrack] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> | null>(null);
   const [draft, setDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt">>({
     companyId: "",
     title: "",
@@ -39,6 +41,31 @@ export default function JobOsRolesPage() {
       }),
     [roles, filterStatus, filterTrack]
   );
+
+  function startEdit(role: JobOsRole): void {
+    setEditingRoleId(role.id);
+    setEditDraft({
+      companyId: role.companyId,
+      title: role.title,
+      url: role.url,
+      location: role.location,
+      seniority: role.seniority,
+      track: role.track,
+      fitScore: role.fitScore,
+      status: role.status,
+    });
+  }
+
+  function cancelEdit(): void {
+    setEditingRoleId(null);
+    setEditDraft(null);
+  }
+
+  async function saveEdit(roleId: string): Promise<void> {
+    if (!editDraft) return;
+    await updateRole(roleId, editDraft);
+    cancelEdit();
+  }
 
   return (
     <JobOsLayout title="Roles" subtitle="Track discovered opportunities and route into applications" notice={syncNotice}>
@@ -127,19 +154,113 @@ export default function JobOsRolesPage() {
             <TableBody>
               {filtered.map((role) => (
                 <TableRow key={role.id}>
-                  <TableCell>{companies.find((c) => c.id === role.companyId)?.name ?? "-"}</TableCell>
-                  <TableCell className="font-medium">{role.title}</TableCell>
-                  <TableCell>{role.location}</TableCell>
-                  <TableCell>{role.seniority}</TableCell>
-                  <TableCell>{role.track}</TableCell>
-                  <TableCell>{role.fitScore}/5</TableCell>
                   <TableCell>
-                    <Select value={role.status} onValueChange={(v) => void updateRole(role.id, { status: v as RoleStatus })}>
-                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                      <SelectContent>{ROLE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
+                    {editingRoleId === role.id && editDraft ? (
+                      <Select
+                        value={editDraft.companyId}
+                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, companyId: v } : p))}
+                      >
+                        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      companies.find((c) => c.id === role.companyId)?.name ?? "-"
+                    )}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {editingRoleId === role.id && editDraft ? (
+                      <Input
+                        value={editDraft.title}
+                        onChange={(e) => setEditDraft((p) => (p ? { ...p, title: e.target.value } : p))}
+                        className="w-52"
+                      />
+                    ) : (
+                      role.title
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingRoleId === role.id && editDraft ? (
+                      <Input
+                        value={editDraft.location}
+                        onChange={(e) => setEditDraft((p) => (p ? { ...p, location: e.target.value } : p))}
+                        className="w-40"
+                      />
+                    ) : (
+                      role.location
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingRoleId === role.id && editDraft ? (
+                      <Input
+                        value={editDraft.seniority}
+                        onChange={(e) => setEditDraft((p) => (p ? { ...p, seniority: e.target.value } : p))}
+                        className="w-36"
+                      />
+                    ) : (
+                      role.seniority
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingRoleId === role.id && editDraft ? (
+                      <Select
+                        value={editDraft.track}
+                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, track: v as JobTrack } : p))}
+                      >
+                        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TPM">TPM</SelectItem>
+                          <SelectItem value="Product Engineer">Product Engineer</SelectItem>
+                          <SelectItem value="Systems PM">Systems PM</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      role.track
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingRoleId === role.id && editDraft ? (
+                      <Select
+                        value={String(editDraft.fitScore)}
+                        onValueChange={(v) =>
+                          setEditDraft((p) => (p ? { ...p, fitScore: Number(v) as 1 | 2 | 3 | 4 | 5 } : p))
+                        }
+                      >
+                        <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                        <SelectContent>{[1, 2, 3, 4, 5].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      `${role.fitScore}/5`
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingRoleId === role.id && editDraft ? (
+                      <Select
+                        value={editDraft.status}
+                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, status: v as RoleStatus } : p))}
+                      >
+                        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                        <SelectContent>{ROLE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <Select value={role.status} onValueChange={(v) => void updateRole(role.id, { status: v as RoleStatus })}>
+                        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                        <SelectContent>{ROLE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                    )}
                   </TableCell>
                   <TableCell className="flex gap-2">
+                    {editingRoleId === role.id ? (
+                      <>
+                        <Button size="sm" variant="default" onClick={() => void saveEdit(role.id)}>Save</Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>Cancel</Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => startEdit(role)}>
+                        Edit
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -158,7 +279,14 @@ export default function JobOsRolesPage() {
                     >
                       Add application
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => window.open(role.url, "_blank", "noopener,noreferrer")}>Quick apply</Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!role.url}
+                      onClick={() => window.open(role.url, "_blank", "noopener,noreferrer")}
+                    >
+                      Quick apply
+                    </Button>
                     <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeRole(role.id)}>Delete</Button>
                   </TableCell>
                 </TableRow>

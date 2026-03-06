@@ -7,11 +7,20 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import type { Application, ApplicationType, Priority, PipelineStatus } from "../types";
 
+export interface RoleOption {
+  id: string;
+  companyName: string;
+  title: string;
+  location: string;
+  url: string;
+}
+
 interface ApplicationModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (app: Omit<Application, "id">) => void;
   existingApp?: Application;
+  roleOptions?: RoleOption[];
 }
 
 type ApplicationFormData = Omit<Application, "id">;
@@ -82,16 +91,21 @@ function validateForm(formData: ApplicationFormData): FormErrors {
   return errors;
 }
 
+type SourceMode = "manual" | "role";
+
 export function ApplicationModal({
   open,
   onClose,
   onSave,
   existingApp,
+  roleOptions = [],
 }: ApplicationModalProps) {
   const [formData, setFormData] = useState<ApplicationFormData>(() =>
     getInitialForm(existingApp)
   );
   const [errors, setErrors] = useState<FormErrors>({});
+  const [sourceMode, setSourceMode] = useState<SourceMode>("manual");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -99,7 +113,32 @@ export function ApplicationModal({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData(getInitialForm(existingApp));
     setErrors({});
+    setSourceMode("manual");
+    setSelectedRoleId("");
   }, [existingApp, open]);
+
+  const handleRoleSelect = (roleId: string) => {
+    setSelectedRoleId(roleId);
+    const picked = roleOptions.find((r) => r.id === roleId);
+    if (!picked) return;
+    setFormData((prev) => ({
+      ...prev,
+      company: picked.companyName,
+      role: picked.title,
+      location: picked.location,
+      jobLink: picked.url,
+    }));
+    setErrors({});
+  };
+
+  const handleSourceMode = (mode: SourceMode) => {
+    setSourceMode(mode);
+    if (mode === "manual") {
+      setSelectedRoleId("");
+      setFormData(getInitialForm());
+      setErrors({});
+    }
+  };
 
   const liveErrors = useMemo(() => validateForm(formData), [formData]);
   const isFormValid = Object.keys(liveErrors).length === 0;
@@ -143,6 +182,8 @@ export function ApplicationModal({
     setErrors({});
   };
 
+  const showSourceToggle = !existingApp && roleOptions.length > 0;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -151,6 +192,56 @@ export function ApplicationModal({
             {existingApp ? "Edit Application" : "New Application"}
           </DialogTitle>
         </DialogHeader>
+
+        {showSourceToggle && (
+          <div className="flex gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg w-fit">
+            <button
+              type="button"
+              onClick={() => handleSourceMode("manual")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                sourceMode === "manual"
+                  ? "bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 shadow-sm"
+                  : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+              }`}
+            >
+              Enter manually
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSourceMode("role")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                sourceMode === "role"
+                  ? "bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 shadow-sm"
+                  : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+              }`}
+            >
+              Pick from Job OS
+            </button>
+          </div>
+        )}
+
+        {sourceMode === "role" && (
+          <div>
+            <Label htmlFor="roleSelect">Select a role from Job OS</Label>
+            <Select value={selectedRoleId} onValueChange={handleRoleSelect}>
+              <SelectTrigger id="roleSelect">
+                <SelectValue placeholder="Choose a role…" />
+              </SelectTrigger>
+              <SelectContent>
+                {roleOptions.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.companyName} — {r.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedRoleId && (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                Fields pre-filled from Job OS. Edit as needed before saving.
+              </p>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

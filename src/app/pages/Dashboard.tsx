@@ -85,7 +85,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100">
+    <div className="min-h-screen bg-background text-foreground app-bg-pattern">
       {/* Header */}
       <AppNavbar
         title="JobSprint"
@@ -164,8 +164,8 @@ export default function Dashboard() {
         </div>
 
         {/* Pipeline Full Width */}
-        <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 bg-white dark:bg-neutral-950 mb-6">
-          <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 uppercase tracking-wide mb-6">
+        <div className="border border-border rounded-lg p-6 bg-card mb-6">
+          <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-6">
             Application Pipeline
           </h2>
           <PipelineBoard

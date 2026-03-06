@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Sun,
 } from "lucide-react";
-import { Button } from "./ui/button";
 import { useApp } from "../context";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { trackPageView } from "../services/analytics";
@@ -42,50 +41,77 @@ export function AppNavbar({
   }, [location.pathname, location.search]);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-      <div className="max-w-[1800px] mx-auto px-6 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+    <header
+      className="sticky top-0 z-20"
+      style={{ background: "var(--brand-navy)" }}
+    >
+      <div className="max-w-[1800px] mx-auto px-6">
+        <div className="flex items-center justify-between gap-4 h-14">
+          {/* Logo + Nav */}
+          <div className="flex items-center gap-8">
+            <span className="text-base font-bold text-white tracking-tight">
               {title}
-            </h1>
-            {subtitle && (
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                {subtitle}
-              </p>
-            )}
+            </span>
+
+            <nav className="hidden md:flex items-center gap-0.5">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const active =
+                  location.pathname === item.to ||
+                  (item.to !== "/" &&
+                    location.pathname.startsWith(item.to));
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-[#124BE6] text-white"
+                        : "text-white/65 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
+
+          {/* Right actions */}
           <div className="flex items-center gap-2">
-            {showSync && <SyncStatusBadge />}
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const active =
-                location.pathname === item.to ||
-                (item.to !== "/" && location.pathname.startsWith(item.to));
-              return (
-                <Link key={item.to} to={item.to}>
-                  <Button variant={active ? "default" : "outline"} className="gap-2">
-                    <Icon className="w-4 h-4" />
-                    <span className="hidden sm:inline">{item.label}</span>
-                  </Button>
-                </Link>
-              );
-            })}
+            {showSync && (
+              <div className="opacity-75">
+                <SyncStatusBadge />
+              </div>
+            )}
             {rightActions}
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
               onClick={toggleDarkMode}
               aria-label="Toggle dark mode"
+              className="w-8 h-8 flex items-center justify-center rounded-md text-white/65 hover:text-white hover:bg-white/10 transition-colors"
             >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => void signOut()} className="gap-2">
-              <LogOut className="w-4 h-4" />
+              {darkMode ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              onClick={() => void signOut()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-white/65 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sign Out</span>
-            </Button>
+            </button>
           </div>
         </div>
+
+        {subtitle && (
+          <div className="pb-1.5 -mt-1 text-xs text-white/45 truncate">
+            {subtitle}
+          </div>
+        )}
       </div>
     </header>
   );

@@ -54,17 +54,12 @@ export default function AfaCompliancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-black">
+    <div className="min-h-screen bg-background text-foreground app-bg-pattern">
       <AppNavbar
         title="AfA Compliance"
         subtitle="Vermittlungsvorschläge"
         rightActions={
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleOpenNew}
-          >
+          <Button className="gap-1.5" onClick={handleOpenNew}>
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">New Case</span>
           </Button>
@@ -88,10 +83,10 @@ export default function AfaCompliancePage() {
 
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+                <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
                   All Cases
                 </h2>
-                <span className="text-xs text-neutral-400 dark:text-neutral-600">
+                <span className="text-xs text-muted-foreground/60">
                   {cases.length} total
                 </span>
               </div>

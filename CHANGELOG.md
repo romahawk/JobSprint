@@ -6,6 +6,26 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ## [Unreleased]
 
+## [2026-03-06]
+
+### Added
+
+- Added AfA Vermittlungsvorschlag compliance module (`/compliance/afa`) with case table, risk engine, deadline engine, and full CRUD backed by Firestore.
+- Added rocket SVG favicon replacing the previous lightning bolt (conflict with MagicKick branding).
+
+### Fixed
+
+- Fixed blank dashboard and disappearing cases on AfA compliance page during Firebase auth bootstrap and after in-app navigation: hook now resets `loading` before subscribing to Firestore, and page gates on `authLoading` from context.
+
+### Infra
+
+- Added weekly roadmap sync workflow (`.github/workflows/weekly-sync.yml`) — opens a Monday issue automatically.
+- Aligned `@eslint/js` to v9 to match ESLint 9; CI now gates on lint.
+- Added `claude/*` branch pattern to PR policy allowlist for automation branches.
+- Lazy-loaded AfA compliance page via `React.lazy` to reduce initial bundle size.
+
+## [2026-03-03] - Month 2 Foundation
+
 ### Added
 
 - Added 7-day activity signal card with prior-week comparison on dashboard.

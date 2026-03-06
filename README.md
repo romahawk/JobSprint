@@ -25,32 +25,20 @@ Most job searches fail from inconsistent execution, not lack of talent. JobSprin
 ## Setup
 
 ```bash
-npm install
-npm run dev
+npm install   # install dependencies
+npm run dev   # start dev server
+npm run build # production build
+npm run test  # run smoke tests
 ```
 
-App access requires sign-in. If Firebase env vars are configured, auth uses Firebase email/password + Google sign-in.
-If Firebase env vars are configured, sign-in uses Firebase email/password auth.
-
-Build for production:
-
-```bash
-npm run build
-```
-
-Run smoke tests:
-
-```bash
-npm run test
-```
+App access requires sign-in. If the `VITE_FIREBASE_*` env vars are configured, auth uses Firebase email/password + Google sign-in.
 
 ## Deploy
 
 - Current production URL: https://job-sprint-ten.vercel.app/
 - Hosting: Vercel
 - Optional remote persistence can be configured with `VITE_JSPRINT_REMOTE_API_URL`.
-- Firebase mode (Auth + Firestore) is enabled automatically when required `VITE_FIREBASE_*` variables are set.
-- Firebase mode (auth + Firestore) is enabled when required `VITE_FIREBASE_*` values are set.
+- Firebase mode (Auth + Firestore) is enabled automatically when `VITE_FIREBASE_*` variables are set.
 
 ## Screenshots
 

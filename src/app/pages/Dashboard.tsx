@@ -34,7 +34,7 @@ export default function Dashboard() {
     pendingDeletions,
     session,
   } = useApp();
-  const { roles, companies } = useJobOs(session?.uid ?? null);
+  const { roles, companies } = useJobOs(session?.userId ?? null);
   const roleOptions = useMemo<RoleOption[]>(() => {
     const companyMap = new Map(companies.map((c) => [c.id, c.name]));
     return roles.map((r) => ({

@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../context";
+import { useJobOs } from "../hooks/useJobOs";
 import { KPICard } from "../components/KPICard";
 import { PipelineBoard } from "../components/PipelineBoard";
 import { WeeklyExecutionPanel } from "../components/WeeklyExecutionPanel";
 import { ProbabilityEnginePanel } from "../components/ProbabilityEnginePanel";
 import { ActivitySignalCard } from "../components/ActivitySignalCard";
 import { ApplicationModal } from "../components/ApplicationModal";
+import type { RoleOption } from "../components/ApplicationModal";
 import { ApplicationDetailsModal } from "../components/ApplicationDetailsModal";
 import { Button } from "../components/ui/button";
 import { AppNavbar } from "../components/AppNavbar";
@@ -32,6 +34,17 @@ export default function Dashboard() {
     pendingDeletions,
     session,
   } = useApp();
+  const { roles, companies } = useJobOs(session?.uid ?? null);
+  const roleOptions = useMemo<RoleOption[]>(() => {
+    const companyMap = new Map(companies.map((c) => [c.id, c.name]));
+    return roles.map((r) => ({
+      id: r.id,
+      companyName: companyMap.get(r.companyId) ?? r.companyId,
+      title: r.title,
+      location: r.location,
+      url: r.url,
+    }));
+  }, [roles, companies]);
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
@@ -179,6 +192,7 @@ export default function Dashboard() {
         }}
         onSave={handleSave}
         existingApp={editingApp || undefined}
+        roleOptions={roleOptions}
       />
 
       <ApplicationDetailsModal

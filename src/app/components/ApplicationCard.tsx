@@ -3,9 +3,9 @@ import { StickyNote, ExternalLink } from "lucide-react";
 import type { Application, PipelineStatus } from "../types";
 
 const PRIORITY_COLORS = {
-  high: "border-l-red-500",
-  medium: "border-l-blue-500",
-  backup: "border-l-neutral-400",
+  high: "border-l-[#E6AA12]",
+  medium: "border-l-[#124BE6]",
+  backup: "border-l-[#91783C]",
 };
 
 interface ApplicationCardProps {
@@ -31,9 +31,9 @@ export function ApplicationCard({
     <div
       ref={drag}
       onClick={onClick}
-      className={`border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 bg-white dark:bg-neutral-900 cursor-pointer hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors border-l-4 ${
+      className={`border border-border rounded-lg p-3 bg-card cursor-pointer hover:shadow-sm transition-all border-l-4 ${
         PRIORITY_COLORS[application.priority]
-      } ${isDragging ? "opacity-50" : "opacity-100"}`}
+      } ${isDragging ? "opacity-40 scale-95" : "opacity-100"}`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">

@@ -28,3 +28,13 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Subtle dot-grid background pattern — applied to the app shell */
+.app-bg-pattern {
+  background-image: radial-gradient(circle, rgba(18, 75, 230, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.dark .app-bg-pattern {
+  background-image: radial-gradient(circle, rgba(18, 75, 230, 0.12) 1px, transparent 1px);
+}

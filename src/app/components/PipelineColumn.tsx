@@ -28,12 +28,12 @@ export function PipelineColumn({
   }));
 
   return (
-    <div className="flex flex-col min-w-[280px] flex-shrink-0">
-      <div className="mb-3 px-2">
-        <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+    <div className="flex flex-col min-w-[260px] flex-shrink-0">
+      <div className="mb-3 px-1 flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
           {title}
-        </h3>
-        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+        </span>
+        <span className="text-[11px] font-semibold text-muted-foreground/60 tabular-nums">
           {applications.length}
         </span>
       </div>
@@ -42,8 +42,8 @@ export function PipelineColumn({
         ref={drop}
         className={`flex-1 space-y-2 min-h-[200px] rounded-lg p-2 transition-colors ${
           isOver
-            ? "bg-neutral-100 dark:bg-neutral-800"
-            : "bg-neutral-50 dark:bg-neutral-900/50"
+            ? "bg-[#124BE6]/5 dark:bg-[#124BE6]/10"
+            : "bg-black/[0.03] dark:bg-white/[0.03]"
         }`}
       >
         {applications.map((app) => (

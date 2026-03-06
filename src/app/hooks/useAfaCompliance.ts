@@ -226,25 +226,28 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
       try {
         const { id: _id, ...payload } = skeleton;
         const colRef = collection(firebase.db, "users", userId, "afa_vorschlaege");
-        const created = await withTimeout(
+        await withTimeout(
           addDoc(colRef, payload),
           FIRESTORE_MUTATION_TIMEOUT_MS,
           "Create case"
         );
-        setCases((prev) => {
-          const nextCases = [...prev, { ...skeleton, id: created.id }];
-          saveLocal(userId, nextCases);
-          return nextCases;
-        });
+        // onSnapshot fires as soon as Firestore writes to local cache (before this
+        // line even runs). Calling setCases here would add a duplicate — let the
+        // snapshot listener be the single source of truth for cases state.
         setError(null);
         setLocalOnlyMode(false);
       } catch (err) {
         if (!isOfflineLikeError(err)) {
           throw err;
         }
-        const local: AfaVorschlag = { ...skeleton, id: generateLocalId() };
+        // Firestore may have already written the doc to its local cache and fired
+        // onSnapshot with a Firestore-generated ID. Replace any such pending entry
+        // (matched by case_id) with an afa- prefixed local ID so the orphan-
+        // preservation logic keeps it when connectivity returns.
         setCases((prev) => {
-          const updated = [...prev, local];
+          const withoutPending = prev.filter((c) => c.case_id !== skeleton.case_id);
+          const local: AfaVorschlag = { ...skeleton, id: generateLocalId() };
+          const updated = [...withoutPending, local];
           saveLocal(userId, updated);
           return updated;
         });

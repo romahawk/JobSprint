@@ -59,29 +59,35 @@ function deadlineClass(status: AfaDeadlineStatus): string {
 // Default form state
 // ---------------------------------------------------------------------------
 
-const EMPTY_FORM: AfaVorschlagFormData = {
-  source: "portal",
-  received_date: new Date().toISOString().slice(0, 10),
-  deadline_date: null,
-  rfb_present: "unknown",
-  portal_feedback_required: "unknown",
-  employer_name: "",
-  position_title: "",
-  location: "",
-  posting_url: "",
-  match_level: "medium",
-  action_status: "received",
-  applied_date: null,
-  portal_feedback_date: null,
-  employer_response: "pending",
-  evidence: {
-    folder_url: "",
-    letter_file_url: "",
-    application_proof_url: "",
-    portal_feedback_proof_url: "",
-  },
-  notes: "",
-};
+// ---------------------------------------------------------------------------
+// Default form state — factory function so received_date is always today
+// ---------------------------------------------------------------------------
+
+function emptyForm(): AfaVorschlagFormData {
+  return {
+    source: "portal",
+    received_date: new Date().toISOString().slice(0, 10),
+    deadline_date: null,
+    rfb_present: "unknown",
+    portal_feedback_required: "unknown",
+    employer_name: "",
+    position_title: "",
+    location: "",
+    posting_url: "",
+    match_level: "medium",
+    action_status: "received",
+    applied_date: null,
+    portal_feedback_date: null,
+    employer_response: "pending",
+    evidence: {
+      folder_url: "",
+      letter_file_url: "",
+      application_proof_url: "",
+      portal_feedback_proof_url: "",
+    },
+    notes: "",
+  };
+}
 
 function vorschlagToForm(v: AfaVorschlag): AfaVorschlagFormData {
   return {
@@ -178,14 +184,14 @@ export function AfaCaseModal({
   onDelete,
 }: AfaCaseModalProps) {
   const isEdit = vorschlag !== null;
-  const [form, setForm] = useState<AfaVorschlagFormData>(EMPTY_FORM);
+  const [form, setForm] = useState<AfaVorschlagFormData>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setForm(isEdit ? vorschlagToForm(vorschlag) : EMPTY_FORM);
+    setForm(isEdit ? vorschlagToForm(vorschlag) : emptyForm());
     setIsSaving(false);
     setIsDeleting(false);
     setSubmitError(null);

@@ -161,12 +161,21 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
           docToVorschlag(d.id, d.data() as Record<string, unknown>)
         );
         const latestLocal = loadLocal(userId).map(computeAll);
-        const shouldUseLocal =
-          docs.length === 0 &&
-          latestLocal.length > 0 &&
-          snapshot.metadata.fromCache;
 
-        const nextCases = shouldUseLocal ? latestLocal : docs;
+        let nextCases: AfaVorschlag[];
+        if (snapshot.metadata.fromCache && docs.length === 0 && latestLocal.length > 0) {
+          // Offline cache hit — use local state as primary
+          nextCases = latestLocal;
+        } else {
+          // Live data from Firestore — merge in any locally-created cases
+          // that haven't made it to Firestore yet (created offline, id starts with "afa-")
+          const firestoreIds = new Set(docs.map((d) => d.id));
+          const localOnlyCases = latestLocal.filter(
+            (c) => c.id.startsWith("afa-") && !firestoreIds.has(c.id)
+          );
+          nextCases = [...docs, ...localOnlyCases];
+        }
+
         setCases(nextCases);
         saveLocal(userId, nextCases);
         setError(null);

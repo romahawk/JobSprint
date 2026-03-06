@@ -209,7 +209,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
         setSession(existingSession);
         if (existingSession) {
-          await loadUserData(existingSession.userId);
+          // Keep route rendering responsive; hydrate user data in background.
+          void loadUserData(existingSession.userId).catch((error) => {
+            console.error("Initial data hydration failed:", error);
+          });
         } else {
           hydratedRef.current = true;
         }

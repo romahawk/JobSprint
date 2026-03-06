@@ -17,6 +17,7 @@ export interface AppRepository {
 
 const LEGACY_DATA_KEY = "jobsprint_data";
 const LEGACY_DARKMODE_KEY = "jobsprint_darkmode";
+const FIRESTORE_READ_TIMEOUT_MS = 3500;
 
 const USER_DATA_KEY_PREFIX = "jobsprint_data_v2";
 const USER_SYNC_KEY_PREFIX = "jobsprint_last_sync";
@@ -49,6 +50,25 @@ function normalizeData(raw: unknown): AppData | null {
     applications: maybe.applications,
     weeklyGoals: maybe.weeklyGoals || DEFAULT_WEEKLY_GOALS,
   };
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
 }
 
 export function migrateLegacyLocalData(storage: StorageLike, userId: string) {
@@ -156,7 +176,11 @@ function createFirebaseRepository(storage: StorageLike): AppRepository {
         }
 
         const stateDocRef = doc(firebase.db, "users", userId, "state", "app");
-        const stateDoc = await getDoc(stateDocRef);
+        const stateDoc = await withTimeout(
+          getDoc(stateDocRef),
+          FIRESTORE_READ_TIMEOUT_MS,
+          "Firestore getDoc"
+        );
         if (!stateDoc.exists()) {
           const localRaw = storage.getItem(userDataKey(userId));
           if (!localRaw) return null;
@@ -176,6 +200,7 @@ function createFirebaseRepository(storage: StorageLike): AppRepository {
         const message =
           error instanceof Error ? error.message.toLowerCase() : "";
         const offlineLike =
+          message.includes("timed out") ||
           message.includes("offline") ||
           message.includes("network") ||
           message.includes("unavailable");

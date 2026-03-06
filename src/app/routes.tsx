@@ -2,6 +2,11 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter } from "react-router";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
+import JobOsAssetsPage from "./pages/job-os/JobOsAssetsPage";
+import JobOsCompaniesPage from "./pages/job-os/JobOsCompaniesPage";
+import JobOsRolesPage from "./pages/job-os/JobOsRolesPage";
+import JobOsApplicationsPage from "./pages/job-os/JobOsApplicationsPage";
+import JobOsOutreachPage from "./pages/job-os/JobOsOutreachPage";
 import NotFound from "./pages/NotFound";
 import SignIn from "./pages/SignIn";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -39,6 +44,34 @@ export const router = createBrowserRouter([
             <AfaCompliancePage />
           </Suspense>
         ),
+      },
+      {
+        path: "/job-os",
+        Component: JobOsApplicationsPage,
+      },
+      {
+        path: "/job-os/dashboard",
+        Component: JobOsApplicationsPage,
+      },
+      {
+        path: "/job-os/assets",
+        Component: JobOsAssetsPage,
+      },
+      {
+        path: "/job-os/companies",
+        Component: JobOsCompaniesPage,
+      },
+      {
+        path: "/job-os/roles",
+        Component: JobOsRolesPage,
+      },
+      {
+        path: "/job-os/applications",
+        Component: JobOsApplicationsPage,
+      },
+      {
+        path: "/job-os/outreach",
+        Component: JobOsOutreachPage,
       },
     ],
   },

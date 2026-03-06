@@ -20,19 +20,57 @@ import type {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const LOCAL_STORAGE_KEY = "afa_vorschlaege_local";
+const LOCAL_STORAGE_KEY_PREFIX = "afa_vorschlaege_local_v2";
+const FIRESTORE_MUTATION_TIMEOUT_MS = 12000;
 
-function loadLocal(): AfaVorschlag[] {
+function localStorageKey(userId: string): string {
+  return `${LOCAL_STORAGE_KEY_PREFIX}_${userId}`;
+}
+
+function loadLocal(userId: string): AfaVorschlag[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(localStorageKey(userId));
     return raw ? (JSON.parse(raw) as AfaVorschlag[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveLocal(cases: AfaVorschlag[]): void {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cases));
+function saveLocal(userId: string, cases: AfaVorschlag[]): void {
+  localStorage.setItem(localStorageKey(userId), JSON.stringify(cases));
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+}
+
+function isOfflineLikeError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return (
+    message.includes("timed out") ||
+    message.includes("offline") ||
+    message.includes("network") ||
+    message.includes("unavailable")
+  );
 }
 
 function generateCaseId(): string {
@@ -86,6 +124,7 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
   const [cases, setCases] = useState<AfaVorschlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [localOnlyMode, setLocalOnlyMode] = useState(false);
 
   const firebase = getFirebaseContext();
 
@@ -96,18 +135,24 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
   useEffect(() => {
     if (!userId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCases([]);
+      setError(null);
       setLoading(false);
+      setLocalOnlyMode(false);
       return;
     }
 
-    if (!firebase) {
+    const cachedCases = loadLocal(userId).map(computeAll);
+    setCases(cachedCases);
+    setError(localOnlyMode ? "Cloud sync unavailable. Working in local mode." : null);
+
+    if (!firebase || localOnlyMode) {
       // Intentional: set initial state from localStorage in fallback mode.
-      setCases(loadLocal().map(computeAll));
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    setLoading(cachedCases.length === 0);
     const colRef = collection(firebase.db, "users", userId, "afa_vorschlaege");
     const unsubscribe = onSnapshot(
       colRef,
@@ -115,17 +160,31 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
         const docs = snapshot.docs.map((d) =>
           docToVorschlag(d.id, d.data() as Record<string, unknown>)
         );
-        setCases(docs);
+        const latestLocal = loadLocal(userId).map(computeAll);
+        const shouldUseLocal =
+          docs.length === 0 &&
+          latestLocal.length > 0 &&
+          snapshot.metadata.fromCache;
+
+        const nextCases = shouldUseLocal ? latestLocal : docs;
+        setCases(nextCases);
+        saveLocal(userId, nextCases);
+        setError(null);
+        setLocalOnlyMode(false);
         setLoading(false);
       },
-      (err) => {
-        setError(err.message);
+      (_err) => {
+        setError("Cloud sync unavailable. Working in local mode.");
+        setLocalOnlyMode(true);
+        if (cachedCases.length > 0) {
+          setCases(cachedCases);
+        }
         setLoading(false);
       }
     );
 
     return unsubscribe;
-  }, [userId, firebase]);
+  }, [userId, firebase, localOnlyMode]);
 
   // -------------------------------------------------------------------------
   // Mutations
@@ -144,20 +203,47 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
         audit: { created_at: now, updated_at: now },
       });
 
-      if (!firebase) {
+      if (!firebase || localOnlyMode) {
         const local: AfaVorschlag = { ...skeleton, id: generateLocalId() };
-        const updated = [...cases, local];
-        saveLocal(updated);
-        setCases(updated);
+        setCases((prev) => {
+          const updated = [...prev, local];
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError(localOnlyMode ? "Cloud sync unavailable. Working in local mode." : null);
         return;
       }
 
-      const { id: _id, ...payload } = skeleton;
-      const colRef = collection(firebase.db, "users", userId, "afa_vorschlaege");
-      await addDoc(colRef, payload);
-      // onSnapshot will update state automatically
+      try {
+        const { id: _id, ...payload } = skeleton;
+        const colRef = collection(firebase.db, "users", userId, "afa_vorschlaege");
+        const created = await withTimeout(
+          addDoc(colRef, payload),
+          FIRESTORE_MUTATION_TIMEOUT_MS,
+          "Create case"
+        );
+        setCases((prev) => {
+          const nextCases = [...prev, { ...skeleton, id: created.id }];
+          saveLocal(userId, nextCases);
+          return nextCases;
+        });
+        setError(null);
+        setLocalOnlyMode(false);
+      } catch (err) {
+        if (!isOfflineLikeError(err)) {
+          throw err;
+        }
+        const local: AfaVorschlag = { ...skeleton, id: generateLocalId() };
+        setCases((prev) => {
+          const updated = [...prev, local];
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError("Cloud sync unavailable. Case saved locally.");
+        setLocalOnlyMode(true);
+      }
     },
-    [userId, firebase, cases]
+    [userId, firebase, localOnlyMode]
   );
 
   const updateCase = useCallback(
@@ -176,36 +262,89 @@ export function useAfaCompliance(userId: string | null): UseAfaComplianceReturn 
         audit: { ...existing.audit, updated_at: new Date().toISOString() },
       });
 
-      if (!firebase) {
-        const updated = cases.map((c) => (c.id === id ? merged : c));
-        saveLocal(updated);
-        setCases(updated);
+      if (!firebase || localOnlyMode) {
+        setCases((prev) => {
+          const updated = prev.map((c) => (c.id === id ? merged : c));
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError(localOnlyMode ? "Cloud sync unavailable. Working in local mode." : null);
         return;
       }
 
-      const { id: _id, ...payload } = merged;
-      const docRef = doc(firebase.db, "users", userId, "afa_vorschlaege", id);
-      await setDoc(docRef, payload, { merge: true });
-      // onSnapshot will update state automatically
+      try {
+        const { id: _id, ...payload } = merged;
+        const docRef = doc(firebase.db, "users", userId, "afa_vorschlaege", id);
+        await withTimeout(
+          setDoc(docRef, payload, { merge: true }),
+          FIRESTORE_MUTATION_TIMEOUT_MS,
+          "Update case"
+        );
+        setCases((prev) => {
+          const updated = prev.map((c) => (c.id === id ? merged : c));
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError(null);
+        setLocalOnlyMode(false);
+      } catch (err) {
+        if (!isOfflineLikeError(err)) {
+          throw err;
+        }
+        setCases((prev) => {
+          const updated = prev.map((c) => (c.id === id ? merged : c));
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError("Cloud sync unavailable. Case updated locally.");
+        setLocalOnlyMode(true);
+      }
     },
-    [userId, firebase, cases]
+    [userId, firebase, cases, localOnlyMode]
   );
 
   const deleteCase = useCallback(
     async (id: string): Promise<void> => {
       if (!userId) return;
 
-      if (!firebase) {
-        const updated = cases.filter((c) => c.id !== id);
-        saveLocal(updated);
-        setCases(updated);
+      if (!firebase || localOnlyMode) {
+        setCases((prev) => {
+          const updated = prev.filter((c) => c.id !== id);
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError(localOnlyMode ? "Cloud sync unavailable. Working in local mode." : null);
         return;
       }
 
-      const docRef = doc(firebase.db, "users", userId, "afa_vorschlaege", id);
-      await deleteDoc(docRef);
+      try {
+        const docRef = doc(firebase.db, "users", userId, "afa_vorschlaege", id);
+        await withTimeout(
+          deleteDoc(docRef),
+          FIRESTORE_MUTATION_TIMEOUT_MS,
+          "Delete case"
+        );
+        setCases((prev) => {
+          const updated = prev.filter((c) => c.id !== id);
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError(null);
+        setLocalOnlyMode(false);
+      } catch (err) {
+        if (!isOfflineLikeError(err)) {
+          throw err;
+        }
+        setCases((prev) => {
+          const updated = prev.filter((c) => c.id !== id);
+          saveLocal(userId, updated);
+          return updated;
+        });
+        setError("Cloud sync unavailable. Case deleted locally.");
+        setLocalOnlyMode(true);
+      }
     },
-    [userId, firebase, cases]
+    [userId, firebase, localOnlyMode]
   );
 
   // -------------------------------------------------------------------------

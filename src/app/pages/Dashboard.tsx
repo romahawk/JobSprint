@@ -8,7 +8,7 @@ import { ActivitySignalCard } from "../components/ActivitySignalCard";
 import { ApplicationModal } from "../components/ApplicationModal";
 import { ApplicationDetailsModal } from "../components/ApplicationDetailsModal";
 import { Button } from "../components/ui/button";
-import { SyncStatusBadge } from "../components/SyncStatusBadge";
+import { AppNavbar } from "../components/AppNavbar";
 import {
   Target,
   Calendar,
@@ -17,16 +17,10 @@ import {
   Award,
   Percent,
   Plus,
-  BarChart3,
-  ShieldCheck,
-  Moon,
-  Sun,
   Undo2,
-  LogOut,
 } from "lucide-react";
 import { calculateMetrics } from "../utils";
 import type { Application, PipelineStatus } from "../types";
-import { Link } from "react-router";
 
 export default function Dashboard() {
   const {
@@ -36,10 +30,7 @@ export default function Dashboard() {
     scheduleDeleteApplication,
     undoDeleteApplication,
     pendingDeletions,
-    darkMode,
-    toggleDarkMode,
     session,
-    signOut,
   } = useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -83,61 +74,21 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100">
       {/* Header */}
-      <header className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-        <div className="max-w-[1800px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold">JobSprint</h1>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 hidden sm:block">
-                Your job search is a numbers game. This makes the numbers visible.
-              </p>
-              {session?.email && (
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                  Signed in as {session.email}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <SyncStatusBadge />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleDarkMode}
-                className="gap-2"
-              >
-                {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </Button>
-              <Link to="/analytics">
-                <Button variant="outline" className="gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Analytics</span>
-                </Button>
-              </Link>
-              <Link to="/compliance/afa">
-                <Button variant="outline" className="gap-2">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span className="hidden sm:inline">AfA Compliance</span>
-                </Button>
-              </Link>
-              <Button onClick={() => setModalOpen(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">New Application</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  void signOut();
-                }}
-                className="gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppNavbar
+        title="JobSprint"
+        subtitle={
+          session?.email
+            ? `Your job search is a numbers game. Signed in as ${session.email}`
+            : "Your job search is a numbers game. This makes the numbers visible."
+        }
+        showSync
+        rightActions={
+          <Button onClick={() => setModalOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">New Application</span>
+          </Button>
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-[1800px] mx-auto px-6 py-6">
@@ -165,56 +116,57 @@ export default function Dashboard() {
             label="Total Applications"
             value={metrics.total}
             icon={<Target className="w-4 h-4" />}
+            tone="blue"
           />
           <KPICard
             label="This Week"
             value={metrics.thisWeek}
             icon={<Calendar className="w-4 h-4" />}
+            tone="orange"
           />
           <KPICard
             label="Response Rate"
             value={`${metrics.responseRate.toFixed(1)}%`}
             icon={<TrendingUp className="w-4 h-4" />}
+            tone="green"
           />
           <KPICard
             label="Interviews"
             value={metrics.interviewsScheduled}
             icon={<Users className="w-4 h-4" />}
+            tone="blue"
           />
           <KPICard
             label="Offers"
             value={metrics.offers}
             icon={<Award className="w-4 h-4" />}
+            tone="green"
           />
           <KPICard
             label="Offer Probability"
             value={`${metrics.estimatedOfferProbability.toFixed(1)}%`}
             icon={<Percent className="w-4 h-4" />}
+            tone="neutral"
           />
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* Pipeline Board - Takes 3 columns */}
-          <div className="xl:col-span-3">
-            <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 bg-white dark:bg-neutral-950">
-              <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 uppercase tracking-wide mb-6">
-                Application Pipeline
-              </h2>
-              <PipelineBoard
-                applications={applications}
-                onUpdateStatus={handleUpdateStatus}
-                onCardClick={handleCardClick}
-              />
-            </div>
-          </div>
+        {/* Pipeline Full Width */}
+        <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 bg-white dark:bg-neutral-950 mb-6">
+          <h2 className="text-sm font-medium text-neutral-900 dark:text-neutral-100 uppercase tracking-wide mb-6">
+            Application Pipeline
+          </h2>
+          <PipelineBoard
+            applications={applications}
+            onUpdateStatus={handleUpdateStatus}
+            onCardClick={handleCardClick}
+          />
+        </div>
 
-          {/* Right Side Panels */}
-          <div className="xl:col-span-1 space-y-6">
-            <ActivitySignalCard />
-            <WeeklyExecutionPanel />
-            <ProbabilityEnginePanel />
-          </div>
+        {/* Activity and Execution Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <ActivitySignalCard />
+          <WeeklyExecutionPanel />
+          <ProbabilityEnginePanel />
         </div>
       </main>
 

@@ -5,6 +5,7 @@ import { AppNavbar } from "../components/AppNavbar";
 import { AfaDashboard } from "../components/compliance/AfaDashboard";
 import { AfaTable } from "../components/compliance/AfaTable";
 import { AfaCaseModal } from "../components/compliance/AfaCaseModal";
+import { AfaReportGenerator } from "../components/compliance/AfaReportGenerator";
 import { useAfaCompliance } from "../hooks/useAfaCompliance";
 import { useApp } from "../context";
 import type { AfaVorschlag, AfaVorschlagFormData } from "../types/afa";
@@ -100,6 +101,15 @@ export default function AfaCompliancePage() {
                   void handleDelete(id);
                 }}
               />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+                  Report Generator
+                </h2>
+              </div>
+              <AfaReportGenerator cases={cases} />
             </div>
           </>
         )}

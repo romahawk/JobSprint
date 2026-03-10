@@ -224,6 +224,15 @@ function isOfflineLike(error: unknown): boolean {
   );
 }
 
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 function collectionDoc<T extends { id: string }>(
   state: JobOsState,
   key: "companies" | "roles" | "applications" | "outreach",
@@ -311,18 +320,29 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           setState((prev) => {
             const mappedItems = snapshot.docs.map((d) =>
               mapper(d.id, d.data())
-            ) as JobOsState[typeof name];
-            const items = name === "companies"
-              ? (dedupeCompanies(mappedItems as JobOsCompany[]) as JobOsState[typeof name])
+            ) as Array<{ id: string }>;
+
+            // Build Firestore-side list (deduped by name for companies)
+            const firestoreItems = name === "companies"
+              ? dedupeCompanies(mappedItems as JobOsCompany[])
               : mappedItems;
-            const latestLocal = readLocal(userId)[name];
-            const shouldUseLocal =
-              items.length === 0 &&
-              latestLocal.length > 0 &&
-              snapshot.metadata.fromCache;
+
+            // Preserve items currently in state that are not yet in Firestore
+            // (e.g. optimistic writes still pending, or offline-created items)
+            const firestoreIds = new Set(firestoreItems.map((i) => i.id));
+            const prevItems = prev[name] as Array<{ id: string }>;
+            const localOnlyItems = prevItems.filter((item) => !firestoreIds.has(item.id));
+
+            // Merge Firestore items first, then local-only; dedupe by id to
+            // guard against any race where the same item appears in both.
+            const raw = dedupeById([...firestoreItems, ...localOnlyItems]);
+            const merged = name === "companies"
+              ? dedupeCompanies(raw as JobOsCompany[])
+              : raw;
+
             const next = {
               ...prev,
-              [name]: shouldUseLocal ? latestLocal : items,
+              [name]: merged,
             } as JobOsState;
             writeLocal(userId, next);
             return next;

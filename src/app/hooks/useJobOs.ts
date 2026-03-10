@@ -416,13 +416,10 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         if (!isOfflineLike(error)) {
           throw error;
         }
+        // Optimistic update already ran above — do NOT re-run localMutation here
+        // or it will prepend/apply the change a second time, creating duplicates.
         setLocalOnly(true);
         setSyncNotice("Cloud sync unavailable. Working in local mode.");
-        setState((prev) => {
-          const next = localMutation(prev);
-          writeLocal(userId, next);
-          return next;
-        });
       }
     },
     [localOnly, userId]

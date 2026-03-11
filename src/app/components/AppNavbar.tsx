@@ -10,6 +10,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useApp } from "../context";
+import { useJobOsSyncSnapshot } from "../services/jobOsSync";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { trackPageView } from "../services/analytics";
 
@@ -34,7 +35,9 @@ export function AppNavbar({
   showSync = false,
 }: AppNavbarProps) {
   const { darkMode, toggleDarkMode, signOut } = useApp();
+  const jobOsSync = useJobOsSyncSnapshot();
   const location = useLocation();
+  const logoutBlocked = jobOsSync.pendingWrites > 0;
 
   useEffect(() => {
     trackPageView(`${location.pathname}${location.search}`);
@@ -99,10 +102,14 @@ export function AppNavbar({
             </button>
             <button
               onClick={() => void signOut()}
+              disabled={logoutBlocked}
+              title={logoutBlocked ? "Wait for Job OS changes to finish saving before signing out." : undefined}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-white/65 hover:text-white hover:bg-white/10 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
+              <span className="hidden sm:inline">
+                {logoutBlocked ? `Saving ${jobOsSync.pendingWrites}` : "Sign Out"}
+              </span>
             </button>
           </div>
         </div>

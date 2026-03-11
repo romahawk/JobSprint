@@ -46,6 +46,7 @@ export interface UserSession {
   userId: string;
   email: string;
   provider: "local" | "firebase";
+  authUid?: string;
 }
 
 export interface SyncState {

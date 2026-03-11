@@ -10,6 +10,10 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { getFirebaseContext } from "../services/firebase";
+import {
+  resetJobOsSyncSnapshot,
+  updateJobOsSyncSnapshot,
+} from "../services/jobOsSync";
 import type {
   JobOsApplication,
   JobOsCompany,
@@ -283,6 +287,9 @@ function collectionDoc<T extends { id: string }>(
 interface UseJobOsReturn extends JobOsState {
   loading: boolean;
   syncNotice: string | null;
+  pendingWrites: number;
+  lastSyncedAt: string | null;
+  storageMode: "firebase" | "local";
   updateCv: (
     id: string,
     updates: Partial<Pick<JobOsCvAsset, "version" | "fileUrl">>
@@ -309,6 +316,8 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   const [loading, setLoading] = useState(true);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [localOnly, setLocalOnly] = useState(false);
+  const [pendingWrites, setPendingWrites] = useState(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const effectiveState = userId ? state : EMPTY_STATE;
   const effectiveLoading = userId ? loading : false;
   const effectiveSyncNotice = userId
@@ -377,6 +386,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           });
           setSyncNotice(null);
           setLocalOnly(false);
+          setLastSyncedAt(new Date().toISOString());
           markLoaded();
         },
         () => {
@@ -440,6 +450,23 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     };
   }, [firebase, localOnly, userId]);
 
+  useEffect(() => {
+    if (!userId) {
+      resetJobOsSyncSnapshot();
+      return;
+    }
+
+    updateJobOsSyncSnapshot({
+      pendingWrites,
+      lastSyncedAt,
+      syncNotice: effectiveSyncNotice,
+      storageMode: firebase && !localOnly ? "firebase" : "local",
+      dataUserId: userId,
+      authUid: firebase?.auth.currentUser?.uid ?? null,
+      email: firebase?.auth.currentUser?.email ?? null,
+    });
+  }, [effectiveSyncNotice, firebase, lastSyncedAt, localOnly, pendingWrites, userId]);
+
   const mutate = useCallback(
     async <T>(
       label: string,
@@ -459,7 +486,9 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         return;
       }
       try {
+        setPendingWrites((value) => value + 1);
         await withTimeout(remoteMutation(), label);
+        setLastSyncedAt(new Date().toISOString());
       } catch (error) {
         if (!isOfflineLike(error)) {
           throw error;
@@ -468,6 +497,8 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         // or it will prepend/apply the change a second time, creating duplicates.
         setLocalOnly(true);
         setSyncNotice("Cloud sync unavailable. Working in local mode.");
+      } finally {
+        setPendingWrites((value) => Math.max(0, value - 1));
       }
     },
     [localOnly, userId]
@@ -647,6 +678,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       }
 
       try {
+        setPendingWrites((value) => value + 1);
         await withTimeout(
           addDoc(collection(firebase.db, "users", userId!, key), {
             ...payload,
@@ -656,6 +688,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           }),
           `Add ${key}`
         );
+        setLastSyncedAt(new Date().toISOString());
       } catch (error) {
         if (!isOfflineLike(error)) {
           throw error;
@@ -677,6 +710,8 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         });
         setLocalOnly(true);
         setSyncNotice("Cloud sync unavailable. Working in local mode.");
+      } finally {
+        setPendingWrites((value) => Math.max(0, value - 1));
       }
     },
     [firebase, localOnly, mutate, userId]
@@ -780,6 +815,9 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     ...effectiveState,
     loading: effectiveLoading,
     syncNotice: effectiveSyncNotice,
+    pendingWrites,
+    lastSyncedAt,
+    storageMode: firebase && !localOnly ? "firebase" : "local",
     ...actions,
   };
 }

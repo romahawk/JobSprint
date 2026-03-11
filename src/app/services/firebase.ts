@@ -1,7 +1,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAnalytics, type Analytics } from "firebase/analytics";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { initializeFirestore, type Firestore } from "firebase/firestore";
 
 export interface FirebaseContext {
   app: FirebaseApp;
@@ -56,7 +56,10 @@ export function getFirebaseContext(): FirebaseContext | null {
   cached = {
     app,
     auth: getAuth(app),
-    db: getFirestore(app),
+    db: initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false,
+    }),
     analytics,
   };
   return cached;

@@ -101,6 +101,7 @@ export default function JobOsCompaniesPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [search, setSearch] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  const [bulkText, setBulkText] = useState("");
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [lockAfterImport, setLockAfterImport] = useState(false);
   const [companyListLocked, setCompanyListLocked] = useState(false);
@@ -203,139 +204,157 @@ export default function JobOsCompaniesPage() {
     );
   }
 
+  async function importCompanyText(text: string, sourceLabel: "CSV" | "paste"): Promise<void> {
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length < 2) {
+      setImportNotice(`${sourceLabel} input is empty. Use the template header and include at least one data row.`);
+      return;
+    }
+
+    const headerAliases: Record<string, string> = {
+      "#": "index",
+      index: "index",
+      company: "name",
+      name: "name",
+      industry: "industry",
+      size: "size",
+      remote: "remotepolicy",
+      remotepolicy: "remotepolicy",
+      "remote policy": "remotepolicy",
+      priority: "priority",
+      status: "status",
+      notes: "notes",
+    };
+    const headers = parseCsvLine(lines[0]).map((h) =>
+      h.replace(/^\uFEFF/, "").trim().toLowerCase()
+    );
+    const headerIndex = new Map<string, number>();
+    headers.forEach((header, index) => {
+      const normalized = headerAliases[header];
+      if (normalized) {
+        headerIndex.set(normalized, index);
+      }
+    });
+    const required = ["name", "industry", "size", "remotepolicy", "priority", "status", "notes"];
+    const isHeaderValid = required.every((key) => headerIndex.has(key));
+    if (!isHeaderValid) {
+      setImportNotice("Invalid company header. Download the template and reuse the same columns.");
+      return;
+    }
+
+    let created = 0;
+    let updated = 0;
+    const errors: string[] = [];
+    const existingByName = new Map(
+      companies.map((company) => [normalizeCompanyKey(company.name), company.id])
+    );
+    const seenInBatch = new Set<string>();
+    const pick = (row: string[], key: string): string => {
+      const index = headerIndex.get(key);
+      if (typeof index !== "number") return "";
+      return row[index]?.trim() ?? "";
+    };
+
+    for (let i = 1; i < lines.length; i += 1) {
+      const row = parseCsvLine(lines[i]);
+      if (row.length === 0) {
+        errors.push(`Row ${i + 1}: missing columns`);
+        continue;
+      }
+      const name = pick(row, "name");
+      const industry = pick(row, "industry");
+      const size = pick(row, "size");
+      const remotePolicy = pick(row, "remotepolicy");
+      const priorityRaw = pick(row, "priority");
+      const statusRaw = pick(row, "status");
+      const notes = pick(row, "notes");
+
+      if (!name) {
+        errors.push(`Row ${i + 1}: name is required`);
+        continue;
+      }
+
+      const normalizedName = normalizeCompanyKey(name);
+      if (seenInBatch.has(normalizedName)) {
+        errors.push(`Row ${i + 1}: duplicate company "${name}" in this batch`);
+        continue;
+      }
+      seenInBatch.add(normalizedName);
+
+      const priority = normalizePriority(priorityRaw);
+      const status = normalizeStatus(statusRaw);
+      if (!priority) {
+        errors.push(`Row ${i + 1}: invalid priority "${priorityRaw}"`);
+        continue;
+      }
+      if (!status) {
+        errors.push(`Row ${i + 1}: invalid status "${statusRaw}"`);
+        continue;
+      }
+
+      const payload = { name, industry, size, remotePolicy, priority, status, notes };
+      const existingId = existingByName.get(normalizedName);
+
+      if (existingId) {
+        // Update the existing company in place so linked roles/applications keep the same companyId.
+        await updateCompany(existingId, payload);
+        updated += 1;
+        continue;
+      }
+
+      await addCompany(payload);
+      existingByName.set(normalizedName, `pending-${i}`);
+      created += 1;
+    }
+
+    const actionLabel = sourceLabel === "CSV" ? "Imported" : "Extended";
+    if (errors.length === 0) {
+      setImportNotice(`${actionLabel} ${created} companies and updated ${updated}. Existing roles stay linked to their company IDs.`);
+    } else {
+      setImportNotice(
+        `${actionLabel} ${created} companies, updated ${updated}. ${errors.length} row(s) failed: ${errors
+          .slice(0, 3)
+          .join(" | ")}${errors.length > 3 ? " ..." : ""}`
+      );
+    }
+
+    if (created > 0 && lockAfterImport) {
+      setCompanyListLocked(true);
+      setImportNotice((prev) =>
+        prev ? `${prev} Company list is now locked.` : "Company list is now locked."
+      );
+    }
+  }
+
   async function handleImportCsv(file: File): Promise<void> {
     setIsImporting(true);
     setImportNotice(null);
     try {
       const text = await file.text();
-      const lines = text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (lines.length < 2) {
-        setImportNotice("CSV is empty. Use the template and include at least one data row.");
-        return;
-      }
-
-      const headerAliases: Record<string, string> = {
-        "#": "index",
-        index: "index",
-        company: "name",
-        name: "name",
-        industry: "industry",
-        size: "size",
-        remote: "remotepolicy",
-        remotepolicy: "remotepolicy",
-        "remote policy": "remotepolicy",
-        priority: "priority",
-        status: "status",
-        notes: "notes",
-      };
-      const headers = parseCsvLine(lines[0]).map((h) =>
-        h.replace(/^\uFEFF/, "").trim().toLowerCase()
-      );
-      const headerIndex = new Map<string, number>();
-      headers.forEach((header, index) => {
-        const normalized = headerAliases[header];
-        if (normalized) {
-          headerIndex.set(normalized, index);
-        }
-      });
-      const required = ["name", "industry", "size", "remotepolicy", "priority", "status", "notes"];
-      const isHeaderValid = required.every((key) => headerIndex.has(key));
-      if (!isHeaderValid) {
-        setImportNotice("Invalid CSV header. Download and use the template format.");
-        return;
-      }
-
-      let created = 0;
-      let updated = 0;
-      const errors: string[] = [];
-      const existingByName = new Map(
-        companies.map((company) => [normalizeCompanyKey(company.name), company.id])
-      );
-      const seenInCsv = new Set<string>();
-      const pick = (row: string[], key: string): string => {
-        const index = headerIndex.get(key);
-        if (typeof index !== "number") return "";
-        return row[index]?.trim() ?? "";
-      };
-
-      for (let i = 1; i < lines.length; i += 1) {
-        const row = parseCsvLine(lines[i]);
-        if (row.length === 0) {
-          errors.push(`Row ${i + 1}: missing columns`);
-          continue;
-        }
-        const name = pick(row, "name");
-        const industry = pick(row, "industry");
-        const size = pick(row, "size");
-        const remotePolicy = pick(row, "remotepolicy");
-        const priorityRaw = pick(row, "priority");
-        const statusRaw = pick(row, "status");
-        const notes = pick(row, "notes");
-
-        if (!name) {
-          errors.push(`Row ${i + 1}: name is required`);
-          continue;
-        }
-        const normalizedName = normalizeCompanyKey(name);
-        if (seenInCsv.has(normalizedName)) {
-          errors.push(`Row ${i + 1}: duplicate company "${name}" in CSV`);
-          continue;
-        }
-        seenInCsv.add(normalizedName);
-        const priority = normalizePriority(priorityRaw);
-        const status = normalizeStatus(statusRaw);
-        if (!priority) {
-          errors.push(`Row ${i + 1}: invalid priority "${priorityRaw}"`);
-          continue;
-        }
-        if (!status) {
-          errors.push(`Row ${i + 1}: invalid status "${statusRaw}"`);
-          continue;
-        }
-        const payload = {
-          name,
-          industry,
-          size,
-          remotePolicy,
-          priority,
-          status,
-          notes,
-        };
-
-        const existingId = existingByName.get(normalizedName);
-        if (existingId) {
-          await updateCompany(existingId, payload);
-          updated += 1;
-          continue;
-        }
-        await addCompany(payload);
-        existingByName.set(normalizedName, `pending-${i}`);
-        created += 1;
-      }
-
-      if (errors.length === 0) {
-        setImportNotice(`Imported ${created} companies and updated ${updated}.`);
-      } else {
-        setImportNotice(
-          `Imported ${created} companies, updated ${updated}. ${errors.length} row(s) failed: ${errors
-            .slice(0, 3)
-            .join(" | ")}${errors.length > 3 ? " ..." : ""}`
-        );
-      }
-      if (created > 0 && lockAfterImport) {
-        setCompanyListLocked(true);
-        setImportNotice((prev) =>
-          prev ? `${prev} Company list is now locked.` : "Company list is now locked."
-        );
-      }
+      await importCompanyText(text, "CSV");
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  }
+
+  async function handleBulkExtend(): Promise<void> {
+    if (!bulkText.trim()) {
+      setImportNotice("Paste company rows first.");
+      return;
+    }
+    setIsImporting(true);
+    setImportNotice(null);
+    try {
+      await importCompanyText(bulkText, "paste");
+      setBulkText("");
+    } finally {
+      setIsImporting(false);
     }
   }
 
@@ -450,6 +469,31 @@ export default function JobOsCompaniesPage() {
           </div>
           <div className="md:col-span-4">
             <Textarea value={draft.notes} onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Research notes" />
+          </div>
+          <div className="md:col-span-4 rounded border border-dashed px-3 py-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Extend Companies List</p>
+                <p className="text-xs text-neutral-500">
+                  Paste the same CSV header and rows from the template. Existing companies are updated in place, so saved roles keep their links.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isImporting || companyListLocked}
+                onClick={() => void handleBulkExtend()}
+              >
+                {isImporting ? "Processing..." : "Extend List"}
+              </Button>
+            </div>
+            <Textarea
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              rows={5}
+              placeholder={"Company,Industry,Size,Remote Policy,Priority,Status,Notes\nExample Corp,SaaS,201-500,Hybrid,A,Target,Strong PM hiring signal"}
+              disabled={companyListLocked}
+            />
           </div>
           <div className="md:col-span-4 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
             <Checkbox

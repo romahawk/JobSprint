@@ -1,0 +1,26 @@
+name,industry,size,remotePolicy,priority,status,notes
+Doctolib,Healthtech,Scale-up,Hybrid / EU Remote,A,Target,LiveSurgery workflow alignment
+Ada Health,Healthtech,Scale-up,Remote-friendly,A,Target,AI diagnostics platform
+Oviva,Healthtech,Scale-up,EU Remote,A,Target,Digital care workflows
+Kaia Health,Healthtech,Scale-up,Remote,A,Target,Digital therapeutics
+Wise,Fintech,Scale-up,EU Remote,A,Target,Execution systems fit AlphaRhythm
+Stripe,Fintech,Large,Remote,A,Target,Platform product org
+Revolut,Fintech,Scale-up,Remote-friendly,A,Target,High velocity product org
+Trade Republic,Fintech,Scale-up,Hybrid / Remote,A,Target,Trading platform alignment
+Scalable Capital,Fintech,Scale-up,Hybrid / Remote,A,Target,Algorithmic investing
+Mollie,Fintech,Scale-up,EU Remote,A,Target,Payments infrastructure
+SumUp,Fintech,Scale-up,Hybrid / Remote,A,Target,Merchant fintech
+Kry / Livi,Healthtech,Scale-up,EU Remote,B,Target,Telemedicine platform
+Teladoc Health,Healthtech,Large,Remote,B,Target,Global telehealth
+Komodo Health,Healthtech,Scale-up,Remote,B,Target,Healthcare data platform
+Included Health,Healthtech,Scale-up,Remote,B,Target,Healthcare platform
+Qventus,Healthtech,Scale-up,Remote,B,Target,Hospital ops AI
+LeanTaaS,Healthtech,Scale-up,Remote,B,Target,Hospital analytics
+Flo Health,Healthtech,Scale-up,EU Remote,B,Target,Consumer health app
+ZAVA,Healthtech,Scale-up,Remote,B,Target,Telemedicine platform
+Curai Health,Healthtech,Startup,Remote,B,Target,AI healthcare
+Klarna,Fintech,Scale-up,Remote-friendly,B,Target,Fintech platform
+Adyen,Fintech,Scale-up,Hybrid,B,Target,Payments platform
+Coinbase,Fintech,Large,Remote,B,Target,Crypto exchange
+Kraken,Fintech,Large,Remote,B,Target,Crypto exchange
+Chainalysis,Fintech,Scale-up,Remote-friendly,B,Target,Crypto analytics

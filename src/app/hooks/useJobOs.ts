@@ -193,7 +193,10 @@ function writeLocal(userId: string, state: JobOsState): void {
 }
 
 function randomId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {

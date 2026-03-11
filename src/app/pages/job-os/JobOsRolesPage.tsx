@@ -10,6 +10,17 @@ import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import type { JobOsRole, JobTrack, RoleStatus } from "../../types/jobOs";
 
 const ROLE_STATUSES: RoleStatus[] = ["to_apply", "applied", "interview", "rejected", "offer", "closed"];
+const SENIORITY_OPTIONS = ["Senior", "Middle", "Junior"] as const;
+const LOCATION_SUGGESTIONS = ["Remote", "Hybrid"] as const;
+
+function normalizeSeniority(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed === "mid") return "Middle";
+  if (trimmed === "middle") return "Middle";
+  if (trimmed === "senior") return "Senior";
+  if (trimmed === "junior") return "Junior";
+  return value;
+}
 
 export default function JobOsRolesPage() {
   const { session } = useApp();
@@ -49,7 +60,7 @@ export default function JobOsRolesPage() {
       title: role.title,
       url: role.url,
       location: role.location,
-      seniority: role.seniority,
+      seniority: normalizeSeniority(role.seniority),
       track: role.track,
       fitScore: role.fitScore,
       status: role.status,
@@ -63,7 +74,10 @@ export default function JobOsRolesPage() {
 
   async function saveEdit(roleId: string): Promise<void> {
     if (!editDraft) return;
-    await updateRole(roleId, editDraft);
+    await updateRole(roleId, {
+      ...editDraft,
+      seniority: normalizeSeniority(editDraft.seniority),
+    });
     cancelEdit();
   }
 
@@ -80,8 +94,26 @@ export default function JobOsRolesPage() {
           </Select>
           <Input value={draft.title} onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))} placeholder="Role title" />
           <Input value={draft.url} onChange={(e) => setDraft((p) => ({ ...p, url: e.target.value }))} placeholder="Role URL" />
-          <Input value={draft.location} onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))} placeholder="Location" />
-          <Input value={draft.seniority} onChange={(e) => setDraft((p) => ({ ...p, seniority: e.target.value }))} placeholder="Seniority" />
+          <Input
+            list="role-location-suggestions"
+            value={draft.location}
+            onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))}
+            placeholder="Location"
+          />
+          <datalist id="role-location-suggestions">
+            {LOCATION_SUGGESTIONS.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+          <Select
+            value={draft.seniority}
+            onValueChange={(v) => setDraft((p) => ({ ...p, seniority: v }))}
+          >
+            <SelectTrigger><SelectValue placeholder="Seniority" /></SelectTrigger>
+            <SelectContent>
+              {SENIORITY_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={draft.track} onValueChange={(v) => setDraft((p) => ({ ...p, track: v as JobTrack }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -97,7 +129,10 @@ export default function JobOsRolesPage() {
           <Button
             onClick={() => {
               if (!draft.companyId || !draft.title) return;
-              void addRole(draft);
+              void addRole({
+                ...draft,
+                seniority: normalizeSeniority(draft.seniority),
+              });
               setDraft({
                 companyId: "",
                 title: "",
@@ -183,6 +218,7 @@ export default function JobOsRolesPage() {
                   <TableCell>
                     {editingRoleId === role.id && editDraft ? (
                       <Input
+                        list={`role-location-suggestions-${role.id}`}
                         value={editDraft.location}
                         onChange={(e) => setEditDraft((p) => (p ? { ...p, location: e.target.value } : p))}
                         className="w-40"
@@ -190,16 +226,27 @@ export default function JobOsRolesPage() {
                     ) : (
                       role.location
                     )}
+                    {editingRoleId === role.id && editDraft ? (
+                      <datalist id={`role-location-suggestions-${role.id}`}>
+                        {LOCATION_SUGGESTIONS.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     {editingRoleId === role.id && editDraft ? (
-                      <Input
+                      <Select
                         value={editDraft.seniority}
-                        onChange={(e) => setEditDraft((p) => (p ? { ...p, seniority: e.target.value } : p))}
-                        className="w-36"
-                      />
+                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, seniority: v } : p))}
+                      >
+                        <SelectTrigger className="w-36"><SelectValue placeholder="Seniority" /></SelectTrigger>
+                        <SelectContent>
+                          {SENIORITY_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     ) : (
-                      role.seniority
+                      normalizeSeniority(role.seniority)
                     )}
                   </TableCell>
                   <TableCell>

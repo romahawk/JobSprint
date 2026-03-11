@@ -562,8 +562,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       payload: Omit<T, "id" | "createdAt" | "updatedAt">
     ) => {
       const now = new Date().toISOString();
+      const generatedId =
+        firebase && userId && !localOnly
+          ? doc(collection(firebase.db, "users", userId, key)).id
+          : randomId(prefix);
       const localItem = {
-        id: randomId(prefix),
+        id: generatedId,
         ...payload,
         createdAt: now,
         updatedAt: now,
@@ -576,14 +580,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         } as JobOsState),
         firebase && userId && !localOnly
           ? async () => {
-              const docRef = doc(
-                firebase.db,
-                "users",
-                userId,
-                key,
-                localItem.id
-              );
-              await setDoc(docRef, {
+              await setDoc(doc(firebase.db, "users", userId, key, localItem.id), {
                 ...payload,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),

@@ -1,11 +1,15 @@
 import type { UserSession } from "../types";
 import {
+  fetchSignInMethodsForEmail,
+  GoogleAuthProvider as GoogleProvider,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
+  linkWithCredential,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
+  type User,
 } from "firebase/auth";
 import { getFirebaseContext } from "./firebase";
 
@@ -16,7 +20,6 @@ interface StorageLike {
 }
 
 const SESSION_KEY = "jobsprint_session_v1";
-
 export interface AuthService {
   supportsGoogleSignIn: boolean;
   bootstrapSession: () => Promise<UserSession | null>;
@@ -33,6 +36,21 @@ function toUserId(email: string) {
   return `user_${email.trim().toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
 }
 
+async function resolveFirebaseSession(user: User) {
+  if (!user.uid || !user.email) {
+    throw new Error("Unable to establish session.");
+  }
+
+  const normalizedEmail = user.email.trim().toLowerCase();
+
+  return {
+    userId: user.uid,
+    authUid: user.uid,
+    email: normalizedEmail,
+    provider: "firebase" as const,
+  };
+}
+
 export function createAuthService(storage: StorageLike): AuthService {
   const firebase = getFirebaseContext();
 
@@ -44,11 +62,7 @@ export function createAuthService(storage: StorageLike): AuthService {
       async bootstrapSession() {
         const current = firebase.auth.currentUser;
         if (current?.uid && current.email) {
-          return {
-            userId: current.uid,
-            email: current.email,
-            provider: "firebase",
-          };
+          return resolveFirebaseSession(current);
         }
 
         return await new Promise<UserSession | null>((resolve) => {
@@ -76,11 +90,7 @@ export function createAuthService(storage: StorageLike): AuthService {
                 finish(null);
                 return;
               }
-              finish({
-                userId: user.uid,
-                email: user.email,
-                provider: "firebase",
-              });
+              void resolveFirebaseSession(user).then(finish, () => finish(null));
             },
             () => {
               clearTimeout(timeoutId);
@@ -111,26 +121,47 @@ export function createAuthService(storage: StorageLike): AuthService {
               normalizedPassword
             );
 
-        if (!credential.user.uid || !credential.user.email) {
-          throw new Error("Unable to establish session.");
-        }
-
-        return {
-          userId: credential.user.uid,
-          email: credential.user.email,
-          provider: "firebase",
-        };
+        return resolveFirebaseSession(credential.user);
       },
       async signInWithGoogle() {
-        const credential = await signInWithPopup(firebase.auth, provider);
-        if (!credential.user.uid || !credential.user.email) {
-          throw new Error("Unable to establish Google session.");
+        try {
+          const credential = await signInWithPopup(firebase.auth, provider);
+          return resolveFirebaseSession(credential.user);
+        } catch (error) {
+          const code =
+            error && typeof error === "object" && "code" in error
+              ? String((error as { code?: unknown }).code)
+              : "";
+          const customEmail =
+            error && typeof error === "object" && "customData" in error
+              ? String(
+                  ((error as { customData?: { email?: unknown } }).customData?.email as string | undefined) ?? ""
+                )
+              : "";
+
+          if (code === "auth/account-exists-with-different-credential" && customEmail) {
+            const methods = await fetchSignInMethodsForEmail(firebase.auth, customEmail);
+            throw new Error(
+              `An account for ${customEmail} already exists with ${methods.join(", ")}. Sign in with that method first so Google can reuse the same data.`
+            );
+          }
+
+          if (
+            code === "auth/credential-already-in-use" &&
+            firebase.auth.currentUser &&
+            error &&
+            typeof error === "object" &&
+            "credential" in error
+          ) {
+            const googleCredential = (error as { credential?: ReturnType<typeof GoogleProvider.credential> }).credential;
+            if (googleCredential) {
+              await linkWithCredential(firebase.auth.currentUser, googleCredential);
+              return resolveFirebaseSession(firebase.auth.currentUser);
+            }
+          }
+
+          throw error instanceof Error ? error : new Error("Unable to sign in with Google.");
         }
-        return {
-          userId: credential.user.uid,
-          email: credential.user.email,
-          provider: "firebase",
-        };
       },
       async signOut() {
         await firebaseSignOut(firebase.auth);

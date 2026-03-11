@@ -65,6 +65,7 @@ export interface JobOsTemplateAsset {
 
 export interface JobOsCompany {
   id: string;
+  clientRequestId?: string;
   name: string;
   industry: string;
   size: string;
@@ -78,6 +79,7 @@ export interface JobOsCompany {
 
 export interface JobOsRole {
   id: string;
+  clientRequestId?: string;
   companyId: string;
   title: string;
   url: string;
@@ -92,6 +94,7 @@ export interface JobOsRole {
 
 export interface JobOsApplication {
   id: string;
+  clientRequestId?: string;
   roleId: string;
   companyId: string;
   dateApplied: string;
@@ -106,6 +109,7 @@ export interface JobOsApplication {
 
 export interface JobOsOutreach {
   id: string;
+  clientRequestId?: string;
   companyId: string;
   roleId: string | null;
   contactName: string;

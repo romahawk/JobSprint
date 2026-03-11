@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -199,6 +200,44 @@ function randomId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function requestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function pendingLocalId(prefix: string, clientRequestId: string): string {
+  return `local-${prefix}-${clientRequestId}`;
+}
+
+function isPendingLocalItem(value: unknown): value is { id: string; clientRequestId?: string } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "id" in value &&
+    typeof (value as { id: string }).id === "string" &&
+    (value as { id: string }).id.startsWith("local-")
+  );
+}
+
+function mergePendingLocalItems<T extends { id: string; clientRequestId?: string }>(
+  remoteItems: T[],
+  latestLocal: T[]
+): T[] {
+  const remoteRequestIds = new Set(
+    remoteItems
+      .map((item) => item.clientRequestId)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+  );
+  const pendingLocals = latestLocal.filter(
+    (item) =>
+      isPendingLocalItem(item) &&
+      (!item.clientRequestId || !remoteRequestIds.has(item.clientRequestId))
+  );
+  return [...remoteItems, ...pendingLocals];
+}
+
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -323,9 +362,15 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
               items.length === 0 &&
               latestLocal.length > 0 &&
               snapshot.metadata.fromCache;
+            const mergedItems = shouldUseLocal
+              ? latestLocal
+              : mergePendingLocalItems(
+                  items as Array<{ id: string; clientRequestId?: string }>,
+                  latestLocal as Array<{ id: string; clientRequestId?: string }>
+                );
             const next = {
               ...prev,
-              [name]: shouldUseLocal ? latestLocal : items,
+              [name]: mergedItems,
             } as JobOsState;
             writeLocal(userId, next);
             return next;
@@ -562,32 +607,77 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       payload: Omit<T, "id" | "createdAt" | "updatedAt">
     ) => {
       const now = new Date().toISOString();
-      const generatedId =
-        firebase && userId && !localOnly
-          ? doc(collection(firebase.db, "users", userId, key)).id
-          : randomId(prefix);
-      const localItem = {
-        id: generatedId,
-        ...payload,
-        createdAt: now,
-        updatedAt: now,
-      } as T;
-      await mutate(
-        `Add ${key}`,
-        (prev) => ({
-          ...prev,
-          [key]: [localItem, ...(prev[key] as T[])],
-        } as JobOsState),
-        firebase && userId && !localOnly
-          ? async () => {
-              await setDoc(doc(firebase.db, "users", userId, key, localItem.id), {
-                ...payload,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-              });
-            }
-          : null
-      );
+      const clientRequestId = requestId();
+
+      if (!firebase) {
+        const localItem = {
+          id: randomId(prefix),
+          ...payload,
+          createdAt: now,
+          updatedAt: now,
+        } as T;
+        await mutate(
+          `Add ${key}`,
+          (prev) => ({
+            ...prev,
+            [key]: [localItem, ...(prev[key] as T[])],
+          } as JobOsState),
+          null
+        );
+        return;
+      }
+
+      if (localOnly) {
+        const localItem = {
+          id: pendingLocalId(prefix, clientRequestId),
+          ...payload,
+          clientRequestId,
+          createdAt: now,
+          updatedAt: now,
+        } as T;
+        await mutate(
+          `Add ${key}`,
+          (prev) => ({
+            ...prev,
+            [key]: [localItem, ...(prev[key] as T[])],
+          } as JobOsState),
+          null
+        );
+        return;
+      }
+
+      try {
+        await withTimeout(
+          addDoc(collection(firebase.db, "users", userId!, key), {
+            ...payload,
+            clientRequestId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }),
+          `Add ${key}`
+        );
+      } catch (error) {
+        if (!isOfflineLike(error)) {
+          throw error;
+        }
+        const localItem = {
+          id: pendingLocalId(prefix, clientRequestId),
+          ...payload,
+          clientRequestId,
+          createdAt: now,
+          updatedAt: now,
+        } as T;
+        setState((prev) => {
+          const next = {
+            ...prev,
+            [key]: [localItem, ...(prev[key] as T[])],
+          } as JobOsState;
+          writeLocal(userId!, next);
+          return next;
+        });
+        setLocalOnly(true);
+        setSyncNotice("Cloud sync unavailable. Working in local mode.");
+      }
     },
     [firebase, localOnly, mutate, userId]
   );

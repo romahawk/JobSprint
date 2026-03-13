@@ -1,9 +1,11 @@
+import { Link } from "react-router";
 import { useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Textarea } from "../../components/ui/textarea";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
@@ -41,13 +43,15 @@ export default function JobOsRolesPage() {
     track: "TPM",
     fitScore: 3,
     status: "to_apply",
+    jobDescription: "",
+    jobDescriptionUpdatedAt: undefined,
   });
 
   const filtered = useMemo(
     () =>
-      roles.filter((r) => {
-        if (filterTrack !== "all" && r.track !== filterTrack) return false;
-        if (filterStatus !== "all" && r.status !== filterStatus) return false;
+      roles.filter((role) => {
+        if (filterTrack !== "all" && role.track !== filterTrack) return false;
+        if (filterStatus !== "all" && role.status !== filterStatus) return false;
         return true;
       }),
     [roles, filterStatus, filterTrack]
@@ -64,6 +68,8 @@ export default function JobOsRolesPage() {
       track: role.track,
       fitScore: role.fitScore,
       status: role.status,
+      jobDescription: role.jobDescription ?? "",
+      jobDescriptionUpdatedAt: role.jobDescriptionUpdatedAt,
     });
   }
 
@@ -77,6 +83,7 @@ export default function JobOsRolesPage() {
     await updateRole(roleId, {
       ...editDraft,
       seniority: normalizeSeniority(editDraft.seniority),
+      jobDescriptionUpdatedAt: editDraft.jobDescription?.trim() ? new Date().toISOString() : undefined,
     });
     cancelEdit();
   }
@@ -86,18 +93,18 @@ export default function JobOsRolesPage() {
       <Card>
         <CardHeader><CardTitle className="text-sm">Add Role</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-4 gap-3">
-          <Select value={draft.companyId} onValueChange={(v) => setDraft((p) => ({ ...p, companyId: v }))}>
+          <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value }))}>
             <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
             <SelectContent>
-              {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input value={draft.title} onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))} placeholder="Role title" />
-          <Input value={draft.url} onChange={(e) => setDraft((p) => ({ ...p, url: e.target.value }))} placeholder="Role URL" />
+          <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Role title" />
+          <Input value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} placeholder="Role URL" />
           <Input
             list="role-location-suggestions"
             value={draft.location}
-            onChange={(e) => setDraft((p) => ({ ...p, location: e.target.value }))}
+            onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))}
             placeholder="Location"
           />
           <datalist id="role-location-suggestions">
@@ -107,14 +114,14 @@ export default function JobOsRolesPage() {
           </datalist>
           <Select
             value={draft.seniority}
-            onValueChange={(v) => setDraft((p) => ({ ...p, seniority: v }))}
+            onValueChange={(value) => setDraft((current) => ({ ...current, seniority: value }))}
           >
             <SelectTrigger><SelectValue placeholder="Seniority" /></SelectTrigger>
             <SelectContent>
               {SENIORITY_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={draft.track} onValueChange={(v) => setDraft((p) => ({ ...p, track: v as JobTrack }))}>
+          <Select value={draft.track} onValueChange={(value) => setDraft((current) => ({ ...current, track: value as JobTrack }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TPM">TPM</SelectItem>
@@ -122,9 +129,9 @@ export default function JobOsRolesPage() {
               <SelectItem value="Systems PM">Systems PM</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={String(draft.fitScore)} onValueChange={(v) => setDraft((p) => ({ ...p, fitScore: Number(v) as 1 | 2 | 3 | 4 | 5 }))}>
+          <Select value={String(draft.fitScore)} onValueChange={(value) => setDraft((current) => ({ ...current, fitScore: Number(value) as 1 | 2 | 3 | 4 | 5 }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{[1, 2, 3, 4, 5].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent>
+            <SelectContent>{[1, 2, 3, 4, 5].map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectContent>
           </Select>
           <Button
             onClick={() => {
@@ -132,6 +139,7 @@ export default function JobOsRolesPage() {
               void addRole({
                 ...draft,
                 seniority: normalizeSeniority(draft.seniority),
+                jobDescriptionUpdatedAt: draft.jobDescription?.trim() ? new Date().toISOString() : undefined,
               });
               setDraft({
                 companyId: "",
@@ -142,11 +150,21 @@ export default function JobOsRolesPage() {
                 track: "TPM",
                 fitScore: 3,
                 status: "to_apply",
+                jobDescription: "",
+                jobDescriptionUpdatedAt: undefined,
               });
             }}
           >
             Add Role
           </Button>
+          <div className="md:col-span-4">
+            <Textarea
+              value={draft.jobDescription ?? ""}
+              onChange={(event) => setDraft((current) => ({ ...current, jobDescription: event.target.value }))}
+              rows={4}
+              placeholder="Optional: store the job description here so CV tailoring can sync directly from the role."
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -167,7 +185,7 @@ export default function JobOsRolesPage() {
               <SelectTrigger className="w-52"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                {ROLE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                {ROLE_STATUSES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -183,6 +201,7 @@ export default function JobOsRolesPage() {
                 <TableHead>Track</TableHead>
                 <TableHead>Fit</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>JD</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -193,22 +212,22 @@ export default function JobOsRolesPage() {
                     {editingRoleId === role.id && editDraft ? (
                       <Select
                         value={editDraft.companyId}
-                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, companyId: v } : p))}
+                        onValueChange={(value) => setEditDraft((current) => (current ? { ...current, companyId: value } : current))}
                       >
                         <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     ) : (
-                      companies.find((c) => c.id === role.companyId)?.name ?? "-"
+                      companies.find((company) => company.id === role.companyId)?.name ?? "-"
                     )}
                   </TableCell>
                   <TableCell className="font-medium">
                     {editingRoleId === role.id && editDraft ? (
                       <Input
                         value={editDraft.title}
-                        onChange={(e) => setEditDraft((p) => (p ? { ...p, title: e.target.value } : p))}
+                        onChange={(event) => setEditDraft((current) => (current ? { ...current, title: event.target.value } : current))}
                         className="w-52"
                       />
                     ) : (
@@ -220,7 +239,7 @@ export default function JobOsRolesPage() {
                       <Input
                         list={`role-location-suggestions-${role.id}`}
                         value={editDraft.location}
-                        onChange={(e) => setEditDraft((p) => (p ? { ...p, location: e.target.value } : p))}
+                        onChange={(event) => setEditDraft((current) => (current ? { ...current, location: event.target.value } : current))}
                         className="w-40"
                       />
                     ) : (
@@ -238,7 +257,7 @@ export default function JobOsRolesPage() {
                     {editingRoleId === role.id && editDraft ? (
                       <Select
                         value={editDraft.seniority}
-                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, seniority: v } : p))}
+                        onValueChange={(value) => setEditDraft((current) => (current ? { ...current, seniority: value } : current))}
                       >
                         <SelectTrigger className="w-36"><SelectValue placeholder="Seniority" /></SelectTrigger>
                         <SelectContent>
@@ -253,7 +272,7 @@ export default function JobOsRolesPage() {
                     {editingRoleId === role.id && editDraft ? (
                       <Select
                         value={editDraft.track}
-                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, track: v as JobTrack } : p))}
+                        onValueChange={(value) => setEditDraft((current) => (current ? { ...current, track: value as JobTrack } : current))}
                       >
                         <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -270,12 +289,12 @@ export default function JobOsRolesPage() {
                     {editingRoleId === role.id && editDraft ? (
                       <Select
                         value={String(editDraft.fitScore)}
-                        onValueChange={(v) =>
-                          setEditDraft((p) => (p ? { ...p, fitScore: Number(v) as 1 | 2 | 3 | 4 | 5 } : p))
+                        onValueChange={(value) =>
+                          setEditDraft((current) => (current ? { ...current, fitScore: Number(value) as 1 | 2 | 3 | 4 | 5 } : current))
                         }
                       >
                         <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                        <SelectContent>{[1, 2, 3, 4, 5].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent>
+                        <SelectContent>{[1, 2, 3, 4, 5].map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectContent>
                       </Select>
                     ) : (
                       `${role.fitScore}/5`
@@ -285,16 +304,30 @@ export default function JobOsRolesPage() {
                     {editingRoleId === role.id && editDraft ? (
                       <Select
                         value={editDraft.status}
-                        onValueChange={(v) => setEditDraft((p) => (p ? { ...p, status: v as RoleStatus } : p))}
+                        onValueChange={(value) => setEditDraft((current) => (current ? { ...current, status: value as RoleStatus } : current))}
                       >
                         <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                        <SelectContent>{ROLE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                        <SelectContent>{ROLE_STATUSES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
                       </Select>
                     ) : (
-                      <Select value={role.status} onValueChange={(v) => void updateRole(role.id, { status: v as RoleStatus })}>
+                      <Select value={role.status} onValueChange={(value) => void updateRole(role.id, { status: value as RoleStatus })}>
                         <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                        <SelectContent>{ROLE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                        <SelectContent>{ROLE_STATUSES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
                       </Select>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-[260px] align-top">
+                    {editingRoleId === role.id && editDraft ? (
+                      <Textarea
+                        value={editDraft.jobDescription ?? ""}
+                        onChange={(event) => setEditDraft((current) => (current ? { ...current, jobDescription: event.target.value } : current))}
+                        rows={5}
+                        className="min-w-[240px]"
+                      />
+                    ) : role.jobDescription ? (
+                      <div className="line-clamp-4 text-sm text-muted-foreground">{role.jobDescription}</div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No stored JD</span>
                     )}
                   </TableCell>
                   <TableCell className="flex gap-2">
@@ -321,10 +354,19 @@ export default function JobOsRolesPage() {
                           status: "sent",
                           nextAction: "Send follow-up in 5 days",
                           notes: "",
+                          latestJobDescriptionId: undefined,
+                          latestCvTailoringRunId: undefined,
+                          tailoredCvHeadline: "",
+                          tailoredCvSummary: "",
+                          tailoredCvText: "",
+                          tailoredCvUpdatedAt: undefined,
                         })
                       }
                     >
                       Add application
+                    </Button>
+                    <Button asChild size="sm" variant="secondary">
+                      <Link to={`/cv-optimizer?roleId=${role.id}`}>Tailor CV</Link>
                     </Button>
                     <Button
                       size="sm"

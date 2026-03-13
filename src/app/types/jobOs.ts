@@ -1,4 +1,5 @@
 export type JobTrack = "TPM" | "Product Engineer" | "Systems PM";
+export type CvTargetTrack = "TPM" | "PO" | "Implementation";
 
 export type CompanyPriority = "A" | "B" | "C";
 export type CompanyStatus =
@@ -39,6 +40,9 @@ export interface JobOsCvAsset {
   name: string;
   version: string;
   fileUrl: string;
+  sourceText?: string;
+  sourceTextUpdatedAt?: string;
+  linkedProfileId?: string;
   locked: boolean;
   createdAt: string;
   updatedAt: string;
@@ -88,6 +92,8 @@ export interface JobOsRole {
   track: JobTrack;
   fitScore: 1 | 2 | 3 | 4 | 5;
   status: RoleStatus;
+  jobDescription?: string;
+  jobDescriptionUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,6 +109,12 @@ export interface JobOsApplication {
   status: ApplicationStatus;
   nextAction: string;
   notes: string;
+  latestJobDescriptionId?: string;
+  latestCvTailoringRunId?: string;
+  tailoredCvHeadline?: string;
+  tailoredCvSummary?: string;
+  tailoredCvText?: string;
+  tailoredCvUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,6 +137,60 @@ export interface JobOsOutreach {
   updatedAt: string;
 }
 
+export interface CvProfileExperienceItem {
+  company: string;
+  role: string;
+  bullets: string[];
+}
+
+export interface CvProfile {
+  id: string;
+  clientRequestId?: string;
+  name: string;
+  targetTrack: CvTargetTrack;
+  headline: string;
+  summary: string;
+  experience: CvProfileExperienceItem[];
+  skills: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobDescription {
+  id: string;
+  clientRequestId?: string;
+  applicationId?: string;
+  roleId?: string;
+  company: string;
+  title: string;
+  rawText: string;
+  sourceUrl?: string;
+  createdAt: string;
+}
+
+export type CvTailoringMode = "analysis" | "quickTailor" | "fullTailor";
+
+export interface CvTailoringRun {
+  id: string;
+  clientRequestId?: string;
+  applicationId?: string;
+  jobDescriptionId: string;
+  cvProfileId: string;
+  mode: CvTailoringMode;
+  fitScore?: number;
+  extractedKeywords: string[];
+  strengths: string[];
+  gaps: string[];
+  recruiterRisks: string[];
+  recommendedPositioning?: string;
+  tailoredHeadline?: string;
+  tailoredSummary?: string;
+  rewrittenBullets?: string[];
+  portfolioRecommendations?: string[];
+  finalCvText?: string;
+  createdAt: string;
+}
+
 export interface JobOsState {
   assets: {
     cvs: JobOsCvAsset[];
@@ -135,4 +201,7 @@ export interface JobOsState {
   roles: JobOsRole[];
   applications: JobOsApplication[];
   outreach: JobOsOutreach[];
+  cvProfiles: CvProfile[];
+  jobDescriptions: JobDescription[];
+  cvTailoringRuns: CvTailoringRun[];
 }

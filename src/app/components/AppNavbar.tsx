@@ -8,6 +8,7 @@ import {
   Moon,
   ShieldCheck,
   Sun,
+  WandSparkles,
 } from "lucide-react";
 import { useApp } from "../context";
 import { useJobOsSyncSnapshot } from "../services/jobOsSync";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: Home },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/job-os/applications", label: "Job OS", icon: BriefcaseBusiness },
+  { to: "/cv-optimizer", label: "CV Optimizer", icon: WandSparkles },
   { to: "/compliance/afa", label: "AfA Compliance", icon: ShieldCheck },
 ];
 
@@ -123,3 +125,4 @@ export function AppNavbar({
     </header>
   );
 }
+

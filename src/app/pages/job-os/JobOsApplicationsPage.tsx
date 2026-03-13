@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -36,12 +37,18 @@ export default function JobOsApplicationsPage() {
     status: "sent",
     nextAction: "",
     notes: "",
+    latestJobDescriptionId: undefined,
+    latestCvTailoringRunId: undefined,
+    tailoredCvHeadline: "",
+    tailoredCvSummary: "",
+    tailoredCvText: "",
+    tailoredCvUpdatedAt: undefined,
   });
 
   const byId = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   function toggle(id: string): void {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
   }
 
   async function applyBulkStatus(status: ApplicationStatus): Promise<void> {
@@ -65,36 +72,36 @@ export default function JobOsApplicationsPage() {
       <Card>
         <CardHeader><CardTitle className="text-sm">Log Application</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-4 gap-3">
-          <Input type="date" value={draft.dateApplied} onChange={(e) => setDraft((p) => ({ ...p, dateApplied: e.target.value }))} />
-          <Select value={draft.companyId} onValueChange={(v) => setDraft((p) => ({ ...p, companyId: v }))}>
+          <Input type="date" value={draft.dateApplied} onChange={(event) => setDraft((current) => ({ ...current, dateApplied: event.target.value }))} />
+          <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value }))}>
             <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
-            <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={draft.roleId} onValueChange={(v) => setDraft((p) => ({ ...p, roleId: v }))}>
+          <Select value={draft.roleId} onValueChange={(value) => setDraft((current) => ({ ...current, roleId: value }))}>
             <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
-            <SelectContent>{roles.filter((r) => !draft.companyId || r.companyId === draft.companyId).map((r) => <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>)}</SelectContent>
+            <SelectContent>{roles.filter((role) => !draft.companyId || role.companyId === draft.companyId).map((role) => <SelectItem key={role.id} value={role.id}>{role.title}</SelectItem>)}</SelectContent>
           </Select>
-          <Input value={draft.channel} onChange={(e) => setDraft((p) => ({ ...p, channel: e.target.value }))} placeholder="Channel" />
-          <Select value={draft.cvVersion} onValueChange={(v) => setDraft((p) => ({ ...p, cvVersion: v }))}>
+          <Input value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} placeholder="Channel" />
+          <Select value={draft.cvVersion} onValueChange={(value) => setDraft((current) => ({ ...current, cvVersion: value }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{assets.cvs.map((cv) => <SelectItem key={cv.id} value={cv.name}>{cv.name}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={draft.status} onValueChange={(v) => setDraft((p) => ({ ...p, status: v as ApplicationStatus }))}>
+          <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as ApplicationStatus }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{STATUS_VALUES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            <SelectContent>{STATUS_VALUES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
           </Select>
-          <Input value={draft.nextAction} onChange={(e) => setDraft((p) => ({ ...p, nextAction: e.target.value }))} placeholder="Next action" />
+          <Input value={draft.nextAction} onChange={(event) => setDraft((current) => ({ ...current, nextAction: event.target.value }))} placeholder="Next action" />
           <Button
             onClick={() => {
               if (!draft.companyId) return;
               void addApplication(draft);
-              setDraft((p) => ({ ...p, nextAction: "", notes: "" }));
+              setDraft((current) => ({ ...current, nextAction: "", notes: "" }));
             }}
           >
             Save
           </Button>
           <div className="md:col-span-4">
-            <Textarea value={draft.notes} onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Notes" />
+            <Textarea value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} rows={2} placeholder="Notes" />
           </div>
         </CardContent>
       </Card>
@@ -125,38 +132,47 @@ export default function JobOsApplicationsPage() {
                 <TableHead>Channel</TableHead>
                 <TableHead>CV Version</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Tailored CV</TableHead>
                 <TableHead>Next Action</TableHead>
                 <TableHead>Notes</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {applications.map((app) => (
-                <TableRow key={app.id}>
+              {applications.map((application) => (
+                <TableRow key={application.id}>
                   <TableCell>
                     <input
                       type="checkbox"
-                      checked={byId.has(app.id)}
-                      onChange={() => toggle(app.id)}
+                      checked={byId.has(application.id)}
+                      onChange={() => toggle(application.id)}
                     />
                   </TableCell>
-                  <TableCell>{app.dateApplied}</TableCell>
-                  <TableCell>{companies.find((c) => c.id === app.companyId)?.name ?? "-"}</TableCell>
-                  <TableCell>{roles.find((r) => r.id === app.roleId)?.title ?? "-"}</TableCell>
-                  <TableCell>{app.channel}</TableCell>
-                  <TableCell>{app.cvVersion}</TableCell>
+                  <TableCell>{application.dateApplied}</TableCell>
+                  <TableCell>{companies.find((company) => company.id === application.companyId)?.name ?? "-"}</TableCell>
+                  <TableCell>{roles.find((role) => role.id === application.roleId)?.title ?? "-"}</TableCell>
+                  <TableCell>{application.channel}</TableCell>
+                  <TableCell>{application.cvVersion}</TableCell>
                   <TableCell>
-                    <Select value={app.status} onValueChange={(v) => void updateApplication(app.id, { status: v as ApplicationStatus })}>
+                    <Select value={application.status} onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}>
                       <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                      <SelectContent>{STATUS_VALUES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      <SelectContent>{STATUS_VALUES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell>{app.nextAction || "-"}</TableCell>
-                  <TableCell className="max-w-[260px] truncate">{app.notes || "-"}</TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeApplication(app.id)}>
-                      Delete
-                    </Button>
+                    {application.tailoredCvUpdatedAt ? new Date(application.tailoredCvUpdatedAt).toLocaleDateString() : "Not saved"}
+                  </TableCell>
+                  <TableCell>{application.nextAction || "-"}</TableCell>
+                  <TableCell className="max-w-[260px] truncate">{application.notes || "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={`/cv-optimizer?applicationId=${application.id}`}>Tailor CV</Link>
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeApplication(application.id)}>
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

@@ -10,7 +10,12 @@ export interface CvImportResult {
 }
 
 function normalizeExtractedText(value: string): string {
-  return value.replace(/\u0000/g, " ").replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return value
+    .split(String.fromCharCode(0))
+    .join(" ")
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function buildGoogleDocTextExportUrl(value: string): string | null {
@@ -107,3 +112,4 @@ export async function extractTextFromCvFile(file: File): Promise<CvImportResult>
 
   throw new Error("Unsupported file type. Upload a .docx, .pdf, or .txt CV.");
 }
+

@@ -353,7 +353,31 @@ function injectTailoredHighlights(lines: string[], bullets: string[]): string[] 
   return [...lines, "", "Tailored highlights", ...bullets.map((bullet) => `- ${bullet}`)];
 }
 
-function buildFullCvFromSourceText(baseCvText: string, quick: QuickTailorResult): string {
+function injectProjectsSection(lines: string[], quick: QuickTailorResult, projectLookup: PortfolioProject[]): string[] {
+  if (quick.portfolioRecommendations.length === 0) return lines;
+
+  const existingProjectsRange = findSectionRange(lines, ["projects", "selected projects"]);
+  const projectBlock = quick.portfolioRecommendations.flatMap((name) => {
+    const project = projectLookup.find((item) => item.name === name);
+    if (!project) {
+      return [name];
+    }
+
+    return [project.name, `- ${project.summary}`, ...project.bullets.map((bullet) => `- ${bullet}`), ""];
+  });
+
+  if (existingProjectsRange) {
+    return replaceSectionBody(lines, ["projects", "selected projects"], projectBlock);
+  }
+
+  return [...lines, "", "Projects", ...projectBlock.filter((line, index, array) => line || index !== array.length - 1)];
+}
+
+function buildFullCvFromSourceText(
+  baseCvText: string,
+  quick: QuickTailorResult,
+  projectLookup: PortfolioProject[]
+): string {
   const rawLines = splitCvLines(baseCvText);
   const firstContentIndex = rawLines.findIndex((line) => line.trim().length > 0);
   const lines = [...rawLines];
@@ -364,7 +388,8 @@ function buildFullCvFromSourceText(baseCvText: string, quick: QuickTailorResult)
 
   const withSummary = replaceSectionBody(lines, ["summary"], [quick.summary]);
   const withHighlights = injectTailoredHighlights(withSummary, quick.rewrittenBullets);
-  return withHighlights.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  const withProjects = injectProjectsSection(withHighlights, quick, projectLookup);
+  return withProjects.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function generateQuickTailor(
@@ -394,6 +419,7 @@ export function generateFullTailor(
   cvSourceText?: string
 ): FullTailorResult {
   const quick = generateQuickTailor(profile, jobDescriptionText, cvSourceText);
+  const availableProjects = getAvailablePortfolioProjects(profile, cvSourceText);
   const experienceSection =
     profile.experience.length > 0
       ? profile.experience
@@ -406,7 +432,7 @@ export function generateFullTailor(
   const projectSection = quick.portfolioRecommendations.length > 0
     ? quick.portfolioRecommendations
         .map((name) => {
-          const project = getAvailablePortfolioProjects(profile, cvSourceText).find((item) => item.name === name);
+          const project = availableProjects.find((item) => item.name === name);
           if (!project) {
             return `- ${name}`;
           }
@@ -416,7 +442,7 @@ export function generateFullTailor(
     : "No named portfolio projects from the selected CV source were used.";
 
   const fullCvText = cvSourceText?.trim()
-    ? buildFullCvFromSourceText(cvSourceText, quick)
+    ? buildFullCvFromSourceText(cvSourceText, quick, availableProjects)
     : [
         quick.headline,
         "",
@@ -456,3 +482,5 @@ export function buildOptimizerSeed(
     sourceUrl: jobDescription?.sourceUrl || role?.url || "",
   };
 }
+
+

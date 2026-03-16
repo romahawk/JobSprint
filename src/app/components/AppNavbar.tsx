@@ -6,6 +6,7 @@ import {
   Home,
   LogOut,
   Moon,
+  Settings,
   ShieldCheck,
   Sun,
   WandSparkles,
@@ -14,12 +15,14 @@ import { useApp } from "../context";
 import { useJobOsSyncSnapshot } from "../services/jobOsSync";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { trackPageView } from "../services/analytics";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface AppNavbarProps {
   title: string;
   subtitle?: string;
   rightActions?: React.ReactNode;
   showSync?: boolean;
+  settingsContent?: React.ReactNode;
 }
 
 const NAV_ITEMS = [
@@ -35,6 +38,7 @@ export function AppNavbar({
   subtitle,
   rightActions,
   showSync = false,
+  settingsContent,
 }: AppNavbarProps) {
   const { darkMode, toggleDarkMode, signOut } = useApp();
   const jobOsSync = useJobOsSyncSnapshot();
@@ -52,7 +56,6 @@ export function AppNavbar({
     >
       <div className="max-w-[1800px] mx-auto px-6">
         <div className="flex items-center justify-between gap-4 h-14">
-          {/* Logo + Nav */}
           <div className="flex items-center gap-8">
             <span className="text-base font-bold text-white tracking-tight">
               {title}
@@ -83,7 +86,6 @@ export function AppNavbar({
             </nav>
           </div>
 
-          {/* Right actions */}
           <div className="flex items-center gap-2">
             {showSync && (
               <div className="opacity-75">
@@ -91,6 +93,21 @@ export function AppNavbar({
               </div>
             )}
             {rightActions}
+            {settingsContent ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    aria-label="Open settings"
+                    className="w-8 h-8 flex items-center justify-center rounded-md text-white/65 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[360px] p-0">
+                  {settingsContent}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             <button
               onClick={toggleDarkMode}
               aria-label="Toggle dark mode"
@@ -125,4 +142,3 @@ export function AppNavbar({
     </header>
   );
 }
-

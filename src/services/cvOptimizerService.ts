@@ -300,6 +300,73 @@ function selectRelevantBullets(profile: CvProfile, portfolioRecommendations: str
   return unique([...experienceBullets, ...buildProjectBullets(profile, portfolioRecommendations, cvSourceText)]).slice(0, 8);
 }
 
+function splitCvLines(cvSourceText: string): string[] {
+  return cvSourceText.replace(/\r\n/g, "\n").split("\n");
+}
+
+function isLikelyHeading(line: string): boolean {
+  const value = line.trim();
+  if (!value || value.length > 40) return false;
+  if (/^(summary|experience|projects|skills|education|core focus|selected projects)$/i.test(value)) {
+    return true;
+  }
+  return /^[A-Z][A-Z /&-]+$/.test(value);
+}
+
+function findSectionRange(lines: string[], headings: string[]): { start: number; end: number } | null {
+  const normalizedHeadings = headings.map((value) => value.toLowerCase());
+  const start = lines.findIndex((line) => normalizedHeadings.includes(line.trim().toLowerCase()));
+  if (start === -1) return null;
+
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (isLikelyHeading(lines[index])) {
+      end = index;
+      break;
+    }
+  }
+
+  return { start, end };
+}
+
+function replaceSectionBody(lines: string[], headings: string[], body: string[]): string[] {
+  const range = findSectionRange(lines, headings);
+  if (!range) return lines;
+  return [...lines.slice(0, range.start + 1), "", ...body, "", ...lines.slice(range.end)];
+}
+
+function injectTailoredHighlights(lines: string[], bullets: string[]): string[] {
+  if (bullets.length === 0) return lines;
+
+  const experienceRange = findSectionRange(lines, ["experience"]);
+  const highlightBlock = ["Tailored highlights", ...bullets.map((bullet) => `- ${bullet}`), ""];
+
+  if (experienceRange) {
+    return [
+      ...lines.slice(0, experienceRange.start + 1),
+      "",
+      ...highlightBlock,
+      ...lines.slice(experienceRange.start + 1),
+    ];
+  }
+
+  return [...lines, "", "Tailored highlights", ...bullets.map((bullet) => `- ${bullet}`)];
+}
+
+function buildFullCvFromSourceText(baseCvText: string, quick: QuickTailorResult): string {
+  const rawLines = splitCvLines(baseCvText);
+  const firstContentIndex = rawLines.findIndex((line) => line.trim().length > 0);
+  const lines = [...rawLines];
+
+  if (firstContentIndex >= 0) {
+    lines[firstContentIndex] = quick.headline;
+  }
+
+  const withSummary = replaceSectionBody(lines, ["summary"], [quick.summary]);
+  const withHighlights = injectTailoredHighlights(withSummary, quick.rewrittenBullets);
+  return withHighlights.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function generateQuickTailor(
   profile: CvProfile,
   jobDescriptionText: string,
@@ -348,21 +415,23 @@ export function generateFullTailor(
         .join("\n\n")
     : "No named portfolio projects from the selected CV source were used.";
 
-  const fullCvText = [
-    quick.headline,
-    "",
-    "Summary",
-    quick.summary,
-    "",
-    "Experience",
-    experienceSection,
-    "",
-    "Projects",
-    projectSection,
-    "",
-    "Skills",
-    profile.skills.join(", "),
-  ].join("\n");
+  const fullCvText = cvSourceText?.trim()
+    ? buildFullCvFromSourceText(cvSourceText, quick)
+    : [
+        quick.headline,
+        "",
+        "Summary",
+        quick.summary,
+        "",
+        "Experience",
+        experienceSection,
+        "",
+        "Projects",
+        projectSection,
+        "",
+        "Skills",
+        profile.skills.join(", "),
+      ].join("\n");
 
   return {
     ...quick,

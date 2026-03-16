@@ -39,9 +39,31 @@ export function JobOsLayout({
     ? new Date(jobOsSync.lastSyncedAt).toLocaleString()
     : "not yet synced";
 
+  const settingsContent = session ? (
+    <div className="rounded-md bg-white p-4 text-sm dark:bg-neutral-950">
+      <div className="text-sm font-semibold text-foreground">Job OS sync and identity</div>
+      <div className="mt-3 grid gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+        <div>Email: {jobOsSync.email ?? session.email}</div>
+        <div>Data user ID: {jobOsSync.dataUserId ?? session.userId}</div>
+        <div>Auth UID: {jobOsSync.authUid ?? session.authUid ?? "local session"}</div>
+        <div>Storage mode: {jobOsSync.storageMode}</div>
+        <div>Pending writes: {jobOsSync.pendingWrites}</div>
+        <div>Last synced: {lastSyncedLabel}</div>
+        <div className="border-t border-neutral-200 pt-2 dark:border-neutral-800">
+          Status: {jobOsSync.syncNotice ?? (jobOsSync.pendingWrites > 0 ? "Saving changes..." : "Cloud sync healthy")}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black">
-      <AppNavbar title={title} subtitle={subtitle} rightActions={actions} />
+      <AppNavbar
+        title={title}
+        subtitle={subtitle}
+        rightActions={actions}
+        settingsContent={settingsContent}
+      />
       <div className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
         <div className="max-w-[1800px] mx-auto px-6 py-3">
           <nav className="flex flex-wrap gap-2">
@@ -73,27 +95,8 @@ export function JobOsLayout({
             {notice}
           </div>
         )}
-        {session && (
-          <details className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-4 py-3 text-sm">
-            <summary className="cursor-pointer font-medium">
-              Job OS sync and identity
-            </summary>
-            <div className="mt-3 grid gap-2 md:grid-cols-2 text-xs text-neutral-600 dark:text-neutral-300">
-              <div>Email: {jobOsSync.email ?? session.email}</div>
-              <div>Data user ID: {jobOsSync.dataUserId ?? session.userId}</div>
-              <div>Auth UID: {jobOsSync.authUid ?? session.authUid ?? "local session"}</div>
-              <div>Storage mode: {jobOsSync.storageMode}</div>
-              <div>Pending writes: {jobOsSync.pendingWrites}</div>
-              <div>Last synced: {lastSyncedLabel}</div>
-              <div className="md:col-span-2">
-                Status: {jobOsSync.syncNotice ?? (jobOsSync.pendingWrites > 0 ? "Saving changes..." : "Cloud sync healthy")}
-              </div>
-            </div>
-          </details>
-        )}
         {children}
       </main>
     </div>
   );
 }
-

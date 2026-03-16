@@ -34,6 +34,7 @@ export default function JobOsRolesPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> | null>(null);
+  const [formNotice, setFormNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt">>({
     companyId: "",
     title: "",
@@ -88,6 +89,48 @@ export default function JobOsRolesPage() {
     cancelEdit();
   }
 
+  async function handleAddRole(): Promise<void> {
+    const missingFields: string[] = [];
+    if (!draft.companyId) missingFields.push("company");
+    if (!draft.title.trim()) missingFields.push("role title");
+
+    if (missingFields.length > 0) {
+      setFormNotice(`Add a ${missingFields.join(" and ")} before creating the role.`);
+      return;
+    }
+
+    try {
+      setFormNotice("Saving role...");
+      const createdId = await addRole({
+        ...draft,
+        title: draft.title.trim(),
+        seniority: normalizeSeniority(draft.seniority),
+        jobDescriptionUpdatedAt: draft.jobDescription?.trim() ? new Date().toISOString() : undefined,
+      });
+
+      if (!createdId) {
+        setFormNotice("Role could not be created.");
+        return;
+      }
+
+      setDraft({
+        companyId: "",
+        title: "",
+        url: "",
+        location: "",
+        seniority: "",
+        track: "TPM",
+        fitScore: 3,
+        status: "to_apply",
+        jobDescription: "",
+        jobDescriptionUpdatedAt: undefined,
+      });
+      setFormNotice("Role added.");
+    } catch (error) {
+      setFormNotice(error instanceof Error ? error.message : "Role could not be created.");
+    }
+  }
+
   return (
     <JobOsLayout title="Roles" subtitle="Track discovered opportunities and route into applications" notice={syncNotice}>
       <Card>
@@ -133,30 +176,17 @@ export default function JobOsRolesPage() {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{[1, 2, 3, 4, 5].map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectContent>
           </Select>
-          <Button
-            onClick={() => {
-              if (!draft.companyId || !draft.title) return;
-              void addRole({
-                ...draft,
-                seniority: normalizeSeniority(draft.seniority),
-                jobDescriptionUpdatedAt: draft.jobDescription?.trim() ? new Date().toISOString() : undefined,
-              });
-              setDraft({
-                companyId: "",
-                title: "",
-                url: "",
-                location: "",
-                seniority: "",
-                track: "TPM",
-                fitScore: 3,
-                status: "to_apply",
-                jobDescription: "",
-                jobDescriptionUpdatedAt: undefined,
-              });
-            }}
-          >
+          <Button onClick={() => void handleAddRole()} disabled={!draft.companyId || !draft.title.trim()}>
             Add Role
           </Button>
+          <div className="md:col-span-4 text-xs text-muted-foreground">
+            Company and role title are required before adding a role.
+          </div>
+          {formNotice ? (
+            <div className="md:col-span-4 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              {formNotice}
+            </div>
+          ) : null}
           <div className="md:col-span-4">
             <Textarea
               value={draft.jobDescription ?? ""}

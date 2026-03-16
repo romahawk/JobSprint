@@ -31,6 +31,24 @@ npm run build # production build
 npm run test  # run smoke tests
 ```
 
+## Live CV Tailoring
+
+To enable live CV tailoring with OpenAI:
+
+```bash
+cp .env.server.example .env.server
+# set OPENAI_API_KEY and optional OPENAI_MODEL
+npm run dev:api
+```
+
+Then point the frontend at the API in `.env`:
+
+```bash
+VITE_JSPRINT_REMOTE_API_URL=http://localhost:8787
+```
+
+The frontend will call `POST /cv-tailor` for live full-CV rewriting. See `docs/CV_TAILORING_API.md`.
+
 App access requires sign-in. If the `VITE_FIREBASE_*` env vars are configured, auth uses Firebase email/password + Google sign-in.
 
 ## Deploy

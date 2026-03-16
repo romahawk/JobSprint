@@ -17,7 +17,7 @@ export function PipelineBoard({
 }: PipelineBoardProps) {
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-7">
         {STATUS_ORDER.map((status) => (
           <PipelineColumn
             key={status}

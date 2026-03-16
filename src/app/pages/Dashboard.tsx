@@ -104,7 +104,7 @@ export default function Dashboard() {
       />
 
       {/* Main Content */}
-      <main className="max-w-[1800px] mx-auto px-6 py-6">
+      <main className="mx-auto max-w-[1680px] px-4 py-6 lg:px-6">
         {latestPendingDeletion && (
           <div className="mb-6 border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 rounded-lg px-4 py-3 flex items-center justify-between gap-4">
             <p className="text-sm text-amber-800 dark:text-amber-300">
@@ -164,7 +164,7 @@ export default function Dashboard() {
         </div>
 
         {/* Pipeline Full Width */}
-        <div className="border border-border rounded-lg p-6 bg-card mb-6">
+        <div className="mb-6 rounded-lg border border-border bg-card p-4 lg:p-5">
           <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-6">
             Application Pipeline
           </h2>

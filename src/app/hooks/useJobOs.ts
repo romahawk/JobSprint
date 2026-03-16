@@ -387,6 +387,12 @@ function mergePendingLocalItems<T extends { id: string; clientRequestId?: string
   return [...remoteItems, ...pendingLocals];
 }
 
+function stripUndefinedFields<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
+  ) as T;
+}
+
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -835,9 +841,11 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       const localPayload = options?.hasUpdatedAt
         ? ({ ...payload, updatedAt: now } as Omit<T, "id" | "createdAt">)
         : payload;
-      const remotePayload = options?.hasUpdatedAt
-        ? { ...payload, updatedAt: serverTimestamp() }
-        : payload;
+      const remotePayload = stripUndefinedFields(
+        options?.hasUpdatedAt
+          ? ({ ...payload, updatedAt: serverTimestamp() } as Record<string, unknown>)
+          : (payload as Record<string, unknown>)
+      );
 
       if (!firebase) {
         const localItem = {
@@ -932,9 +940,11 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       const localUpdates = options?.hasUpdatedAt
         ? ({ ...updates, updatedAt: now } as Partial<T>)
         : updates;
-      const remoteUpdates = options?.hasUpdatedAt
-        ? { ...updates, updatedAt: serverTimestamp() }
-        : updates;
+      const remoteUpdates = stripUndefinedFields(
+        options?.hasUpdatedAt
+          ? ({ ...updates, updatedAt: serverTimestamp() } as Record<string, unknown>)
+          : (updates as Record<string, unknown>)
+      );
       await mutate(
         `Update ${key}`,
         (prev) =>

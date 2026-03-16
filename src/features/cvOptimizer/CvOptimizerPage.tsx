@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
+import { ChevronDown, ChevronUp, CircleHelp, Loader2, Sparkles } from "lucide-react";
 import { Button } from "../../app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../app/components/ui/card";
 import { Label } from "../../app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../app/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../app/components/ui/tooltip";
 import { useApp } from "../../app/context";
 import { useJobOs } from "../../app/hooks/useJobOs";
 import { JobOsLayout } from "../../app/components/job-os/JobOsLayout";
@@ -18,6 +20,7 @@ import {
   type FullTailorResult,
   type QuickTailorResult,
 } from "../../services/cvOptimizerService";
+import { isRemoteCvTailoringEnabled, requestRemoteCvTailoring } from "../../services/cvTailoringGateway";
 import { FitAnalysisPanel } from "./FitAnalysisPanel";
 import { JobDescriptionInput } from "./JobDescriptionInput";
 import { PortfolioSuggestions } from "./PortfolioSuggestions";
@@ -30,16 +33,40 @@ const MODE_LABELS: Record<CvTailoringMode, string> = {
   fullTailor: "Full CV Tailor",
 };
 
+type OptimizerTask = "analysis" | "quickTailor" | "fullTailor" | "saveApplication" | null;
+
+const TASK_STATUS_LABELS: Record<Exclude<OptimizerTask, null>, string> = {
+  analysis: "Running fit analysis...",
+  quickTailor: "Generating quick tailor...",
+  fullTailor: "Tailoring the full CV with the selected asset...",
+  saveApplication: "Saving tailored output to the application...",
+};
+
 function mapRoleTrackToProfile(track: string): "TPM" | "PO" | "Implementation" {
   if (track === "TPM") return "TPM";
   if (track === "Systems PM") return "Implementation";
   return "PO";
 }
 
-function defaultCvNameForTrack(track: "TPM" | "PO" | "Implementation"): string {
-  if (track === "TPM") return "CV - Technical Product Manager";
-  if (track === "Implementation") return "CV - Systems / Platform PM";
-  return "CV - Product Engineer";
+function findProfileForCv(
+  cvId: string | null,
+  cvs: ReturnType<typeof useJobOs>["assets"]["cvs"],
+  cvProfiles: ReturnType<typeof useJobOs>["cvProfiles"]
+) {
+  const selectedCv = cvs.find((cv) => cv.id === cvId) ?? null;
+  if (!selectedCv?.linkedProfileId) return null;
+  return cvProfiles.find((profile) => profile.id === selectedCv.linkedProfileId) ?? null;
+}
+
+function findCvForTrack(
+  track: "TPM" | "PO" | "Implementation",
+  cvs: ReturnType<typeof useJobOs>["assets"]["cvs"],
+  cvProfiles: ReturnType<typeof useJobOs>["cvProfiles"]
+) {
+  const matchingProfileIds = new Set(
+    cvProfiles.filter((profile) => profile.targetTrack === track).map((profile) => profile.id)
+  );
+  return cvs.find((cv) => cv.linkedProfileId && matchingProfileIds.has(cv.linkedProfileId)) ?? null;
 }
 
 async function copyText(value: string): Promise<void> {
@@ -55,6 +82,25 @@ function exportTextFile(fileName: string, content: string): void {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function InlineInfoTip({ label }: { label: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:border-brand-blue/40 hover:text-foreground"
+          aria-label={label}
+        >
+          <CircleHelp className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={8} className="max-w-[260px] leading-5">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export default function CvOptimizerPage() {
@@ -77,6 +123,8 @@ export default function CvOptimizerPage() {
   const [searchParams] = useSearchParams();
   const applicationId = searchParams.get("applicationId");
   const roleIdFromQuery = searchParams.get("roleId");
+  const [isControlCenterExpanded, setIsControlCenterExpanded] = useState(true);
+  const [isSetupExpanded, setIsSetupExpanded] = useState(true);
 
   const application = useMemo(
     () => applications.find((item) => item.id === applicationId) ?? null,
@@ -103,78 +151,79 @@ export default function CvOptimizerPage() {
     () => buildOptimizerSeed({ application, role, company, jobDescription: linkedJobDescription }),
     [application, company, linkedJobDescription, role]
   );
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
-  const [selectedCvName, setSelectedCvName] = useState<string>(assets.cvs[0]?.name ?? "");
+  const [selectedCvId, setSelectedCvId] = useState<string>(assets.cvs[0]?.id ?? "");
   const [mode, setMode] = useState<CvTailoringMode>("analysis");
   const [draft, setDraft] = useState<Pick<JobDescription, "applicationId" | "roleId" | "company" | "title" | "rawText" | "sourceUrl">>(seed);
   const [analysis, setAnalysis] = useState<FitAnalysisResult | null>(null);
   const [output, setOutput] = useState<QuickTailorResult | FullTailorResult | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [activeTask, setActiveTask] = useState<OptimizerTask>(null);
 
   useEffect(() => {
     setDraft(seed);
   }, [seed]);
 
   useEffect(() => {
-    if (cvProfiles.length === 0) return;
-    const hasCurrentSelection = cvProfiles.some((profile) => profile.id === selectedProfileId);
-    if (!hasCurrentSelection) {
-      setSelectedProfileId(cvProfiles[0].id);
-    }
-  }, [cvProfiles, selectedProfileId]);
-
-  useEffect(() => {
     if (assets.cvs.length === 0) return;
-    const hasCurrentSelection = assets.cvs.some((cv) => cv.name === selectedCvName);
+    const hasCurrentSelection = assets.cvs.some((cv) => cv.id === selectedCvId);
     if (!hasCurrentSelection) {
-      setSelectedCvName(assets.cvs[0].name);
+      setSelectedCvId(assets.cvs[0].id);
     }
-  }, [assets.cvs, selectedCvName]);
+  }, [assets.cvs, selectedCvId]);
 
-  const selectedProfile = cvProfiles.find((profile) => profile.id === selectedProfileId) ?? cvProfiles[0] ?? null;
-  const selectedCvAsset = assets.cvs.find((cv) => cv.name === selectedCvName) ?? assets.cvs[0] ?? null;
+  const selectedCvAsset = assets.cvs.find((cv) => cv.id === selectedCvId) ?? assets.cvs[0] ?? null;
+  const selectedProfile = findProfileForCv(selectedCvAsset?.id ?? null, assets.cvs, cvProfiles);
   const selectedCvText = selectedCvAsset?.sourceText?.trim() || undefined;
 
   useEffect(() => {
-    if (selectedCvAsset?.linkedProfileId && cvProfiles.some((profile) => profile.id === selectedCvAsset.linkedProfileId)) {
-      setSelectedProfileId(selectedCvAsset.linkedProfileId);
+    if (assets.cvs.length === 0) return;
+    const applicationMatch = application?.cvVersion
+      ? assets.cvs.find((cv) => cv.name === application.cvVersion)
+      : null;
+    if (applicationMatch) {
+      setSelectedCvId(applicationMatch.id);
       return;
     }
-    if (!role || cvProfiles.length === 0) return;
-    const preferredTrack = mapRoleTrackToProfile(role.track);
-    const preferredProfile = cvProfiles.find((profile) => profile.targetTrack === preferredTrack);
-    if (preferredProfile) {
-      setSelectedProfileId(preferredProfile.id);
-    }
-  }, [cvProfiles, role, selectedCvAsset]);
-
-  useEffect(() => {
     if (!role) return;
     const preferredTrack = mapRoleTrackToProfile(role.track);
-    const preferredCvName = application?.cvVersion || defaultCvNameForTrack(preferredTrack);
-    if (assets.cvs.some((cv) => cv.name === preferredCvName)) {
-      setSelectedCvName(preferredCvName);
+    const preferredCv = findCvForTrack(preferredTrack, assets.cvs, cvProfiles);
+    if (preferredCv) {
+      setSelectedCvId(preferredCv.id);
     }
-  }, [application?.cvVersion, assets.cvs, role]);
+  }, [application?.cvVersion, assets.cvs, cvProfiles, role]);
+
   const historyRuns = useMemo(() => {
     const filtered = cvTailoringRuns.filter((run) => {
+      if (run.mode === "analysis") return false;
       if (application) return run.applicationId === application.id;
       if (linkedJobDescription) return run.jobDescriptionId === linkedJobDescription.id;
       return true;
     });
-    return filtered.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)).slice(0, 8);
+    return filtered.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)).slice(0, 3);
   }, [application, cvTailoringRuns, linkedJobDescription]);
 
   async function persistJobDescription(): Promise<string | null> {
-    const payload = {
-      applicationId: application?.id,
-      roleId: role?.id,
+    const payload: {
+      applicationId?: string;
+      roleId?: string;
+      company: string;
+      title: string;
+      rawText: string;
+      sourceUrl: string;
+    } = {
       company: draft.company.trim(),
       title: draft.title.trim(),
       rawText: draft.rawText.trim(),
       sourceUrl: draft.sourceUrl.trim(),
     };
+
+    if (application?.id) {
+      payload.applicationId = application.id;
+    }
+    if (role?.id) {
+      payload.roleId = role.id;
+    }
 
     if (linkedJobDescription) {
       await updateJobDescription(linkedJobDescription.id, payload);
@@ -200,8 +249,23 @@ export default function CvOptimizerPage() {
       return null;
     }
 
-    const runId = await addCvTailoringRun({
-      applicationId: application?.id,
+    const runPayload: {
+      applicationId?: string;
+      jobDescriptionId: string;
+      cvProfileId: string;
+      mode: CvTailoringMode;
+      fitScore?: number;
+      extractedKeywords: string[];
+      strengths: string[];
+      gaps: string[];
+      recruiterRisks: string[];
+      recommendedPositioning?: string;
+      tailoredHeadline?: string;
+      tailoredSummary?: string;
+      rewrittenBullets?: string[];
+      portfolioRecommendations?: string[];
+      finalCvText?: string;
+    } = {
       jobDescriptionId,
       cvProfileId: selectedProfile.id,
       mode: runMode,
@@ -210,43 +274,150 @@ export default function CvOptimizerPage() {
       strengths: nextAnalysis.strengths,
       gaps: nextAnalysis.gaps,
       recruiterRisks: nextAnalysis.recruiterRisks,
-      recommendedPositioning: nextAnalysis.recommendedPositioning,
-      tailoredHeadline: nextOutput?.headline,
-      tailoredSummary: nextOutput?.summary,
-      rewrittenBullets: nextOutput?.rewrittenBullets,
       portfolioRecommendations: nextOutput?.portfolioRecommendations ?? nextAnalysis.portfolioRecommendations,
-      finalCvText: nextOutput && "fullCvText" in nextOutput ? nextOutput.fullCvText : undefined,
-    });
+    };
+
+    if (application?.id) {
+      runPayload.applicationId = application.id;
+    }
+    if (nextAnalysis.recommendedPositioning) {
+      runPayload.recommendedPositioning = nextAnalysis.recommendedPositioning;
+    }
+    if (nextOutput?.headline) {
+      runPayload.tailoredHeadline = nextOutput.headline;
+    }
+    if (nextOutput?.summary) {
+      runPayload.tailoredSummary = nextOutput.summary;
+    }
+    if (nextOutput?.rewrittenBullets?.length) {
+      runPayload.rewrittenBullets = nextOutput.rewrittenBullets;
+    }
+    if (nextOutput && "fullCvText" in nextOutput && nextOutput.fullCvText) {
+      runPayload.finalCvText = nextOutput.fullCvText;
+    }
+
+    const runId = await addCvTailoringRun(runPayload);
     setCurrentRunId(runId);
     return runId;
   }
 
-  async function handleRunAnalysis(): Promise<void> {
-    if (!selectedProfile || !draft.rawText.trim()) {
-      setStatusMessage("Add a base CV profile and job description before running analysis.");
-      return;
+  async function resolveTailoringOutput(
+    requestedMode: Extract<CvTailoringMode, "quickTailor" | "fullTailor">,
+    nextAnalysis: FitAnalysisResult
+  ): Promise<{ result: QuickTailorResult | FullTailorResult; remote: boolean }> {
+    if (requestedMode === "fullTailor" && !selectedCvText) {
+      throw new Error("Import the selected CV text in Assets Vault before running Full CV Tailor so JobSprint can preserve the real CV structure.");
     }
-    const nextAnalysis = analyzeFit(selectedProfile, draft.rawText, selectedCvText);
-    setAnalysis(nextAnalysis);
-    setOutput(null);
-    await saveRun("analysis", nextAnalysis, null);
-    setStatusMessage("Fit analysis saved to history.");
+
+    if (selectedProfile && isRemoteCvTailoringEnabled()) {
+      try {
+        const remote = await requestRemoteCvTailoring({
+          mode: requestedMode,
+          cvName: selectedCvAsset?.name ?? "Selected CV",
+          cvVersion: selectedCvAsset?.version,
+          cvSourceText: selectedCvText,
+          profile: selectedProfile,
+          analysis: nextAnalysis,
+          jobDescriptionText: draft.rawText,
+          company: draft.company,
+          roleTitle: draft.title,
+        });
+
+        if (remote) {
+          if (requestedMode === "fullTailor") {
+            return {
+              result: {
+                headline: remote.headline,
+                summary: remote.summary,
+                rewrittenBullets: remote.rewrittenBullets,
+                portfolioRecommendations: remote.portfolioRecommendations,
+                fullCvText: remote.fullCvText || generateFullTailor(selectedProfile, draft.rawText, selectedCvText).fullCvText,
+                changedLineIndices: remote.changedLineIndices,
+                changedWordSpans: remote.changedWordSpans,
+              },
+              remote: true,
+            };
+          }
+
+          return {
+            result: {
+              headline: remote.headline,
+              summary: remote.summary,
+              rewrittenBullets: remote.rewrittenBullets,
+              portfolioRecommendations: remote.portfolioRecommendations,
+            },
+            remote: true,
+          };
+        }
+      } catch {
+        // Fall back to the local deterministic transformer when the remote endpoint is unavailable.
+      }
+    }
+
+    return {
+      result:
+        requestedMode === "fullTailor"
+          ? generateFullTailor(selectedProfile!, draft.rawText, selectedCvText)
+          : generateQuickTailor(selectedProfile!, draft.rawText, selectedCvText),
+      remote: false,
+    };
   }
 
-  async function handleRunTailoring(requestedMode: CvTailoringMode): Promise<void> {
+  async function handleRunAnalysis(): Promise<void> {
     if (!selectedProfile || !draft.rawText.trim()) {
-      setStatusMessage("Add a base CV profile and job description before tailoring.");
+      setStatusMessage("Choose a CV with a linked profile in Assets and add a job description before running analysis.");
       return;
     }
-    const nextAnalysis = analyzeFit(selectedProfile, draft.rawText, selectedCvText);
-    const nextOutput = requestedMode === "fullTailor"
-      ? generateFullTailor(selectedProfile, draft.rawText, selectedCvText)
-      : generateQuickTailor(selectedProfile, draft.rawText, selectedCvText);
-    setMode(requestedMode);
-    setAnalysis(nextAnalysis);
-    setOutput(nextOutput);
-    await saveRun(requestedMode, nextAnalysis, nextOutput);
-    setStatusMessage(`${MODE_LABELS[requestedMode]} generated and saved.`);
+
+    setActiveTask("analysis");
+    setStatusMessage(TASK_STATUS_LABELS.analysis);
+    try {
+      const nextAnalysis = analyzeFit(selectedProfile, draft.rawText, selectedCvText);
+      setMode("analysis");
+      setAnalysis(nextAnalysis);
+      setOutput(null);
+      setStatusMessage("Fit analysis completed. This score is a local heuristic estimate and is not an LLM response.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Fit analysis could not be completed.");
+    } finally {
+      setActiveTask(null);
+    }
+  }
+
+  async function handleRunTailoring(requestedMode: Extract<CvTailoringMode, "quickTailor" | "fullTailor">): Promise<void> {
+    if (!selectedProfile || !draft.rawText.trim()) {
+      setStatusMessage("Choose a CV with a linked profile in Assets and add a job description before tailoring.");
+      return;
+    }
+
+    setActiveTask(requestedMode);
+    setStatusMessage(TASK_STATUS_LABELS[requestedMode]);
+    try {
+      const baseAnalysis = analyzeFit(selectedProfile, draft.rawText, selectedCvText);
+      const { result, remote } = await resolveTailoringOutput(requestedMode, baseAnalysis);
+      const nextAnalysis =
+        requestedMode === "fullTailor" && "fullCvText" in result
+          ? analyzeFit(selectedProfile, draft.rawText, result.fullCvText)
+          : baseAnalysis;
+
+      setMode(requestedMode);
+      setAnalysis(nextAnalysis);
+      setOutput(result);
+      await saveRun(requestedMode, nextAnalysis, result);
+      setStatusMessage(
+        remote
+          ? requestedMode === "fullTailor"
+            ? `${MODE_LABELS[requestedMode]} generated via remote AI tailoring, fit score refreshed from the tailored CV, and the run was saved.`
+            : `${MODE_LABELS[requestedMode]} generated via remote AI tailoring and saved.`
+          : requestedMode === "fullTailor"
+            ? `${MODE_LABELS[requestedMode]} generated from your saved CV asset, fit score refreshed from the tailored CV, and the run was saved.`
+            : `${MODE_LABELS[requestedMode]} generated from your saved CV asset and saved.`
+      );
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Tailoring could not be completed.");
+    } finally {
+      setActiveTask(null);
+    }
   }
 
   async function handleSaveToApplication(): Promise<void> {
@@ -254,15 +425,24 @@ export default function CvOptimizerPage() {
       setStatusMessage("Open the optimizer from an application row to save the tailored CV back to that application.");
       return;
     }
-    await updateApplication(application.id, {
-      latestJobDescriptionId: linkedJobDescription?.id,
-      latestCvTailoringRunId: currentRunId ?? undefined,
-      tailoredCvHeadline: output.headline,
-      tailoredCvSummary: output.summary,
-      tailoredCvText: "fullCvText" in output ? output.fullCvText : output.rewrittenBullets.join("\n"),
-      tailoredCvUpdatedAt: new Date().toISOString(),
-    });
-    setStatusMessage("Tailored CV content saved to the application record.");
+
+    setActiveTask("saveApplication");
+    setStatusMessage(TASK_STATUS_LABELS.saveApplication);
+    try {
+      await updateApplication(application.id, {
+        latestJobDescriptionId: linkedJobDescription?.id,
+        latestCvTailoringRunId: currentRunId ?? undefined,
+        tailoredCvHeadline: output.headline,
+        tailoredCvSummary: output.summary,
+        tailoredCvText: "fullCvText" in output ? output.fullCvText : output.rewrittenBullets.join("\n"),
+        tailoredCvUpdatedAt: new Date().toISOString(),
+      });
+      setStatusMessage("Tailored CV content saved to the application record.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "The tailored CV could not be saved to the application.");
+    } finally {
+      setActiveTask(null);
+    }
   }
 
   function handleReuseRun(run: CvTailoringRun): void {
@@ -277,7 +457,18 @@ export default function CvOptimizerPage() {
         sourceUrl: historicalJobDescription.sourceUrl ?? "",
       });
     }
-    setSelectedProfileId(run.cvProfileId);
+    const linkedCv = assets.cvs.find((cv) => cv.linkedProfileId === run.cvProfileId) ?? null;
+    if (linkedCv) {
+      setSelectedCvId(linkedCv.id);
+    } else {
+      const runProfile = cvProfiles.find((profile) => profile.id === run.cvProfileId) ?? null;
+      const fallbackCv = runProfile
+        ? findCvForTrack(runProfile.targetTrack, assets.cvs, cvProfiles)
+        : null;
+      if (fallbackCv) {
+        setSelectedCvId(fallbackCv.id);
+      }
+    }
     setAnalysis({
       fitScore: run.fitScore ?? 0,
       keywords: run.extractedKeywords,
@@ -288,26 +479,24 @@ export default function CvOptimizerPage() {
       portfolioRecommendations: run.portfolioRecommendations ?? [],
     });
     setOutput(
-      run.mode === "analysis"
-        ? null
-        : run.finalCvText
-          ? {
-              headline: run.tailoredHeadline ?? "",
-              summary: run.tailoredSummary ?? "",
-              rewrittenBullets: run.rewrittenBullets ?? [],
-              portfolioRecommendations: run.portfolioRecommendations ?? [],
-              fullCvText: run.finalCvText,
-            }
-          : {
-              headline: run.tailoredHeadline ?? "",
-              summary: run.tailoredSummary ?? "",
-              rewrittenBullets: run.rewrittenBullets ?? [],
-              portfolioRecommendations: run.portfolioRecommendations ?? [],
-            }
+      run.finalCvText
+        ? {
+            headline: run.tailoredHeadline ?? "",
+            summary: run.tailoredSummary ?? "",
+            rewrittenBullets: run.rewrittenBullets ?? [],
+            portfolioRecommendations: run.portfolioRecommendations ?? [],
+            fullCvText: run.finalCvText,
+          }
+        : {
+            headline: run.tailoredHeadline ?? "",
+            summary: run.tailoredSummary ?? "",
+            rewrittenBullets: run.rewrittenBullets ?? [],
+            portfolioRecommendations: run.portfolioRecommendations ?? [],
+          }
     );
     setCurrentRunId(run.id);
     setMode(run.mode);
-    setStatusMessage("Loaded saved tailoring run.");
+    setStatusMessage("Loaded a saved tailored run.");
   }
 
   const portfolioRecommendations = output?.portfolioRecommendations ?? analysis?.portfolioRecommendations ?? [];
@@ -316,6 +505,8 @@ export default function CvOptimizerPage() {
       ? output.fullCvText
       : [output.headline, "", output.summary, "", ...(output.rewrittenBullets ?? [])].join("\n")
     : "";
+  const isBusy = activeTask !== null;
+  const activeStatusLabel = activeTask ? TASK_STATUS_LABELS[activeTask] : "";
 
   return (
     <JobOsLayout
@@ -330,77 +521,8 @@ export default function CvOptimizerPage() {
         ) : null
       }
     >
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr_1fr]">
-        <div className="space-y-4">
-          <Card className="overflow-hidden border-brand-blue/15 bg-gradient-to-br from-white via-slate-50 to-blue-50 dark:from-neutral-950 dark:via-neutral-950 dark:to-slate-900">
-            <CardHeader>
-              <CardTitle className="text-sm">CV Setup</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Base profile</Label>
-                  <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a base profile" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cvProfiles.map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Comparison CV</Label>
-                  <Select value={selectedCvName} onValueChange={setSelectedCvName}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a CV source" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {assets.cvs.map((cv) => (
-                        <SelectItem key={cv.id} value={cv.name}>
-                          {cv.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-border bg-white/70 p-4 dark:bg-neutral-950/40">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Selected Profile</div>
-                  <div className="mt-2 text-sm font-medium text-foreground">
-                    {selectedProfile?.headline || selectedProfile?.name || "No profile available"}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {selectedProfile ? `${selectedProfile.targetTrack} track${selectedCvAsset?.linkedProfileId === selectedProfile.id ? " · linked from this CV" : ""}` : "Default profiles are loading from JobSprint storage."}
-                  </div>
-                  <div className="mt-3 text-sm leading-6 text-muted-foreground">
-                    {selectedProfile?.summary || "This base profile provides the headline, summary, skills, and experience structure for tailoring."}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-border bg-white/70 p-4 dark:bg-neutral-950/40">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Selected CV Source</div>
-                  <div className="mt-2 text-sm font-medium text-foreground">{selectedCvAsset?.name || "No CV selected"}</div>
-                  <div className="mt-3 text-sm leading-6 text-muted-foreground">
-                    {selectedCvText
-                      ? "A text snapshot is available, so fit analysis will compare the job description against your latest saved CV text first and then use the selected profile as structure."
-                      : "No text snapshot is attached yet, so the optimizer will fall back to the linked profile. Paste or import the latest CV text in Assets Vault for more accurate comparisons."}
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                The fit analysis compares the selected CV source against the pasted or synced job description. Role and application data are only used to prefill company, title, URL, and saved JD text.
-              </div>
-            </CardContent>
-          </Card>
-
+      <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)] xl:items-start">
+        <aside className="space-y-4 xl:sticky xl:top-20">
           <JobDescriptionInput
             company={draft.company}
             title={draft.title}
@@ -413,58 +535,163 @@ export default function CvOptimizerPage() {
                 : "Paste a job description or open this page from a role/application to prefill context."
             }
           />
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Run Controls</CardTitle>
+
+          <Card className="overflow-hidden border-brand-blue/15 bg-gradient-to-br from-white via-slate-50 to-blue-50 dark:from-neutral-950 dark:via-neutral-950 dark:to-slate-900">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-sm">Control Center</CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Pick the base CV, verify the linked profile, and run analysis or tailoring from one compact rail.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsControlCenterExpanded((current) => !current)}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/60 dark:hover:bg-neutral-900"
+                  aria-expanded={isControlCenterExpanded}
+                >
+                  {isControlCenterExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {isControlCenterExpanded ? "Collapse" : "Expand"}
+                </button>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            {isControlCenterExpanded ? (
+            <CardContent className="space-y-4 pt-0">
               <div className="space-y-2">
-                <Label>Mode</Label>
-                <Select value={mode} onValueChange={(value) => setMode(value as CvTailoringMode)}>
+                <Label>Comparison CV</Label>
+                <Select value={selectedCvAsset?.id ?? ""} onValueChange={setSelectedCvId}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Choose a CV source" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="analysis">Fit Analysis</SelectItem>
-                    <SelectItem value="quickTailor">Quick Tailor</SelectItem>
-                    <SelectItem value="fullTailor">Full CV Tailor</SelectItem>
+                    {assets.cvs.map((cv) => (
+                      <SelectItem key={cv.id} value={cv.id}>
+                        {cv.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => void handleRunAnalysis()}>Run analysis</Button>
-                <Button variant="secondary" onClick={() => void handleRunTailoring("quickTailor")}>Run quick tailor</Button>
-                <Button variant="outline" onClick={() => void handleRunTailoring("fullTailor")}>Run full tailor</Button>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="rounded-xl border border-border bg-white/70 p-4 dark:bg-neutral-950/40">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Selected CV Source</div>
+                  <div className="mt-2 text-sm font-medium text-foreground">{selectedCvAsset?.name || "No CV selected"}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {selectedCvAsset?.version ? `Version ${selectedCvAsset.version}` : "Version not set"}
+                    {application?.cvVersion === selectedCvAsset?.name ? " - matched from application" : ""}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{selectedCvText ? "Snapshot ready" : "Snapshot missing"}</span>
+                    <InlineInfoTip
+                      label={selectedCvText
+                        ? "A text snapshot is available, so JobSprint can tailor the actual CV body while preserving the base structure from Assets."
+                        : "No text snapshot is attached yet. Import or paste the CV text in Assets Vault before running Full CV Tailor."}
+                    />
+                  </div>
+                </div>
+
+                {isSetupExpanded ? (
+                  <div className="rounded-xl border border-border bg-white/70 p-4 dark:bg-neutral-950/40">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Linked Profile</div>
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      {selectedProfile?.headline || selectedProfile?.name || "No linked profile"}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {selectedProfile
+                        ? `${selectedProfile.name} - ${selectedProfile.targetTrack} track`
+                        : "This CV does not have a linked profile in Assets yet."}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{selectedProfile?.summary ? "Profile guidance linked" : "Profile guidance missing"}</span>
+                      <InlineInfoTip
+                        label={selectedProfile?.summary || "Link a profile to this CV in Assets Vault if you want the optimizer to use structured positioning, skills, and experience guidance."}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              <div className="rounded-xl border border-dashed border-border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
-                <div className="font-semibold text-foreground">Prompt structure ready for future model integration</div>
-                <div className="mt-1">{CV_OPTIMIZER_PROMPTS[mode]}</div>
+
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                <span>Asset CV base + live AI tailor</span>
+                <InlineInfoTip label="Full CV Tailor uses the selected Asset CV as the base document. Live AI tailoring runs through the backend; fit analysis remains a local heuristic estimate." />
+              </div>
+
+              <div className="rounded-2xl border border-brand-blue/20 bg-brand-blue/5 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Sparkles className="h-4 w-4 text-brand-blue" />
+                  Run Controls
+                </div>
+                <div className="mt-4 space-y-3">
+                  <div className="space-y-2">
+                    <Label>Mode</Label>
+                    <Select value={mode} onValueChange={(value) => setMode(value as CvTailoringMode)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="analysis">Fit Analysis</SelectItem>
+                        <SelectItem value="quickTailor">Quick Tailor</SelectItem>
+                        <SelectItem value="fullTailor">Full CV Tailor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+                    <Button onClick={() => void handleRunAnalysis()} disabled={isBusy}>
+                      {activeTask === "analysis" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Run analysis
+                    </Button>
+                    <Button variant="secondary" onClick={() => void handleRunTailoring("quickTailor")} disabled={isBusy}>
+                      {activeTask === "quickTailor" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Run quick tailor
+                    </Button>
+                    <Button variant="outline" onClick={() => void handleRunTailoring("fullTailor")} disabled={isBusy}>
+                      {activeTask === "fullTailor" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Run full tailor
+                    </Button>
+                  </div>
+                  {isBusy ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-brand-blue/20 bg-white/60 px-3 py-3 text-sm text-foreground dark:bg-neutral-950/40">
+                      <Loader2 className="h-4 w-4 animate-spin text-brand-blue" />
+                      <span>{activeStatusLabel}</span>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-white/40 px-3 py-3 text-xs text-muted-foreground dark:bg-neutral-950/20">
+                    <span className="font-semibold text-foreground">Prompt structure</span>
+                    <InlineInfoTip label={CV_OPTIMIZER_PROMPTS[mode]} />
+                  </div>
+                </div>
               </div>
             </CardContent>
+            ) : null}
           </Card>
-        </div>
 
-        <div className="space-y-4">
-          <FitAnalysisPanel analysis={analysis} />
-          <PortfolioSuggestions projects={portfolioRecommendations} />
-        </div>
 
-        <div className="space-y-4">
+        </aside>
+
+        <section className="min-w-0 grid gap-4 2xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] 2xl:items-start">
+          <div className="space-y-4">
+            <FitAnalysisPanel analysis={analysis} />
+            <PortfolioSuggestions projects={portfolioRecommendations} />
+          <TailoringHistoryList runs={historyRuns} onReuse={handleReuseRun} />
+          </div>
+
           <TailoredOutputPanel
             mode={mode}
             output={output}
+            originalCvText={selectedCvText ?? ""}
             onCopySummary={() => void copyText(output?.summary ?? "")}
             onCopyBullets={() => void copyText((output?.rewrittenBullets ?? []).join("\n"))}
             onCopyFullCv={() => void copyText(output && "fullCvText" in output ? output.fullCvText : exportContent)}
             onSaveToApplication={() => void handleSaveToApplication()}
             onExport={() => exportTextFile(`${draft.company || "tailored-cv"}.txt`, exportContent)}
-            saveDisabled={!application}
+            saveDisabled={!application || isBusy}
+            isBusy={isBusy}
+            busyLabel={activeStatusLabel}
           />
-          <TailoringHistoryList runs={historyRuns} onReuse={handleReuseRun} />
-        </div>
+        </section>
       </div>
     </JobOsLayout>
   );
 }
-
-

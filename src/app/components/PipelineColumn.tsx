@@ -28,19 +28,19 @@ export function PipelineColumn({
   }));
 
   return (
-    <div className="flex flex-col min-w-[260px] flex-shrink-0">
-      <div className="mb-3 px-1 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <div className="flex min-w-0 flex-col">
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <span className="truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {title}
         </span>
-        <span className="text-[11px] font-semibold text-muted-foreground/60 tabular-nums">
+        <span className="shrink-0 text-[10px] font-semibold text-muted-foreground/60 tabular-nums">
           {applications.length}
         </span>
       </div>
 
       <div
         ref={drop}
-        className={`flex-1 space-y-2 min-h-[200px] rounded-lg p-2 transition-colors ${
+        className={`min-h-[160px] flex-1 space-y-2 rounded-lg p-2 transition-colors ${
           isOver
             ? "bg-[#124BE6]/5 dark:bg-[#124BE6]/10"
             : "bg-black/[0.03] dark:bg-white/[0.03]"

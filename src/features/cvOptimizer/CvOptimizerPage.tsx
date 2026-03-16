@@ -591,25 +591,23 @@ export default function CvOptimizerPage() {
                   </div>
                 </div>
 
-                {isSetupExpanded ? (
-                  <div className="rounded-xl border border-border bg-white/70 p-4 dark:bg-neutral-950/40">
-                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Linked Profile</div>
-                    <div className="mt-2 text-sm font-medium text-foreground">
-                      {selectedProfile?.headline || selectedProfile?.name || "No linked profile"}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {selectedProfile
-                        ? `${selectedProfile.name} - ${selectedProfile.targetTrack} track`
-                        : "This CV does not have a linked profile in Assets yet."}
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{selectedProfile?.summary ? "Profile guidance linked" : "Profile guidance missing"}</span>
-                      <InlineInfoTip
-                        label={selectedProfile?.summary || "Link a profile to this CV in Assets Vault if you want the optimizer to use structured positioning, skills, and experience guidance."}
-                      />
-                    </div>
+                <div className="rounded-xl border border-border bg-white/70 p-4 dark:bg-neutral-950/40">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Linked Profile</div>
+                  <div className="mt-2 text-sm font-medium text-foreground">
+                    {selectedProfile?.headline || selectedProfile?.name || "No linked profile"}
                   </div>
-                ) : null}
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {selectedProfile
+                      ? `${selectedProfile.name} - ${selectedProfile.targetTrack} track`
+                      : "This CV does not have a linked profile in Assets yet."}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{selectedProfile?.summary ? "Profile guidance linked" : "Profile guidance missing"}</span>
+                    <InlineInfoTip
+                      label={selectedProfile?.summary || "Link a profile to this CV in Assets Vault if you want the optimizer to use structured positioning, skills, and experience guidance."}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
@@ -694,4 +692,5 @@ export default function CvOptimizerPage() {
     </JobOsLayout>
   );
 }
+
 

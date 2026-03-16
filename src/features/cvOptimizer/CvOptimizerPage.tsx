@@ -124,7 +124,6 @@ export default function CvOptimizerPage() {
   const applicationId = searchParams.get("applicationId");
   const roleIdFromQuery = searchParams.get("roleId");
   const [isControlCenterExpanded, setIsControlCenterExpanded] = useState(true);
-  const [isSetupExpanded, setIsSetupExpanded] = useState(true);
 
   const application = useMemo(
     () => applications.find((item) => item.id === applicationId) ?? null,
@@ -695,3 +694,4 @@ export default function CvOptimizerPage() {
     </JobOsLayout>
   );
 }
+

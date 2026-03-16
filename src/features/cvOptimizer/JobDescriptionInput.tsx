@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ChevronUp, CircleHelp, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../app/components/ui/card";
 import { Input } from "../../app/components/ui/input";
@@ -43,13 +43,6 @@ export function JobDescriptionInput({
   roleHint,
 }: JobDescriptionInputProps) {
   const [isExpanded, setIsExpanded] = useState(rawText.trim().length === 0);
-
-  useEffect(() => {
-    if (!rawText.trim()) {
-      setIsExpanded(true);
-    }
-  }, [rawText]);
-
   const preview = rawText.trim().replace(/\s+/g, " ").slice(0, 160);
 
   return (

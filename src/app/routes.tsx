@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter } from "react-router";
 import Dashboard from "./pages/Dashboard";
+import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import Analytics from "./pages/Analytics";
 import JobOsAssetsPage from "./pages/job-os/JobOsAssetsPage";
 import JobOsCompaniesPage from "./pages/job-os/JobOsCompaniesPage";
@@ -52,7 +53,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/job-os/dashboard",
-        Component: JobOsApplicationsPage,
+        Component: DashboardPage,
       },
       {
         path: "/job-os/assets",

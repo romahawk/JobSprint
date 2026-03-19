@@ -11,6 +11,7 @@ import { AppNavbar } from "../../components/AppNavbar";
 import { TodayPanel } from "../../components/dashboard/TodayPanel";
 import { HotOpportunities } from "../../components/dashboard/HotOpportunities";
 import { PipelineStats } from "../../components/dashboard/PipelineStats";
+import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
 
 export function DashboardPage() {
@@ -53,7 +54,7 @@ export function DashboardPage() {
   const stats = useMemo(
     () =>
       loading
-        ? { totalCompanies: 0, totalRoles: 0, toApply: 0, applied: 0, inReview: 0, interviewing: 0, offers: 0, conversionRate: 0 }
+        ? { totalCompanies: 0, totalRoles: 0, toApply: 0, applied: 0, inReview: 0, interviewing: 0, offers: 0, conversionRate: 0, responseRate: 0, interviewRate: 0, offerRate: 0 }
         : getPipelineStats(companies, roles, applications),
     [companies, roles, applications, loading]
   );
@@ -82,6 +83,7 @@ export function DashboardPage() {
           {/* Right — context column */}
           <div className="space-y-6">
             <PipelineStats stats={stats} isLoading={loading} />
+            <ProbabilityPanel stats={stats} isLoading={loading} />
             {(loading || hotOpportunities.length > 0) && (
               <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
             )}

@@ -1017,9 +1017,19 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           addCollectionItem<JobOsRole>("roles", "role", payload, { hasUpdatedAt: true }),
         updateRole: (id: string, updates: Partial<JobOsRole>) =>
           updateCollectionItem<JobOsRole>("roles", id, updates, { hasUpdatedAt: true }),
-        addApplication: (
+        addApplication: async (
           payload: Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">
-        ) => addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true }),
+        ) => {
+          const roleId = payload.roleId?.trim();
+          if (
+            roleId &&
+            state.applications.some((application) => application.roleId === roleId)
+          ) {
+            throw new Error("An application for this role already exists.");
+          }
+
+          return addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true });
+        },
         updateApplication: (id: string, updates: Partial<JobOsApplication>) =>
           updateCollectionItem<JobOsApplication>("applications", id, updates, { hasUpdatedAt: true }),
         addOutreach: (payload: Omit<JobOsOutreach, "id" | "createdAt" | "updatedAt">) =>

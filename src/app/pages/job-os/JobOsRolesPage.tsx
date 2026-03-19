@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -28,15 +29,17 @@ function normalizeSeniority(value: string): string {
 
 export default function JobOsRolesPage() {
   const { session } = useApp();
-  const { roles, companies, addRole, updateRole, addApplication, removeRole, syncNotice } = useJobOs(
+  const { roles, companies, applications, addRole, updateRole, addApplication, removeRole, syncNotice } = useJobOs(
     session?.userId ?? null
   );
 
   const [filterTrack, setFilterTrack] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [addFormOpen, setAddFormOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> | null>(null);
   const [formNotice, setFormNotice] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [draft, setDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt">>({
     companyId: "",
     title: "",
@@ -59,6 +62,11 @@ export default function JobOsRolesPage() {
         return true;
       }),
     [roles, filterStatus, filterTrack]
+  );
+
+  const applicationRoleIds = useMemo(
+    () => new Set(applications.map((application) => application.roleId).filter(Boolean)),
+    [applications]
   );
 
   function startEdit(role: JobOsRole): void {
@@ -136,82 +144,135 @@ export default function JobOsRolesPage() {
     }
   }
 
+  async function handleAddApplication(role: JobOsRole): Promise<void> {
+    if (applicationRoleIds.has(role.id)) {
+      setActionNotice({
+        tone: "error",
+        message: `An application for ${role.title} already exists.`,
+      });
+      return;
+    }
+
+    try {
+      await addApplication({
+        companyId: role.companyId,
+        roleId: role.id,
+        dateApplied: new Date().toISOString().slice(0, 10),
+        channel: "Company Site",
+        cvVersion: role.track === "TPM" ? "CV - Technical Product Manager" : role.track === "Product Engineer" ? "CV - Product Engineer" : "CV - Systems / Platform PM",
+        status: "sent",
+        nextAction: "Send follow-up in 5 days",
+        notes: "",
+        latestJobDescriptionId: undefined,
+        latestCvTailoringRunId: undefined,
+        tailoredCvHeadline: "",
+        tailoredCvSummary: "",
+        tailoredCvText: "",
+        tailoredCvUpdatedAt: undefined,
+      });
+      setActionNotice({
+        tone: "success",
+        message: `Application created for ${role.title}.`,
+      });
+    } catch (error) {
+      setActionNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Application could not be created.",
+      });
+    }
+  }
+
   return (
     <JobOsLayout title="Roles" subtitle="Track discovered opportunities and route into applications" notice={syncNotice}>
       <Card>
-        <CardHeader><CardTitle className="text-sm">Add Role</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-4 gap-3">
-          <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value }))}>
-            <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
-            <SelectContent>
-              {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Role title" />
-          <Select value={draft.origin ?? "self_sourced"} onValueChange={(value) => setDraft((current) => ({ ...current, origin: value as RoleOrigin }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="self_sourced">Self-sourced</SelectItem>
-              <SelectItem value="recruiter">Recruiter contacted me</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            value={draft.url}
-            onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
-            placeholder={draft.origin === "recruiter" ? "Posting URL (optional)" : "Role URL"}
-          />
-          <Input
-            list="role-location-suggestions"
-            value={draft.location}
-            onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))}
-            placeholder="Location"
-          />
-          <datalist id="role-location-suggestions">
-            {LOCATION_SUGGESTIONS.map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
-          <Select
-            value={draft.seniority}
-            onValueChange={(value) => setDraft((current) => ({ ...current, seniority: value }))}
+        <CardHeader className="pb-0">
+          <button
+            type="button"
+            onClick={() => setAddFormOpen((value) => !value)}
+            className="flex items-center gap-1.5 group"
           >
-            <SelectTrigger><SelectValue placeholder="Seniority" /></SelectTrigger>
-            <SelectContent>
-              {SENIORITY_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={draft.track} onValueChange={(value) => setDraft((current) => ({ ...current, track: value as JobTrack }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TPM">TPM</SelectItem>
-              <SelectItem value="Product Engineer">Product Engineer</SelectItem>
-              <SelectItem value="Systems PM">Systems PM</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={String(draft.fitScore)} onValueChange={(value) => setDraft((current) => ({ ...current, fitScore: Number(value) as 1 | 2 | 3 | 4 | 5 }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{[1, 2, 3, 4, 5].map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectContent>
-          </Select>
-          <Button onClick={() => void handleAddRole()} disabled={!draft.companyId || !draft.title.trim()}>
-            Add Role
-          </Button>
-          <div className="md:col-span-4 text-xs text-muted-foreground">
-            Company and role title are required before adding a role.
-          </div>
-          {formNotice ? (
-            <div className="md:col-span-4 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              {formNotice}
-            </div>
-          ) : null}
-          <div className="md:col-span-4">
-            <Textarea
-              value={draft.jobDescription ?? ""}
-              onChange={(event) => setDraft((current) => ({ ...current, jobDescription: event.target.value }))}
-              rows={4}
-              placeholder="Optional: store the job description here so CV tailoring can sync directly from the role."
+            {addFormOpen ? (
+              <ChevronDown className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-foreground" />
+            )}
+            <CardTitle className="text-sm select-none">Add Role</CardTitle>
+          </button>
+        </CardHeader>
+        {addFormOpen ? (
+          <CardContent className="grid gap-3 pt-4 md:grid-cols-4">
+            <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value }))}>
+              <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
+              <SelectContent>
+                {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Role title" />
+            <Select value={draft.origin ?? "self_sourced"} onValueChange={(value) => setDraft((current) => ({ ...current, origin: value as RoleOrigin }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="self_sourced">Self-sourced</SelectItem>
+                <SelectItem value="recruiter">Recruiter contacted me</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              value={draft.url}
+              onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
+              placeholder={draft.origin === "recruiter" ? "Posting URL (optional)" : "Role URL"}
             />
-          </div>
-        </CardContent>
+            <Input
+              list="role-location-suggestions"
+              value={draft.location}
+              onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))}
+              placeholder="Location"
+            />
+            <datalist id="role-location-suggestions">
+              {LOCATION_SUGGESTIONS.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
+            <Select
+              value={draft.seniority}
+              onValueChange={(value) => setDraft((current) => ({ ...current, seniority: value }))}
+            >
+              <SelectTrigger><SelectValue placeholder="Seniority" /></SelectTrigger>
+              <SelectContent>
+                {SENIORITY_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={draft.track} onValueChange={(value) => setDraft((current) => ({ ...current, track: value as JobTrack }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TPM">TPM</SelectItem>
+                <SelectItem value="Product Engineer">Product Engineer</SelectItem>
+                <SelectItem value="Systems PM">Systems PM</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={String(draft.fitScore)} onValueChange={(value) => setDraft((current) => ({ ...current, fitScore: Number(value) as 1 | 2 | 3 | 4 | 5 }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{[1, 2, 3, 4, 5].map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectContent>
+            </Select>
+            <Button onClick={() => void handleAddRole()} disabled={!draft.companyId || !draft.title.trim()}>
+              Add Role
+            </Button>
+            <div className="text-xs text-muted-foreground md:col-span-4">
+              Company and role title are required before adding a role.
+            </div>
+            {formNotice ? (
+              <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground md:col-span-4">
+                {formNotice}
+              </div>
+            ) : null}
+            <div className="md:col-span-4">
+              <Textarea
+                value={draft.jobDescription ?? ""}
+                onChange={(event) => setDraft((current) => ({ ...current, jobDescription: event.target.value }))}
+                rows={4}
+                placeholder="Optional: store the job description here so CV tailoring can sync directly from the role."
+              />
+            </div>
+          </CardContent>
+        ) : null}
       </Card>
 
       <Card>
@@ -237,6 +298,17 @@ export default function JobOsRolesPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {actionNotice ? (
+            <div
+              className={`mb-4 rounded-md border px-3 py-2 text-sm ${
+                actionNotice.tone === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
+                  : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+              }`}
+            >
+              {actionNotice.message}
+            </div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -409,26 +481,10 @@ export default function JobOsRolesPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        void addApplication({
-                          companyId: role.companyId,
-                          roleId: role.id,
-                          dateApplied: new Date().toISOString().slice(0, 10),
-                          channel: "Company Site",
-                          cvVersion: role.track === "TPM" ? "CV - Technical Product Manager" : role.track === "Product Engineer" ? "CV - Product Engineer" : "CV - Systems / Platform PM",
-                          status: "sent",
-                          nextAction: "Send follow-up in 5 days",
-                          notes: "",
-                          latestJobDescriptionId: undefined,
-                          latestCvTailoringRunId: undefined,
-                          tailoredCvHeadline: "",
-                          tailoredCvSummary: "",
-                          tailoredCvText: "",
-                          tailoredCvUpdatedAt: undefined,
-                        })
-                      }
+                      disabled={applicationRoleIds.has(role.id)}
+                      onClick={() => void handleAddApplication(role)}
                     >
-                      Add application
+                      {applicationRoleIds.has(role.id) ? "Application logged" : "Add application"}
                     </Button>
                     <Button asChild size="sm" variant="secondary">
                       <Link to={`/cv-optimizer?roleId=${role.id}`}>Tailor CV</Link>

@@ -10,7 +10,7 @@ Most job searches fail from inconsistent execution, not lack of talent. JobSprin
 ## Current Status
 
 - Stage: MVP+ (Firebase auth + Firestore persistence enabled)
-- Scope: dashboard, pipeline tracking, analytics, weekly execution panel, sync status, safe delete undo
+- Scope: dashboard, pipeline tracking, analytics, weekly execution panel, sync status, safe delete undo, Job OS role/application guardrails
 - Adoption: AI Production OS v1 process active since March 2, 2026
 - Milestone checkpoint: Month 2 foundation completed on March 3, 2026
 

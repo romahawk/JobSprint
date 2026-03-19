@@ -82,12 +82,14 @@ export function DashboardPage() {
 
           {/* Right — context column */}
           <div className="space-y-6">
+            <div className="lg:sticky lg:top-24">
+              <QuickActions />
+            </div>
             <PipelineStats stats={stats} isLoading={loading} />
             <ProbabilityPanel stats={stats} isLoading={loading} />
             {(loading || hotOpportunities.length > 0) && (
               <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
             )}
-            <QuickActions />
           </div>
         </div>
       </main>

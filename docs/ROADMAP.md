@@ -1,12 +1,13 @@
 # Roadmap
 
-## Completion Snapshot (as of 2026-03-03)
+## Completion Snapshot (as of 2026-03-19)
 
 - Week 1 complete: baseline docs and repo clarity.
 - Week 2 complete: workflow governance and release discipline.
 - Week 3 complete: 7-day activity signal + app-level error boundary.
 - Week 4 complete: form hardening, safe delete with undo, smoke tests.
 - Month 2 complete: persistence boundary, migration helper, auth/session, sync status, Firebase integration.
+- Post-Month 2 UX hardening in progress: dashboard compression, clearer next actions, and safer Role-to-Application handoff.
 
 ## Next 4 Weeks
 
@@ -113,11 +114,17 @@ Data entry errors decrease and destructive actions are safer.
 - Add first E2E suite for auth + CRUD + pipeline + refresh persistence.
 - Add offline/connection UX polish for Firebase sync errors.
 
+## Current Focus (March 2026)
+
+- Improve dashboard density so the primary cards fit within a single desktop viewport more often.
+- Make Today's Actions resilient to data gaps, especially when a role is marked progressed but no application row exists yet.
+- Reduce accidental duplicate records by tightening Job OS handoff flows and surfacing explicit success/error feedback.
+
 ## Next Session Starting Point
 
-1. Create issues for Month 3 scope (E2E baseline, import/export, case-study docs).
-2. Implement E2E scaffolding first (Playwright + CI integration for a happy-path flow).
-3. Ship one visible portfolio artifact update (case-study section in README with Loom link).
+1. Add Playwright E2E coverage for auth bootstrap, role creation, application logging, and refresh persistence.
+2. Implement import/export for Job OS state so users can back up, migrate, and inspect their data.
+3. Publish one outward-facing case-study/demo artifact that shows the improved dashboard and Job OS workflow.
 
 ## Freeze List
 

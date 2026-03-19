@@ -11,6 +11,7 @@ const PRIORITY_STYLES: Record<ActionPriority, string> = {
 
 const TYPE_COLORS: Record<NextAction["type"], string> = {
   apply: "border-l-blue-500",
+  log_application: "border-l-cyan-500",
   follow_up: "border-l-purple-500",
   optimize_cv: "border-l-green-500",
   add_role: "border-l-teal-500",

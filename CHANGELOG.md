@@ -6,6 +6,15 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ## [Unreleased]
 
+### Added
+
+- Added collapsible `Probability Engine` panel, collapsed `Add Role` form by default, and sticky `Quick Actions` placement to compress dashboard and Job OS vertical space.
+- Added `Log Application` next action when a role has progressed past `to_apply` but no linked application row exists.
+
+### Fixed
+
+- Fixed silent application creation from the Roles page by showing explicit success/error feedback and preventing duplicate applications for the same role.
+
 ## [2026-03-06]
 
 ### Added

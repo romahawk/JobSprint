@@ -23,6 +23,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('node_modules/@radix-ui')) {
+            return 'radix';
+          }
+          if (id.includes('node_modules/motion')) {
+            return 'motion';
+          }
           if (id.includes('node_modules/pdfjs-dist')) {
             return 'pdfjs';
           }
@@ -31,6 +37,14 @@ export default defineConfig({
           }
           if (id.includes('node_modules/recharts')) {
             return 'charts';
+          }
+          if (
+            id.includes('node_modules/lucide-react') ||
+            id.includes('node_modules/sonner') ||
+            id.includes('node_modules/next-themes') ||
+            id.includes('node_modules/date-fns')
+          ) {
+            return 'ui-support';
           }
           if (id.includes('node_modules')) {
             return 'vendor';

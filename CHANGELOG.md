@@ -13,8 +13,10 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Added Job OS import/export from the shared settings panel with validation and full-state replace support.
 - Added Playwright E2E baseline for role-to-application logging, duplicate prevention, and refresh persistence.
 - Added Playwright coverage for the Assets Vault CV constructor, including rename persistence, duplicate flow, and default CV behavior.
+- Added Playwright coverage for Job OS import/export and reusable script/template editing flows.
 - Added Assets Vault CV constructor with up to 5 managed CV variants, one default CV, and application linkage visibility.
 - Added `docs/CASE_STUDY_ASSETS_VAULT.md` as an outward-facing product story for the Assets Vault upgrade.
+- Added screenshot-backed demo context to the Assets Vault case study using committed docs assets.
 
 ### Fixed
 
@@ -26,6 +28,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 ### Changed
 
 - Started bundle-size reduction with route-level lazy loading plus manual chunk splitting for Firebase, PDF.js, charts, and shared vendor code.
+- Continued bundle-size reduction by splitting the shared vendor chunk into more focused React, Radix, DnD, motion, and UI-support bundles.
 
 ## [2026-03-06]
 

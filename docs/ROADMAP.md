@@ -124,9 +124,9 @@ Data entry errors decrease and destructive actions are safer.
 
 ## Next Session Starting Point
 
-1. Add one more E2E layer for import/export plus script/template editing so the newest Assets flows are locked down.
-2. Expand the outward-facing case study into a short screenshot-backed demo page or README section.
-3. Continue bundle-size reduction beyond route splitting, especially by shrinking the shared vendor chunk.
+1. Add one more E2E layer for the CV import path itself, especially file upload/import quality and delete confirmations for reusable assets.
+2. Expand the outward-facing case study from markdown into a dedicated README/demo section or hosted story page.
+3. Continue bundle-size reduction beyond route/vendor splitting, especially around heavy shared UI dependencies and PDF tooling.
 
 ## Freeze List
 

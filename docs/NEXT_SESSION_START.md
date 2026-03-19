@@ -13,8 +13,10 @@ Last updated: 2026-03-19
 - Job OS import/export is available from the shared settings panel on all major Job OS surfaces.
 - Assets Vault now works like a CV constructor: up to 5 managed CV variants, one default CV, linked application visibility, inline script/template editing, and stable `cvAssetId` links behind application records.
 - Playwright now covers both role-to-application logging and the Assets Vault CV constructor flow.
+- Playwright now also covers Job OS import/export plus reusable script/template editing.
 - Route-level lazy loading and initial manual chunk splitting are in place, which reduced the entry bundle significantly even though the shared vendor chunk is still large.
 - Outward-facing artifact drafted: `docs/CASE_STUDY_ASSETS_VAULT.md`.
+- The case study now includes screenshot-backed product context from committed docs assets.
 
 ## Start Here (first 30 minutes)
 
@@ -36,18 +38,19 @@ Last updated: 2026-03-19
    - Confirm linked application rows still show the right CV after rename
    - Delete a script/template via modal and confirm toast feedback appears
 6. Open or confirm Month 3 issues for:
-   - import/export E2E coverage
-   - screenshot-backed case-study/demo packaging
-   - deeper vendor chunk reduction
+   - CV import/file-processing E2E coverage
+   - README or hosted demo packaging for the case study
+   - deeper dependency-level bundle reduction
 
 ## Recommended First Issue Next Session
 
-`[M3-03] test: cover import/export and reusable asset editing flows`
+`[M3-04] test: cover CV file import and reusable-asset delete-confirmation flows`
 
 Acceptance criteria:
 
 - Export JSON and import JSON flow is covered in browser.
-- Script/template edit and delete flows are covered in browser.
+- Script/template add and edit flows are covered in browser.
+- Reusable asset delete confirmation and CV file import still need dedicated browser coverage.
 - CV constructor and stable CV-id coverage stays green in CI.
 - E2E job runs in CI on pull requests.
 

@@ -2,6 +2,18 @@
 
 Last updated: 2026-03-19
 
+## Demo Surface
+
+### Command Centre Context
+
+![JobSprint dashboard context](./assets/dashboard.png)
+
+### Analytics Context
+
+![JobSprint analytics context](./assets/analytics.png)
+
+These screenshots show the operating-system framing around the feature: JobSprint is not just storing data, it is helping the candidate decide, act, and iterate. Assets Vault now plugs into that broader loop by keeping the execution inputs clean and reusable.
+
 ## Problem
 
 Most job-search trackers treat CVs as static files. That breaks down quickly when one candidate is applying across multiple lanes:

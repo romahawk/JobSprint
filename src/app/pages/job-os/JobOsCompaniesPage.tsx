@@ -137,6 +137,9 @@ export default function JobOsCompaniesPage() {
   const [sortKey, setSortKey] = useState<CompanySortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
+  const [editDraft, setEditDraft] = useState<Partial<JobOsCompany>>({});
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [pasteLinkOpen, setPasteLinkOpen] = useState(false);
   const [draft, setDraft] = useState<Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">>({
     name: "",
@@ -380,6 +383,22 @@ export default function JobOsCompaniesPage() {
     }
   }
 
+  function openEditMode(company: JobOsCompany): void {
+    setEditDraft({ ...company });
+    setDetailMode("edit");
+  }
+
+  async function handleSaveEdit(): Promise<void> {
+    if (!selectedCompanyId || !editDraft.name?.trim()) return;
+    setIsSavingEdit(true);
+    try {
+      await updateCompany(selectedCompanyId, editDraft);
+      setDetailMode("view");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
   async function clearAllCompanies(): Promise<void> {
     if (companyListLocked) {
       setImportNotice("Unlock the company list before clearing.");
@@ -424,6 +443,16 @@ export default function JobOsCompaniesPage() {
 
             {/* Action buttons — always visible */}
             <div className="flex items-center gap-2 flex-wrap justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setPasteLinkOpen(true)}
+                disabled={companyListLocked}
+              >
+                <Link className="w-3.5 h-3.5" />
+                Paste Link
+              </Button>
               <a href="/templates/job-os-companies-import-template.csv" download>
                 <Button size="sm" variant="outline" className="gap-1.5">
                   <Download className="w-3.5 h-3.5" />
@@ -439,16 +468,6 @@ export default function JobOsCompaniesPage() {
               >
                 <Upload className="w-3.5 h-3.5" />
                 {isImporting ? "Importing…" : "Import CSV"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => setPasteLinkOpen(true)}
-                disabled={companyListLocked}
-              >
-                <Link className="w-3.5 h-3.5" />
-                Paste Link
               </Button>
               <Button
                 size="sm"
@@ -698,18 +717,35 @@ export default function JobOsCompaniesPage() {
         </CardContent>
       </Card>
 
-      {/* ── Company Detail Modal ── */}
+      {/* ── Company Detail / Edit Modal ── */}
       <Dialog
         open={!!selectedCompany}
         onOpenChange={(open) => {
-          if (!open) setSelectedCompanyId(null);
+          if (!open) {
+            setSelectedCompanyId(null);
+            setDetailMode("view");
+          }
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedCompany?.name}</DialogTitle>
+            <div className="flex items-center justify-between gap-2 pr-6">
+              <DialogTitle>
+                {detailMode === "edit" ? "Edit Company" : selectedCompany?.name}
+              </DialogTitle>
+              {detailMode === "view" && selectedCompany && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openEditMode(selectedCompany)}
+                >
+                  Edit
+                </Button>
+              )}
+            </div>
           </DialogHeader>
-          {selectedCompany && (
+
+          {selectedCompany && detailMode === "view" && (
             <div className="space-y-4">
               <p className="text-xs text-neutral-500">
                 {selectedCompany.industry}
@@ -848,6 +884,128 @@ export default function JobOsCompaniesPage() {
                   }
                 >
                   Log Application
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {selectedCompany && detailMode === "edit" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs text-neutral-500">Company Name</label>
+                  <Input
+                    value={editDraft.name ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, name: e.target.value }))}
+                    disabled={isSavingEdit}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-neutral-500">Industry</label>
+                  <Input
+                    value={editDraft.industry ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, industry: e.target.value }))}
+                    disabled={isSavingEdit}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-neutral-500">Size</label>
+                  <Input
+                    value={editDraft.size ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, size: e.target.value }))}
+                    disabled={isSavingEdit}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-neutral-500">Remote Policy</label>
+                  <Input
+                    value={editDraft.remotePolicy ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, remotePolicy: e.target.value }))}
+                    disabled={isSavingEdit}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-neutral-500">Location</label>
+                  <Input
+                    value={editDraft.location ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, location: e.target.value || undefined }))}
+                    disabled={isSavingEdit}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-neutral-500">Priority</label>
+                  <Select
+                    value={editDraft.priority ?? "B"}
+                    onValueChange={(v) => setEditDraft((p) => ({ ...p, priority: v as CompanyPriority }))}
+                    disabled={isSavingEdit}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A">A</SelectItem>
+                      <SelectItem value="B">B</SelectItem>
+                      <SelectItem value="C">C</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-neutral-500">Status</label>
+                  <Select
+                    value={editDraft.status ?? "Research"}
+                    onValueChange={(v) => setEditDraft((p) => ({ ...p, status: v as CompanyStatus }))}
+                    disabled={isSavingEdit}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {STATUS_VALUES.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs text-neutral-500">Website</label>
+                  <Input
+                    value={editDraft.website ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, website: e.target.value || undefined }))}
+                    placeholder="https://example.com"
+                    disabled={isSavingEdit}
+                  />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs text-neutral-500">Careers URL</label>
+                  <Input
+                    value={editDraft.careersUrl ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, careersUrl: e.target.value || undefined }))}
+                    placeholder="https://example.com/careers"
+                    disabled={isSavingEdit}
+                  />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs text-neutral-500">Notes</label>
+                  <Textarea
+                    value={editDraft.notes ?? ""}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, notes: e.target.value }))}
+                    rows={3}
+                    disabled={isSavingEdit}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-1 border-t">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setDetailMode("view")}
+                  disabled={isSavingEdit}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void handleSaveEdit()}
+                  disabled={!editDraft.name?.trim() || isSavingEdit}
+                >
+                  {isSavingEdit ? "Saving…" : "Save Changes"}
                 </Button>
               </div>
             </div>

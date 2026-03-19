@@ -1,10 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Link, Upload } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Link,
+  Upload,
+} from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
 import { Checkbox } from "../../components/ui/checkbox";
 import { useApp } from "../../context";
@@ -96,10 +124,10 @@ export default function JobOsCompaniesPage() {
     addApplication,
     removeCompany,
     syncNotice,
-  } =
-    useJobOs(session?.userId ?? null);
+  } = useJobOs(session?.userId ?? null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [addFormOpen, setAddFormOpen] = useState(true);
   const [search, setSearch] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [bulkText, setBulkText] = useState("");
@@ -184,13 +212,7 @@ export default function JobOsCompaniesPage() {
     setSortDir("asc");
   }
 
-  function SortHeader({
-    label,
-    column,
-  }: {
-    label: string;
-    column: CompanySortKey;
-  }) {
+  function SortHeader({ label, column }: { label: string; column: CompanySortKey }) {
     const active = sortKey === column;
     return (
       <button
@@ -212,7 +234,9 @@ export default function JobOsCompaniesPage() {
       .map((line) => line.trim())
       .filter(Boolean);
     if (lines.length < 2) {
-      setImportNotice(`${sourceLabel} input is empty. Use the template header and include at least one data row.`);
+      setImportNotice(
+        `${sourceLabel} input is empty. Use the template header and include at least one data row.`
+      );
       return;
     }
 
@@ -236,13 +260,10 @@ export default function JobOsCompaniesPage() {
     const headerIndex = new Map<string, number>();
     headers.forEach((header, index) => {
       const normalized = headerAliases[header];
-      if (normalized) {
-        headerIndex.set(normalized, index);
-      }
+      if (normalized) headerIndex.set(normalized, index);
     });
     const required = ["name", "industry", "size", "remotepolicy", "priority", "status", "notes"];
-    const isHeaderValid = required.every((key) => headerIndex.has(key));
-    if (!isHeaderValid) {
+    if (!required.every((key) => headerIndex.has(key))) {
       setImportNotice("Invalid company header. Download the template and reuse the same columns.");
       return;
     }
@@ -301,7 +322,6 @@ export default function JobOsCompaniesPage() {
       const existingId = existingByName.get(normalizedName);
 
       if (existingId) {
-        // Update the existing company in place so linked roles/applications keep the same companyId.
         await updateCompany(existingId, payload);
         updated += 1;
         continue;
@@ -314,7 +334,9 @@ export default function JobOsCompaniesPage() {
 
     const actionLabel = sourceLabel === "CSV" ? "Imported" : "Extended";
     if (errors.length === 0) {
-      setImportNotice(`${actionLabel} ${created} companies and updated ${updated}. Existing roles stay linked to their company IDs.`);
+      setImportNotice(
+        `${actionLabel} ${created} companies and updated ${updated}. Existing roles stay linked to their company IDs.`
+      );
     } else {
       setImportNotice(
         `${actionLabel} ${created} companies, updated ${updated}. ${errors.length} row(s) failed: ${errors
@@ -339,9 +361,7 @@ export default function JobOsCompaniesPage() {
       await importCompanyText(text, "CSV");
     } finally {
       setIsImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -379,12 +399,31 @@ export default function JobOsCompaniesPage() {
   }
 
   return (
-    <JobOsLayout title="Company Engine" subtitle="Account-based target company tracking" notice={syncNotice}>
+    <JobOsLayout
+      title="Company Engine"
+      subtitle="Account-based target company tracking"
+      notice={syncNotice}
+    >
+      {/* ── Add Company (collapsible) ── */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-0">
           <div className="flex items-center justify-between gap-3">
-            <CardTitle className="text-sm">Add Company</CardTitle>
-            <div className="flex items-center gap-2">
+            {/* Title + chevron toggle */}
+            <button
+              type="button"
+              onClick={() => setAddFormOpen((v) => !v)}
+              className="flex items-center gap-1.5 group"
+            >
+              {addFormOpen ? (
+                <ChevronDown className="w-4 h-4 text-neutral-400 group-hover:text-foreground transition-colors" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-foreground transition-colors" />
+              )}
+              <CardTitle className="text-sm select-none">Add Company</CardTitle>
+            </button>
+
+            {/* Action buttons — always visible */}
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <a href="/templates/job-os-companies-import-template.csv" download>
                 <Button size="sm" variant="outline" className="gap-1.5">
                   <Download className="w-3.5 h-3.5" />
@@ -399,7 +438,7 @@ export default function JobOsCompaniesPage() {
                 disabled={isImporting || companyListLocked}
               >
                 <Upload className="w-3.5 h-3.5" />
-                {isImporting ? "Importing..." : "Import CSV"}
+                {isImporting ? "Importing…" : "Import CSV"}
               </Button>
               <Button
                 size="sm"
@@ -441,171 +480,382 @@ export default function JobOsCompaniesPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-4 gap-3">
-          <Input value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} placeholder="Company" />
-          <Input value={draft.industry} onChange={(e) => setDraft((p) => ({ ...p, industry: e.target.value }))} placeholder="Industry" />
-          <Input value={draft.size} onChange={(e) => setDraft((p) => ({ ...p, size: e.target.value }))} placeholder="Size" />
-          <Input value={draft.remotePolicy} onChange={(e) => setDraft((p) => ({ ...p, remotePolicy: e.target.value }))} placeholder="Remote policy" />
-          <Select value={draft.priority} onValueChange={(v) => setDraft((p) => ({ ...p, priority: v as CompanyPriority }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="A">A</SelectItem>
-              <SelectItem value="B">B</SelectItem>
-              <SelectItem value="C">C</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={draft.status} onValueChange={(v) => setDraft((p) => ({ ...p, status: v as CompanyStatus }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{STATUS_VALUES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-          </Select>
-          <div className="md:col-span-2">
-            <Button
-              className="w-full"
-              disabled={companyListLocked}
-              onClick={() => {
-                if (!draft.name) return;
-                void addCompany(draft);
-                setDraft({
-                  name: "",
-                  industry: "",
-                  size: "",
-                  remotePolicy: "",
-                  priority: "B",
-                  status: "Research",
-                  notes: "",
-                });
-              }}
+
+        {addFormOpen && (
+          <CardContent className="grid md:grid-cols-4 gap-3 pt-4">
+            <Input
+              value={draft.name}
+              onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+              placeholder="Company"
+            />
+            <Input
+              value={draft.industry}
+              onChange={(e) => setDraft((p) => ({ ...p, industry: e.target.value }))}
+              placeholder="Industry"
+            />
+            <Input
+              value={draft.size}
+              onChange={(e) => setDraft((p) => ({ ...p, size: e.target.value }))}
+              placeholder="Size"
+            />
+            <Input
+              value={draft.remotePolicy}
+              onChange={(e) => setDraft((p) => ({ ...p, remotePolicy: e.target.value }))}
+              placeholder="Remote policy"
+            />
+            <Select
+              value={draft.priority}
+              onValueChange={(v) => setDraft((p) => ({ ...p, priority: v as CompanyPriority }))}
             >
-              Add Company
-            </Button>
-          </div>
-          <div className="md:col-span-4">
-            <Textarea value={draft.notes} onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Research notes" />
-          </div>
-          <div className="md:col-span-4 rounded border border-dashed px-3 py-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">Extend Companies List</p>
-                <p className="text-xs text-neutral-500">
-                  Paste the same CSV header and rows from the template. Existing companies are updated in place, so saved roles keep their links.
-                </p>
-              </div>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A">A</SelectItem>
+                <SelectItem value="B">B</SelectItem>
+                <SelectItem value="C">C</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={draft.status}
+              onValueChange={(v) => setDraft((p) => ({ ...p, status: v as CompanyStatus }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_VALUES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="md:col-span-2">
               <Button
-                size="sm"
-                variant="outline"
-                disabled={isImporting || companyListLocked}
-                onClick={() => void handleBulkExtend()}
+                className="w-full"
+                disabled={companyListLocked}
+                onClick={() => {
+                  if (!draft.name) return;
+                  void addCompany(draft);
+                  setDraft({
+                    name: "",
+                    industry: "",
+                    size: "",
+                    remotePolicy: "",
+                    priority: "B",
+                    status: "Research",
+                    notes: "",
+                  });
+                }}
               >
-                {isImporting ? "Processing..." : "Extend List"}
+                Add Company
               </Button>
             </div>
-            <Textarea
-              value={bulkText}
-              onChange={(e) => setBulkText(e.target.value)}
-              rows={5}
-              placeholder={"Company,Industry,Size,Remote Policy,Priority,Status,Notes\nExample Corp,SaaS,201-500,Hybrid,A,Target,Strong PM hiring signal"}
-              disabled={companyListLocked}
-            />
-          </div>
-          <div className="md:col-span-4 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
-            <Checkbox
-              id="lock-after-import"
-              checked={lockAfterImport}
-              onCheckedChange={(checked) => setLockAfterImport(Boolean(checked))}
-            />
-            <label htmlFor="lock-after-import" className="cursor-pointer">
-              Lock company list automatically after CSV import
-            </label>
-          </div>
-          {importNotice && (
-            <div className="md:col-span-4 rounded border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-700 dark:text-blue-400">
-              {importNotice}
+            <div className="md:col-span-4">
+              <Textarea
+                value={draft.notes}
+                onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))}
+                rows={2}
+                placeholder="Research notes"
+              />
             </div>
-          )}
+
+            {/* Extend Companies List */}
+            <div className="md:col-span-4 rounded border border-dashed px-3 py-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Extend Companies List</p>
+                  <p className="text-xs text-neutral-500">
+                    Paste the same CSV header and rows from the template. Existing companies are
+                    updated in place, so saved roles keep their links.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isImporting || companyListLocked}
+                  onClick={() => void handleBulkExtend()}
+                >
+                  {isImporting ? "Processing…" : "Extend List"}
+                </Button>
+              </div>
+              <Textarea
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                rows={5}
+                placeholder={
+                  "Company,Industry,Size,Remote Policy,Priority,Status,Notes\nExample Corp,SaaS,201-500,Hybrid,A,Target,Strong PM hiring signal"
+                }
+                disabled={companyListLocked}
+              />
+            </div>
+
+            <div className="md:col-span-4 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+              <Checkbox
+                id="lock-after-import"
+                checked={lockAfterImport}
+                onCheckedChange={(checked) => setLockAfterImport(Boolean(checked))}
+              />
+              <label htmlFor="lock-after-import" className="cursor-pointer">
+                Lock company list automatically after CSV import
+              </label>
+            </div>
+
+            {importNotice && (
+              <div className="md:col-span-4 rounded border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-700 dark:text-blue-400">
+                {importNotice}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+      {/* ── Target Companies (full-width) ── */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-sm">
+              Target Companies{" "}
+              {companies.length > 0 && (
+                <span className="text-neutral-400 font-normal">({companies.length})</span>
+              )}
+            </CardTitle>
+            <Input
+              className="max-w-xs"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter company…"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10 text-center">#</TableHead>
+                <TableHead>
+                  <SortHeader label="Company" column="name" />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Industry" column="industry" />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Size" column="size" />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Remote" column="remotePolicy" />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Priority" column="priority" />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Status" column="status" />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Notes" column="notes" />
+                </TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedCompanies.map((company, index) => (
+                <TableRow key={company.id}>
+                  <TableCell className="text-center text-xs text-neutral-500">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="font-medium">{company.name}</TableCell>
+                  <TableCell>{company.industry}</TableCell>
+                  <TableCell>{company.size}</TableCell>
+                  <TableCell>{company.remotePolicy}</TableCell>
+                  <TableCell>{company.priority}</TableCell>
+                  <TableCell>{company.status}</TableCell>
+                  <TableCell className="max-w-[260px] truncate">
+                    {company.notes || "-"}
+                  </TableCell>
+                  <TableCell className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedCompanyId(company.id)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-500"
+                      disabled={companyListLocked}
+                      onClick={() => void removeCompany(company.id)}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-sm">Target Companies</CardTitle>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter company..." />
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12 text-center">#</TableHead>
-                  <TableHead><SortHeader label="Company" column="name" /></TableHead>
-                  <TableHead><SortHeader label="Industry" column="industry" /></TableHead>
-                  <TableHead><SortHeader label="Size" column="size" /></TableHead>
-                  <TableHead><SortHeader label="Remote" column="remotePolicy" /></TableHead>
-                  <TableHead><SortHeader label="Priority" column="priority" /></TableHead>
-                  <TableHead><SortHeader label="Status" column="status" /></TableHead>
-                  <TableHead><SortHeader label="Notes" column="notes" /></TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedCompanies.map((company, index) => (
-                  <TableRow key={company.id}>
-                    <TableCell className="text-center text-xs text-neutral-500">{index + 1}</TableCell>
-                    <TableCell className="font-medium">{company.name}</TableCell>
-                    <TableCell>{company.industry}</TableCell>
-                    <TableCell>{company.size}</TableCell>
-                    <TableCell>{company.remotePolicy}</TableCell>
-                    <TableCell>{company.priority}</TableCell>
-                    <TableCell>{company.status}</TableCell>
-                    <TableCell className="max-w-[240px] truncate">{company.notes || "-"}</TableCell>
-                    <TableCell className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setSelectedCompanyId(company.id)}>View</Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-500"
-                        disabled={companyListLocked}
-                        onClick={() => void removeCompany(company.id)}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      {/* ── Company Detail Modal ── */}
+      <Dialog
+        open={!!selectedCompany}
+        onOpenChange={(open) => {
+          if (!open) setSelectedCompanyId(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedCompany?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedCompany && (
+            <div className="space-y-4">
+              <p className="text-xs text-neutral-500">
+                {selectedCompany.industry}
+                {selectedCompany.size ? ` · ${selectedCompany.size}` : ""}
+              </p>
 
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Company Detail</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedCompany && <p className="text-sm text-neutral-500">Select a company to view detail.</p>}
-            {selectedCompany && (
-              <>
-                <div>
-                  <p className="font-medium">{selectedCompany.name}</p>
-                  <p className="text-xs text-neutral-500">{selectedCompany.industry} · {selectedCompany.size}</p>
+              <div className="text-sm space-y-1.5">
+                <p>
+                  <span className="text-neutral-500">Status:</span>{" "}
+                  {selectedCompany.status}
+                </p>
+                <p>
+                  <span className="text-neutral-500">Priority:</span>{" "}
+                  {selectedCompany.priority}
+                </p>
+                <p>
+                  <span className="text-neutral-500">Remote:</span>{" "}
+                  {selectedCompany.remotePolicy || "—"}
+                </p>
+                {selectedCompany.location && (
+                  <p>
+                    <span className="text-neutral-500">Location:</span>{" "}
+                    {selectedCompany.location}
+                  </p>
+                )}
+                {selectedCompany.website && (
+                  <p>
+                    <span className="text-neutral-500">Website:</span>{" "}
+                    <a
+                      href={selectedCompany.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {selectedCompany.website}
+                    </a>
+                  </p>
+                )}
+                {selectedCompany.careersUrl && (
+                  <p>
+                    <span className="text-neutral-500">Careers:</span>{" "}
+                    <a
+                      href={selectedCompany.careersUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {selectedCompany.careersUrl}
+                    </a>
+                  </p>
+                )}
+                {selectedCompany.notes && (
+                  <p>
+                    <span className="text-neutral-500">Notes:</span>{" "}
+                    {selectedCompany.notes}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="rounded border p-2 text-center">
+                  <div className="font-semibold text-base">
+                    {roles.filter((r) => r.companyId === selectedCompany.id).length}
+                  </div>
+                  <div className="text-neutral-500">Roles</div>
                 </div>
-                <div className="text-sm space-y-1">
-                  <p><span className="text-neutral-500">Status:</span> {selectedCompany.status}</p>
-                  <p><span className="text-neutral-500">Priority:</span> {selectedCompany.priority}</p>
-                  <p><span className="text-neutral-500">Notes:</span> {selectedCompany.notes || "-"}</p>
+                <div className="rounded border p-2 text-center">
+                  <div className="font-semibold text-base">
+                    {outreach.filter((o) => o.companyId === selectedCompany.id).length}
+                  </div>
+                  <div className="text-neutral-500">Outreach</div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded border p-2">Roles: {roles.filter((r) => r.companyId === selectedCompany.id).length}</div>
-                  <div className="rounded border p-2">Outreach: {outreach.filter((o) => o.companyId === selectedCompany.id).length}</div>
-                  <div className="rounded border p-2">Applications: {applications.filter((a) => a.companyId === selectedCompany.id).length}</div>
+                <div className="rounded border p-2 text-center">
+                  <div className="font-semibold text-base">
+                    {applications.filter((a) => a.companyId === selectedCompany.id).length}
+                  </div>
+                  <div className="text-neutral-500">Applications</div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button size="sm" variant="outline" onClick={() => void addRole({ companyId: selectedCompany.id, title: "New Role", url: "", location: "", seniority: "", track: "TPM", fitScore: 3, status: "to_apply" })}>Add Role</Button>
-                  <Button size="sm" variant="outline" onClick={() => void addOutreach({ companyId: selectedCompany.id, roleId: null, contactName: "", contactRole: "", linkedinURL: "", scriptUsed: "", sentDate: new Date().toISOString().slice(0, 10), status: "sent", followUpCount: 0, nextFollowUpDate: null, notes: "" })}>Add Outreach</Button>
-                  <Button size="sm" variant="outline" className="col-span-2" onClick={() => void addApplication({ companyId: selectedCompany.id, roleId: "", dateApplied: new Date().toISOString().slice(0, 10), channel: "LinkedIn", cvVersion: "CV - Technical Product Manager", status: "sent", nextAction: "Follow up in 5 days", notes: "" })}>Log Application</Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void addRole({
+                      companyId: selectedCompany.id,
+                      title: "New Role",
+                      url: "",
+                      location: "",
+                      seniority: "",
+                      track: "TPM",
+                      fitScore: 3,
+                      status: "to_apply",
+                    })
+                  }
+                >
+                  Add Role
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void addOutreach({
+                      companyId: selectedCompany.id,
+                      roleId: null,
+                      contactName: "",
+                      contactRole: "",
+                      linkedinURL: "",
+                      scriptUsed: "",
+                      sentDate: new Date().toISOString().slice(0, 10),
+                      status: "sent",
+                      followUpCount: 0,
+                      nextFollowUpDate: null,
+                      notes: "",
+                    })
+                  }
+                >
+                  Add Outreach
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="col-span-2"
+                  onClick={() =>
+                    void addApplication({
+                      companyId: selectedCompany.id,
+                      roleId: "",
+                      dateApplied: new Date().toISOString().slice(0, 10),
+                      channel: "LinkedIn",
+                      cvVersion: "CV - Technical Product Manager",
+                      status: "sent",
+                      nextAction: "Follow up in 5 days",
+                      notes: "",
+                    })
+                  }
+                >
+                  Log Application
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Paste Link Dialog ── */}
       <PasteLinkImportDialog
         open={pasteLinkOpen}
         onClose={() => setPasteLinkOpen(false)}

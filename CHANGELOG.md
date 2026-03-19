@@ -13,10 +13,10 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Added Job OS import/export from the shared settings panel with validation and full-state replace support.
 - Added Playwright E2E baseline for role-to-application logging, duplicate prevention, and refresh persistence.
 - Added Playwright coverage for the Assets Vault CV constructor, including rename persistence, duplicate flow, and default CV behavior.
-- Added Playwright coverage for Job OS import/export and reusable script/template editing flows.
+- Added Playwright coverage for Job OS import/export, CV file import, and reusable script/template editing plus delete-confirmation flows.
 - Added Assets Vault CV constructor with up to 5 managed CV variants, one default CV, and application linkage visibility.
 - Added `docs/CASE_STUDY_ASSETS_VAULT.md` as an outward-facing product story for the Assets Vault upgrade.
-- Added screenshot-backed demo context to the Assets Vault case study using committed docs assets.
+- Added screenshot-backed demo context to the Assets Vault case study and linked it from the README as the main proof-of-work artifact.
 
 ### Fixed
 
@@ -28,7 +28,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 ### Changed
 
 - Started bundle-size reduction with route-level lazy loading plus manual chunk splitting for Firebase, PDF.js, charts, and shared vendor code.
-- Continued bundle-size reduction by splitting the shared vendor chunk into more focused React, Radix, DnD, motion, and UI-support bundles.
+- Continued bundle-size reduction with focused manual chunks for Radix, motion, and shared UI support dependencies, plus lazy loading of CV file import tooling from the Assets page.
 
 ## [2026-03-06]
 
@@ -43,7 +43,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ### Infra
 
-- Added weekly roadmap sync workflow (`.github/workflows/weekly-sync.yml`) â€” opens a Monday issue automatically.
+- Added weekly roadmap sync workflow (`.github/workflows/weekly-sync.yml`) — opens a Monday issue automatically.
 - Aligned `@eslint/js` to v9 to match ESLint 9; CI now gates on lint.
 - Added `claude/*` branch pattern to PR policy allowlist for automation branches.
 - Lazy-loaded AfA compliance page via `React.lazy` to reduce initial bundle size.

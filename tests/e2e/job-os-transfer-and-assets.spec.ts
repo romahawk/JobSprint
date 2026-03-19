@@ -70,6 +70,14 @@ test.beforeEach(async ({ page }) => {
 
 test("edits scripts/templates and round-trips import export from settings", async ({ page }) => {
   await page.goto("/job-os/assets");
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "cv.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Imported CV snapshot from text file"),
+  });
+  await expect(page.getByText("Base TPM CV snapshot updated")).toBeVisible();
+  await expect(page.getByText(/Text upload imported/).first()).toBeVisible();
+
   await page.getByRole("tab", { name: "Scripts" }).click();
 
   await page.getByPlaceholder("Script title").fill("Warm intro");
@@ -81,6 +89,12 @@ test("edits scripts/templates and round-trips import export from settings", asyn
   await page.locator('input[placeholder="Script title"]').nth(1).fill("Warm intro updated");
   await page.locator('textarea[placeholder="Write outreach script..."]').nth(1).fill("Updated outreach body");
   await expect(page.locator('input[placeholder="Script title"]').nth(1)).toHaveValue("Warm intro updated");
+  await page.getByRole("button", { name: "Delete" }).first().click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect(page.getByText("Delete Warm intro updated?")).toBeVisible();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Script deleted")).toBeVisible();
+  await expect(page.getByText("No scripts yet")).toBeVisible();
 
   await page.getByRole("tab", { name: "Templates" }).click();
   await page.getByPlaceholder("Template title").fill("Cover note");
@@ -92,6 +106,12 @@ test("edits scripts/templates and round-trips import export from settings", asyn
   await page.locator('input[placeholder="Template title"]').nth(1).fill("Cover note updated");
   await page.locator('textarea[placeholder="Reusable template..."]').nth(1).fill("Updated reusable template body");
   await expect(page.locator('input[placeholder="Template title"]').nth(1)).toHaveValue("Cover note updated");
+  await page.getByRole("button", { name: "Delete" }).first().click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect(page.getByText("Delete Cover note updated?")).toBeVisible();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Template deleted")).toBeVisible();
+  await expect(page.getByText("No templates yet")).toBeVisible();
 
   await page.getByRole("button", { name: "Open settings" }).click();
   const downloadPromise = page.waitForEvent("download");
@@ -149,5 +169,3 @@ test("edits scripts/templates and round-trips import export from settings", asyn
   await page.getByRole("tab", { name: "Templates" }).click();
   await expect(page.locator('input[value="Imported Template"]').first()).toBeVisible();
 });
-
-

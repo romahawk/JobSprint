@@ -66,6 +66,12 @@ App access requires sign-in. If the `VITE_FIREBASE_*` env vars are configured, a
 ### Analytics
 ![JobSprint Analytics](./docs/assets/analytics.png)
 
+## Demo Artifact
+
+- [Assets Vault Case Study](./docs/CASE_STUDY_ASSETS_VAULT.md)
+
+This is the clearest current proof-of-work artifact for JobSprint's product direction: turning a job-search tracker into an execution system with stable CV assets, reusable scripts, and linked application context.
+
 ## Documentation
 
 - [PRD](./docs/PRD.md)

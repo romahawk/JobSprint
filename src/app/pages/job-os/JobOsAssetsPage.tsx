@@ -28,16 +28,17 @@ import {
   getApplicationCvLabel,
   getDefaultCvAsset,
 } from "../../services/cvAssets";
-import {
-  buildGoogleDocTextExportUrl,
-  extractTextFromCvFile,
-  importGoogleDocText,
-} from "../../../services/cvFileImportService";
 import type { JobOsCvAsset, JobOsScriptAsset, JobOsTemplateAsset } from "../../types/jobOs";
 
 async function copyText(value: string): Promise<void> {
   if (!value) return;
   await navigator.clipboard.writeText(value);
+}
+
+function buildGoogleDocTextExportUrl(value: string): string | null {
+  const match = value.match(/docs\.google\.com\/document\/d\/([^/]+)/i);
+  if (!match) return null;
+  return `https://docs.google.com/document/d/${match[1]}/export?format=txt`;
 }
 
 function getReadiness(cv: JobOsCvAsset): {
@@ -176,6 +177,7 @@ export default function JobOsAssetsPage() {
   async function importCvText(cv: JobOsCvAsset): Promise<void> {
     setImportingCvId(cv.id);
     try {
+      const { importGoogleDocText } = await import("../../../services/cvFileImportService");
       const result = await importGoogleDocText(cv.fileUrl);
       await saveImportedText(cv, result.text, result.sourceLabel);
     } catch (error) {
@@ -192,6 +194,7 @@ export default function JobOsAssetsPage() {
   async function handleFileUpload(cv: JobOsCvAsset, file: File): Promise<void> {
     setImportingCvId(cv.id);
     try {
+      const { extractTextFromCvFile } = await import("../../../services/cvFileImportService");
       const result = await extractTextFromCvFile(file);
       await saveImportedText(cv, result.text, result.sourceLabel);
     } catch (error) {

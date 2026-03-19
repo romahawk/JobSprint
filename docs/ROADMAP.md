@@ -119,14 +119,14 @@ Data entry errors decrease and destructive actions are safer.
 - Improve dashboard density so the primary cards fit within a single desktop viewport more often.
 - Make Today's Actions resilient to data gaps, especially when a role is marked progressed but no application row exists yet.
 - Reduce accidental duplicate records by tightening Job OS handoff flows and surfacing explicit success/error feedback.
-- Turn Assets Vault into a compact CV constructor with stable CV-to-application linking, import/export support, and reusable script/template editing.
+- Turn Assets Vault into a compact CV constructor with stable CV-to-application linking, import/export support, reusable script/template editing, and explicit file-import feedback.
 - Publish proof-of-work artifacts and keep trimming initial bundle cost as richer Job OS surfaces are added.
 
 ## Next Session Starting Point
 
-1. Add one more E2E layer for the CV import path itself, especially file upload/import quality and delete confirmations for reusable assets.
-2. Expand the outward-facing case study from markdown into a dedicated README/demo section or hosted story page.
-3. Continue bundle-size reduction beyond route/vendor splitting, especially around heavy shared UI dependencies and PDF tooling.
+1. Turn the case study into a more shareable demo page or lightweight hosted story.
+2. Continue bundle-size reduction beyond route/vendor splitting, especially around the heaviest shared dependencies.
+3. Add CI and reporting polish for the growing Playwright suite so failures are easier to inspect.
 
 ## Freeze List
 

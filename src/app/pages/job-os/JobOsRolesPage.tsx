@@ -11,6 +11,8 @@ import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import type { JobOsRole, JobTrack, RoleStatus } from "../../types/jobOs";
 
+type RoleOrigin = "self_sourced" | "recruiter";
+
 const ROLE_STATUSES: RoleStatus[] = ["to_apply", "applied", "interview", "rejected", "offer", "closed"];
 const SENIORITY_OPTIONS = ["Senior", "Middle", "Junior"] as const;
 const LOCATION_SUGGESTIONS = ["Remote", "Hybrid"] as const;
@@ -44,6 +46,7 @@ export default function JobOsRolesPage() {
     track: "TPM",
     fitScore: 3,
     status: "to_apply",
+    origin: "self_sourced",
     jobDescription: "",
     jobDescriptionUpdatedAt: undefined,
   });
@@ -69,6 +72,7 @@ export default function JobOsRolesPage() {
       track: role.track,
       fitScore: role.fitScore,
       status: role.status,
+      origin: role.origin ?? "self_sourced",
       jobDescription: role.jobDescription ?? "",
       jobDescriptionUpdatedAt: role.jobDescriptionUpdatedAt,
     });
@@ -122,6 +126,7 @@ export default function JobOsRolesPage() {
         track: "TPM",
         fitScore: 3,
         status: "to_apply",
+        origin: "self_sourced",
         jobDescription: "",
         jobDescriptionUpdatedAt: undefined,
       });
@@ -143,7 +148,18 @@ export default function JobOsRolesPage() {
             </SelectContent>
           </Select>
           <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Role title" />
-          <Input value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} placeholder="Role URL" />
+          <Select value={draft.origin ?? "self_sourced"} onValueChange={(value) => setDraft((current) => ({ ...current, origin: value as RoleOrigin }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="self_sourced">Self-sourced</SelectItem>
+              <SelectItem value="recruiter">Recruiter contacted me</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            value={draft.url}
+            onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
+            placeholder={draft.origin === "recruiter" ? "Posting URL (optional)" : "Role URL"}
+          />
           <Input
             list="role-location-suggestions"
             value={draft.location}
@@ -255,13 +271,32 @@ export default function JobOsRolesPage() {
                   </TableCell>
                   <TableCell className="font-medium">
                     {editingRoleId === role.id && editDraft ? (
-                      <Input
-                        value={editDraft.title}
-                        onChange={(event) => setEditDraft((current) => (current ? { ...current, title: event.target.value } : current))}
-                        className="w-52"
-                      />
+                      <div className="flex flex-col gap-1">
+                        <Input
+                          value={editDraft.title}
+                          onChange={(event) => setEditDraft((current) => (current ? { ...current, title: event.target.value } : current))}
+                          className="w-52"
+                        />
+                        <Select
+                          value={editDraft.origin ?? "self_sourced"}
+                          onValueChange={(value) => setEditDraft((current) => (current ? { ...current, origin: value as RoleOrigin } : current))}
+                        >
+                          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="self_sourced">Self-sourced</SelectItem>
+                            <SelectItem value="recruiter">Recruiter contacted me</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     ) : (
-                      role.title
+                      <div className="flex items-center gap-1.5">
+                        {role.title}
+                        {role.origin === "recruiter" && (
+                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                            Recruiter
+                          </span>
+                        )}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell>

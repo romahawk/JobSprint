@@ -322,6 +322,9 @@ export interface PipelineStats {
   interviewing: number;
   offers: number;
   conversionRate: number; // interviews / applied * 100
+  responseRate: number;   // got any response / applied * 100
+  interviewRate: number;  // reached interview / responded * 100
+  offerRate: number;      // offers / interviewed * 100
 }
 
 export function getPipelineStats(
@@ -338,8 +341,17 @@ export function getPipelineStats(
     (a) => a.status === "interview" || a.status === "final" || a.status === "case"
   ).length;
   const offers = applications.filter((a) => a.status === "offer").length;
-  const conversionRate =
-    applied > 0 ? Math.round((interviewing / applied) * 100) : 0;
+  const responded = applications.filter((a) =>
+    ["screen", "case", "interview", "final", "offer", "rejected"].includes(a.status)
+  ).length;
+  const interviewed = applications.filter((a) =>
+    ["interview", "final", "offer"].includes(a.status)
+  ).length;
+
+  const conversionRate = applied > 0 ? Math.round((interviewing / applied) * 100) : 0;
+  const responseRate = applied > 0 ? Math.round((responded / applied) * 100) : 0;
+  const interviewRate = responded > 0 ? Math.round((interviewed / responded) * 100) : 0;
+  const offerRate = interviewed > 0 ? Math.round((offers / interviewed) * 100) : 0;
 
   return {
     totalCompanies: companies.length,
@@ -350,6 +362,9 @@ export function getPipelineStats(
     interviewing,
     offers,
     conversionRate,
+    responseRate,
+    interviewRate,
+    offerRate,
   };
 }
 

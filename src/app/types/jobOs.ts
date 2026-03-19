@@ -103,6 +103,7 @@ export interface JobOsRole {
   track: JobTrack;
   fitScore: 1 | 2 | 3 | 4 | 5;
   status: RoleStatus;
+  origin?: "self_sourced" | "recruiter"; // how the candidate discovered the role
   jobDescription?: string;
   jobDescriptionUpdatedAt?: string;
   // Ingestion / import metadata (optional — backwards compatible)

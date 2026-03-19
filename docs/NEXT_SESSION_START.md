@@ -10,6 +10,8 @@ Last updated: 2026-03-19
 - Dashboard right rail is more compact: Quick Actions stay accessible, and Probability Engine is collapsed by default.
 - Today's Actions now surfaces missing `Log Application` tasks when a role has progressed without a linked application record.
 - Roles page now starts with `Add Role` collapsed and blocks duplicate application creation for the same role with explicit feedback.
+- Job OS import/export is available from the shared settings panel on all major Job OS surfaces.
+- Assets Vault now works like a CV constructor: up to 5 managed CV variants, one default CV, linked application visibility, inline script/template editing, and stable `cvAssetId` links behind application records.
 
 ## Start Here (first 30 minutes)
 
@@ -26,21 +28,25 @@ Last updated: 2026-03-19
    - Add a role and confirm `Add Role` stays collapsed by default
    - Create one application from Roles and confirm success notice appears
    - Try to create the same application again and confirm duplicate prevention
-5. Open or confirm Month 3 issues for:
-   - E2E baseline (Playwright)
-   - Import/export feature
-   - Case-study and demo artifact packaging
+5. Reproduce the latest Assets Vault behavior in browser:
+   - Create a new CV, duplicate it, set one as default, then rename it
+   - Confirm linked application rows still show the right CV after rename
+   - Delete a script/template via modal and confirm toast feedback appears
+6. Open or confirm Month 3 issues for:
+   - richer Assets E2E coverage
+   - case-study and demo artifact packaging
+   - bundle-size reduction pass
 
 ## Recommended First Issue Next Session
 
-`[M3-01] chore: add Playwright E2E baseline for auth + Job OS CRUD + duplicate-guard flows`
+`[M3-02] test: cover Assets Vault CV constructor and CV-id persistence flows`
 
 Acceptance criteria:
 
-- Login flow test passes.
-- Create/edit/move/delete application flow test passes.
-- Role-to-application creation path is covered, including duplicate prevention.
-- Refresh persistence assertion passes.
+- Create/duplicate/delete CV flow test passes.
+- Default CV selection persists across refresh.
+- Renaming a CV does not break existing application links.
+- Script/template delete confirmation and toast flow is covered.
 - E2E job runs in CI on pull requests.
 
 ## Risks To Watch
@@ -48,4 +54,4 @@ Acceptance criteria:
 - Browser privacy blockers (especially Brave Shields) can break Firebase connectivity.
 - Firestore authorization rules must stay aligned with user-scoped document path.
 - Bundle size is high; defer optimization unless it blocks UX.
-- Some next-action logic still depends on data consistency between roles and applications; E2E should lock this down before larger feature work.
+- CV labels are now safer because application rows carry `cvAssetId`, but older records may still rely on name fallback until more users touch or re-save them.

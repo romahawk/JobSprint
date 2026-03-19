@@ -10,6 +10,8 @@ import { Textarea } from "../../components/ui/textarea";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
+import { getRecommendedCvForTrack } from "../../services/cvAssets";
 import type { JobOsRole, JobTrack, RoleStatus } from "../../types/jobOs";
 
 type RoleOrigin = "self_sourced" | "recruiter";
@@ -29,9 +31,20 @@ function normalizeSeniority(value: string): string {
 
 export default function JobOsRolesPage() {
   const { session } = useApp();
-  const { roles, companies, applications, addRole, updateRole, addApplication, removeRole, syncNotice } = useJobOs(
-    session?.userId ?? null
-  );
+  const {
+    roles,
+    companies,
+    applications,
+    assets,
+    cvProfiles,
+    addRole,
+    updateRole,
+    addApplication,
+    removeRole,
+    syncNotice,
+    exportState,
+    replaceState,
+  } = useJobOs(session?.userId ?? null);
 
   const [filterTrack, setFilterTrack] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -154,12 +167,14 @@ export default function JobOsRolesPage() {
     }
 
     try {
+      const recommendedCv = getRecommendedCvForTrack(assets.cvs, cvProfiles, role.track);
       await addApplication({
         companyId: role.companyId,
         roleId: role.id,
         dateApplied: new Date().toISOString().slice(0, 10),
         channel: "Company Site",
-        cvVersion: role.track === "TPM" ? "CV - Technical Product Manager" : role.track === "Product Engineer" ? "CV - Product Engineer" : "CV - Systems / Platform PM",
+        cvAssetId: recommendedCv?.id,
+        cvVersion: recommendedCv?.name ?? "",
         status: "sent",
         nextAction: "Send follow-up in 5 days",
         notes: "",
@@ -183,7 +198,12 @@ export default function JobOsRolesPage() {
   }
 
   return (
-    <JobOsLayout title="Roles" subtitle="Track discovered opportunities and route into applications" notice={syncNotice}>
+    <JobOsLayout
+      title="Roles"
+      subtitle="Track discovered opportunities and route into applications"
+      notice={syncNotice}
+      settingsFooter={<JobOsTransferControls getExportState={exportState} onImportState={replaceState} />}
+    >
       <Card>
         <CardHeader className="pb-0">
           <button

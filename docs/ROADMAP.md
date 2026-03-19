@@ -7,7 +7,7 @@
 - Week 3 complete: 7-day activity signal + app-level error boundary.
 - Week 4 complete: form hardening, safe delete with undo, smoke tests.
 - Month 2 complete: persistence boundary, migration helper, auth/session, sync status, Firebase integration.
-- Post-Month 2 UX hardening in progress: dashboard compression, clearer next actions, and safer Role-to-Application handoff.
+- Post-Month 2 UX hardening in progress: dashboard compression, clearer next actions, safer Role-to-Application handoff, and a stronger Assets Vault workflow.
 
 ## Next 4 Weeks
 
@@ -119,12 +119,13 @@ Data entry errors decrease and destructive actions are safer.
 - Improve dashboard density so the primary cards fit within a single desktop viewport more often.
 - Make Today's Actions resilient to data gaps, especially when a role is marked progressed but no application row exists yet.
 - Reduce accidental duplicate records by tightening Job OS handoff flows and surfacing explicit success/error feedback.
+- Turn Assets Vault into a compact CV constructor with stable CV-to-application linking, import/export support, and reusable script/template editing.
 
 ## Next Session Starting Point
 
-1. Add Playwright E2E coverage for auth bootstrap, role creation, application logging, and refresh persistence.
-2. Implement import/export for Job OS state so users can back up, migrate, and inspect their data.
-3. Publish one outward-facing case-study/demo artifact that shows the improved dashboard and Job OS workflow.
+1. Add richer E2E coverage for Assets flows, especially CV create/duplicate/delete, default CV selection, and CV-id persistence after rename.
+2. Publish one outward-facing case-study/demo artifact that shows the improved dashboard and Job OS workflow.
+3. Start bundle-size reduction work so the main application chunk stops growing with each UX pass.
 
 ## Freeze List
 

@@ -2,3 +2,5 @@ node_modules
 dist
 .env
 .env.server
+playwright-report
+test-results

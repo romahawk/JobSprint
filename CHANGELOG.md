@@ -10,10 +10,15 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 - Added collapsible `Probability Engine` panel, collapsed `Add Role` form by default, and sticky `Quick Actions` placement to compress dashboard and Job OS vertical space.
 - Added `Log Application` next action when a role has progressed past `to_apply` but no linked application row exists.
+- Added Job OS import/export from the shared settings panel with validation and full-state replace support.
+- Added Playwright E2E baseline for role-to-application logging, duplicate prevention, and refresh persistence.
+- Added Assets Vault CV constructor with up to 5 managed CV variants, one default CV, and application linkage visibility.
 
 ### Fixed
 
 - Fixed silent application creation from the Roles page by showing explicit success/error feedback and preventing duplicate applications for the same role.
+- Fixed fragile CV selection by linking applications to stable `cvAssetId` values while preserving backward compatibility with older name-based records.
+- Fixed Assets delete flows by replacing browser confirms with proper modal confirmation and explicit toast feedback.
 
 ## [2026-03-06]
 

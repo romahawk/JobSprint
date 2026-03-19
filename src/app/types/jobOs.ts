@@ -43,7 +43,8 @@ export interface JobOsCvAsset {
   sourceText?: string;
   sourceTextUpdatedAt?: string;
   linkedProfileId?: string;
-  locked: boolean;
+  locked?: boolean;
+  isDefault?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -124,6 +125,7 @@ export interface JobOsApplication {
   companyId: string;
   dateApplied: string;
   channel: string;
+  cvAssetId?: string;
   cvVersion: string;
   status: ApplicationStatus;
   nextAction: string;

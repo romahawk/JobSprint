@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Textarea } from "../../components/ui/textarea";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
+import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import type { JobOsOutreach, OutreachStatus } from "../../types/jobOs";
 
@@ -14,7 +15,7 @@ const OUTREACH_STATUSES: OutreachStatus[] = ["sent", "replied", "meeting", "no_r
 
 export default function JobOsOutreachPage() {
   const { session } = useApp();
-  const { outreach, companies, roles, assets, addOutreach, updateOutreach, removeOutreach, syncNotice } = useJobOs(
+  const { outreach, companies, roles, assets, addOutreach, updateOutreach, removeOutreach, syncNotice, exportState, replaceState } = useJobOs(
     session?.userId ?? null
   );
   const [draft, setDraft] = useState<Omit<JobOsOutreach, "id" | "createdAt" | "updatedAt">>({
@@ -32,7 +33,14 @@ export default function JobOsOutreachPage() {
   });
 
   return (
-    <JobOsLayout title="Outreach" subtitle="Networking and follow-up execution" notice={syncNotice}>
+    <JobOsLayout
+      title="Outreach"
+      subtitle="Networking and follow-up execution"
+      notice={syncNotice}
+      settingsFooter={
+        <JobOsTransferControls getExportState={exportState} onImportState={replaceState} />
+      }
+    >
       <Card>
         <CardHeader><CardTitle className="text-sm">Log Outreach</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-4 gap-3">

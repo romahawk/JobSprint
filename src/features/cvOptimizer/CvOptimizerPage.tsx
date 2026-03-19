@@ -9,6 +9,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../../app/components/ui
 import { useApp } from "../../app/context";
 import { useJobOs } from "../../app/hooks/useJobOs";
 import { JobOsLayout } from "../../app/components/job-os/JobOsLayout";
+import { JobOsTransferControls } from "../../app/components/job-os/JobOsTransferControls";
+import { getApplicationCvAssetId, getApplicationCvLabel, getDefaultCvAsset } from "../../app/services/cvAssets";
 import type { CvTailoringMode, CvTailoringRun, JobDescription } from "../../app/types/jobOs";
 import {
   analyzeFit,
@@ -119,6 +121,8 @@ export default function CvOptimizerPage() {
     updateApplication,
     updateRole,
     syncNotice,
+    exportState,
+    replaceState,
   } = useJobOs(session?.userId ?? null);
   const [searchParams] = useSearchParams();
   const applicationId = searchParams.get("applicationId");
@@ -150,7 +154,8 @@ export default function CvOptimizerPage() {
     () => buildOptimizerSeed({ application, role, company, jobDescription: linkedJobDescription }),
     [application, company, linkedJobDescription, role]
   );
-  const [selectedCvId, setSelectedCvId] = useState<string>(assets.cvs[0]?.id ?? "");
+  const defaultCv = getDefaultCvAsset(assets.cvs);
+  const [selectedCvId, setSelectedCvId] = useState<string>(defaultCv?.id ?? "");
   const [mode, setMode] = useState<CvTailoringMode>("analysis");
   const [draft, setDraft] = useState<Pick<JobDescription, "applicationId" | "roleId" | "company" | "title" | "rawText" | "sourceUrl">>(seed);
   const [analysis, setAnalysis] = useState<FitAnalysisResult | null>(null);
@@ -167,18 +172,18 @@ export default function CvOptimizerPage() {
     if (assets.cvs.length === 0) return;
     const hasCurrentSelection = assets.cvs.some((cv) => cv.id === selectedCvId);
     if (!hasCurrentSelection) {
-      setSelectedCvId(assets.cvs[0].id);
+      setSelectedCvId(defaultCv?.id ?? assets.cvs[0].id);
     }
-  }, [assets.cvs, selectedCvId]);
+  }, [assets.cvs, defaultCv?.id, selectedCvId]);
 
-  const selectedCvAsset = assets.cvs.find((cv) => cv.id === selectedCvId) ?? assets.cvs[0] ?? null;
+  const selectedCvAsset = assets.cvs.find((cv) => cv.id === selectedCvId) ?? defaultCv ?? assets.cvs[0] ?? null;
   const selectedProfile = findProfileForCv(selectedCvAsset?.id ?? null, assets.cvs, cvProfiles);
   const selectedCvText = selectedCvAsset?.sourceText?.trim() || undefined;
 
   useEffect(() => {
     if (assets.cvs.length === 0) return;
-    const applicationMatch = application?.cvVersion
-      ? assets.cvs.find((cv) => cv.name === application.cvVersion)
+    const applicationMatch = application
+      ? assets.cvs.find((cv) => cv.id === getApplicationCvAssetId(application, assets.cvs))
       : null;
     if (applicationMatch) {
       setSelectedCvId(applicationMatch.id);
@@ -190,7 +195,7 @@ export default function CvOptimizerPage() {
     if (preferredCv) {
       setSelectedCvId(preferredCv.id);
     }
-  }, [application?.cvVersion, assets.cvs, cvProfiles, role]);
+  }, [application, assets.cvs, cvProfiles, role]);
 
   const historyRuns = useMemo(() => {
     const filtered = cvTailoringRuns.filter((run) => {
@@ -512,6 +517,7 @@ export default function CvOptimizerPage() {
       title="CV Optimizer"
       subtitle="Tailor a base CV to a specific role, save the result, and keep it linked to roles and applications."
       notice={syncNotice || statusMessage}
+      settingsFooter={<JobOsTransferControls getExportState={exportState} onImportState={replaceState} />}
       actions={
         role?.url ? (
           <Button size="sm" variant="secondary" onClick={() => window.open(role.url, "_blank", "noopener,noreferrer")}>
@@ -579,7 +585,7 @@ export default function CvOptimizerPage() {
                   <div className="mt-2 text-sm font-medium text-foreground">{selectedCvAsset?.name || "No CV selected"}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {selectedCvAsset?.version ? `Version ${selectedCvAsset.version}` : "Version not set"}
-                    {application?.cvVersion === selectedCvAsset?.name ? " - matched from application" : ""}
+                    {application && getApplicationCvLabel(application, assets.cvs) === selectedCvAsset?.name ? " - matched from application" : ""}
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{selectedCvText ? "Snapshot ready" : "Snapshot missing"}</span>
@@ -692,5 +698,8 @@ export default function CvOptimizerPage() {
     </JobOsLayout>
   );
 }
+
+
+
 
 

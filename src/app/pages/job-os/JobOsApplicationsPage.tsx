@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Textarea } from "../../components/ui/textarea";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
+import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import { getApplicationCvLabel, getDefaultCvAsset } from "../../services/cvAssets";
 import type { ApplicationStatus, JobOsApplication } from "../../types/jobOs";
 
 const STATUS_VALUES: ApplicationStatus[] = [
@@ -24,16 +26,18 @@ const STATUS_VALUES: ApplicationStatus[] = [
 
 export default function JobOsApplicationsPage() {
   const { session } = useApp();
-  const { applications, companies, roles, assets, addApplication, updateApplication, removeApplication, syncNotice } = useJobOs(
+  const { applications, companies, roles, assets, addApplication, updateApplication, removeApplication, syncNotice, exportState, replaceState } = useJobOs(
     session?.userId ?? null
   );
+  const defaultCv = getDefaultCvAsset(assets.cvs);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>({
     dateApplied: new Date().toISOString().slice(0, 10),
     companyId: "",
     roleId: "",
     channel: "LinkedIn",
-    cvVersion: assets.cvs[0]?.name ?? "CV - Technical Product Manager",
+    cvAssetId: defaultCv?.id,
+    cvVersion: defaultCv?.name ?? "",
     status: "sent",
     nextAction: "",
     notes: "",
@@ -44,6 +48,12 @@ export default function JobOsApplicationsPage() {
     tailoredCvText: "",
     tailoredCvUpdatedAt: undefined,
   });
+
+  useEffect(() => {
+    if (!draft.cvVersion && defaultCv?.name) {
+      setDraft((current) => ({ ...current, cvAssetId: defaultCv.id, cvVersion: defaultCv.name }));
+    }
+  }, [defaultCv?.name, draft.cvVersion]);
 
   const byId = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -68,7 +78,14 @@ export default function JobOsApplicationsPage() {
   }
 
   return (
-    <JobOsLayout title="Applications" subtitle="Master tracking sheet for all submitted applications" notice={syncNotice}>
+    <JobOsLayout
+      title="Applications"
+      subtitle="Master tracking sheet for all submitted applications"
+      notice={syncNotice}
+      settingsFooter={
+        <JobOsTransferControls getExportState={exportState} onImportState={replaceState} />
+      }
+    >
       <Card>
         <CardHeader><CardTitle className="text-sm">Log Application</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-4 gap-3">
@@ -82,9 +99,19 @@ export default function JobOsApplicationsPage() {
             <SelectContent>{roles.filter((role) => !draft.companyId || role.companyId === draft.companyId).map((role) => <SelectItem key={role.id} value={role.id}>{role.title}</SelectItem>)}</SelectContent>
           </Select>
           <Input value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} placeholder="Channel" />
-          <Select value={draft.cvVersion} onValueChange={(value) => setDraft((current) => ({ ...current, cvVersion: value }))}>
+          <Select
+            value={draft.cvAssetId ?? ""}
+            onValueChange={(value) => {
+              const selectedCv = assets.cvs.find((cv) => cv.id === value);
+              setDraft((current) => ({
+                ...current,
+                cvAssetId: selectedCv?.id,
+                cvVersion: selectedCv?.name ?? "",
+              }));
+            }}
+          >
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{assets.cvs.map((cv) => <SelectItem key={cv.id} value={cv.name}>{cv.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{assets.cvs.map((cv) => <SelectItem key={cv.id} value={cv.id}>{cv.name}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as ApplicationStatus }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -152,7 +179,7 @@ export default function JobOsApplicationsPage() {
                   <TableCell>{companies.find((company) => company.id === application.companyId)?.name ?? "-"}</TableCell>
                   <TableCell>{roles.find((role) => role.id === application.roleId)?.title ?? "-"}</TableCell>
                   <TableCell>{application.channel}</TableCell>
-                  <TableCell>{application.cvVersion}</TableCell>
+                  <TableCell>{getApplicationCvLabel(application, assets.cvs)}</TableCell>
                   <TableCell>
                     <Select value={application.status} onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}>
                       <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>

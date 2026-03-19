@@ -77,6 +77,15 @@ export interface JobOsCompany {
   priority: CompanyPriority;
   status: CompanyStatus;
   notes: string;
+  // Ingestion / import metadata (optional — backwards compatible)
+  website?: string;
+  careersUrl?: string;
+  location?: string;
+  englishFirst?: "Yes" | "Mostly" | "Unknown";
+  sourceType?: "manual" | "csv" | "link" | "generated";
+  sourceUrl?: string;
+  sourcePlatform?: string;
+  importConfidence?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,6 +103,10 @@ export interface JobOsRole {
   status: RoleStatus;
   jobDescription?: string;
   jobDescriptionUpdatedAt?: string;
+  // Ingestion / import metadata (optional — backwards compatible)
+  sourceType?: "manual" | "csv" | "link" | "generated";
+  sourcePlatform?: string;
+  importConfidence?: number;
   createdAt: string;
   updatedAt: string;
 }

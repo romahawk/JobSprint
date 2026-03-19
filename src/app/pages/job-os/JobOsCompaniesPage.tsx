@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Link, Upload } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -10,6 +10,7 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import { PasteLinkImportDialog } from "../../components/job-os/PasteLinkImportDialog";
 import type { CompanyPriority, CompanyStatus, JobOsCompany } from "../../types/jobOs";
 
 const STATUS_VALUES: CompanyStatus[] = [
@@ -108,6 +109,7 @@ export default function JobOsCompaniesPage() {
   const [sortKey, setSortKey] = useState<CompanySortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [pasteLinkOpen, setPasteLinkOpen] = useState(false);
   const [draft, setDraft] = useState<Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">>({
     name: "",
     industry: "",
@@ -402,6 +404,16 @@ export default function JobOsCompaniesPage() {
               <Button
                 size="sm"
                 variant="outline"
+                className="gap-1.5"
+                onClick={() => setPasteLinkOpen(true)}
+                disabled={companyListLocked}
+              >
+                <Link className="w-3.5 h-3.5" />
+                Paste Link
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => setCompanyListLocked((prev) => !prev)}
               >
                 {companyListLocked ? "Unlock Companies" : "Lock Companies"}
@@ -594,6 +606,14 @@ export default function JobOsCompaniesPage() {
           </CardContent>
         </Card>
       </div>
+      <PasteLinkImportDialog
+        open={pasteLinkOpen}
+        onClose={() => setPasteLinkOpen(false)}
+        existingCompanies={companies}
+        addCompany={addCompany}
+        updateCompany={updateCompany}
+        addRole={addRole}
+      />
     </JobOsLayout>
   );
 }

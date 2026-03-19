@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router";
 import {
   BarChart3,
   BriefcaseBusiness,
-  Home,
+  LayoutDashboard,
   LogOut,
   Moon,
   Settings,
@@ -26,9 +26,9 @@ interface AppNavbarProps {
 }
 
 const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: Home },
+  { to: "/", label: "Command Centre", icon: LayoutDashboard },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/job-os/applications", label: "Job OS", icon: BriefcaseBusiness },
+  { to: "/job-os/companies", label: "Job OS", icon: BriefcaseBusiness, activePrefix: "/job-os" },
   { to: "/cv-optimizer", label: "CV Optimizer", icon: WandSparkles },
   { to: "/compliance/afa", label: "AfA Compliance", icon: ShieldCheck },
 ];
@@ -67,7 +67,9 @@ export function AppNavbar({
                 const active =
                   location.pathname === item.to ||
                   (item.to !== "/" &&
-                    location.pathname.startsWith(item.to));
+                    location.pathname.startsWith(
+                      "activePrefix" in item ? (item as { activePrefix: string }).activePrefix : item.to
+                    ));
                 return (
                   <Link
                     key={item.to}

@@ -4,7 +4,6 @@ import {
   FileSpreadsheet,
   FileText,
   FolderOpen,
-  LayoutDashboard,
   Megaphone,
   WandSparkles,
 } from "lucide-react";
@@ -13,7 +12,6 @@ import { useApp } from "../../context";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
 
 const NAV_ITEMS = [
-  { to: "/job-os/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/job-os/assets", label: "Assets", icon: FolderOpen },
   { to: "/job-os/companies", label: "Companies", icon: Building2 },
   { to: "/job-os/roles", label: "Roles", icon: FileText },

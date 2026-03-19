@@ -12,6 +12,9 @@ Last updated: 2026-03-19
 - Roles page now starts with `Add Role` collapsed and blocks duplicate application creation for the same role with explicit feedback.
 - Job OS import/export is available from the shared settings panel on all major Job OS surfaces.
 - Assets Vault now works like a CV constructor: up to 5 managed CV variants, one default CV, linked application visibility, inline script/template editing, and stable `cvAssetId` links behind application records.
+- Playwright now covers both role-to-application logging and the Assets Vault CV constructor flow.
+- Route-level lazy loading and initial manual chunk splitting are in place, which reduced the entry bundle significantly even though the shared vendor chunk is still large.
+- Outward-facing artifact drafted: `docs/CASE_STUDY_ASSETS_VAULT.md`.
 
 ## Start Here (first 30 minutes)
 
@@ -33,25 +36,24 @@ Last updated: 2026-03-19
    - Confirm linked application rows still show the right CV after rename
    - Delete a script/template via modal and confirm toast feedback appears
 6. Open or confirm Month 3 issues for:
-   - richer Assets E2E coverage
-   - case-study and demo artifact packaging
-   - bundle-size reduction pass
+   - import/export E2E coverage
+   - screenshot-backed case-study/demo packaging
+   - deeper vendor chunk reduction
 
 ## Recommended First Issue Next Session
 
-`[M3-02] test: cover Assets Vault CV constructor and CV-id persistence flows`
+`[M3-03] test: cover import/export and reusable asset editing flows`
 
 Acceptance criteria:
 
-- Create/duplicate/delete CV flow test passes.
-- Default CV selection persists across refresh.
-- Renaming a CV does not break existing application links.
-- Script/template delete confirmation and toast flow is covered.
+- Export JSON and import JSON flow is covered in browser.
+- Script/template edit and delete flows are covered in browser.
+- CV constructor and stable CV-id coverage stays green in CI.
 - E2E job runs in CI on pull requests.
 
 ## Risks To Watch
 
 - Browser privacy blockers (especially Brave Shields) can break Firebase connectivity.
 - Firestore authorization rules must stay aligned with user-scoped document path.
-- Bundle size is high; defer optimization unless it blocks UX.
+- Bundle size improved after route splitting, but the shared vendor chunk is still the main pressure point.
 - CV labels are now safer because application rows carry `cvAssetId`, but older records may still rely on name fallback until more users touch or re-save them.

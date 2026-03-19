@@ -12,13 +12,20 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Added `Log Application` next action when a role has progressed past `to_apply` but no linked application row exists.
 - Added Job OS import/export from the shared settings panel with validation and full-state replace support.
 - Added Playwright E2E baseline for role-to-application logging, duplicate prevention, and refresh persistence.
+- Added Playwright coverage for the Assets Vault CV constructor, including rename persistence, duplicate flow, and default CV behavior.
 - Added Assets Vault CV constructor with up to 5 managed CV variants, one default CV, and application linkage visibility.
+- Added `docs/CASE_STUDY_ASSETS_VAULT.md` as an outward-facing product story for the Assets Vault upgrade.
 
 ### Fixed
 
 - Fixed silent application creation from the Roles page by showing explicit success/error feedback and preventing duplicate applications for the same role.
 - Fixed fragile CV selection by linking applications to stable `cvAssetId` values while preserving backward compatibility with older name-based records.
 - Fixed Assets delete flows by replacing browser confirms with proper modal confirmation and explicit toast feedback.
+- Fixed the dashboard right rail overlap by making the full context column sticky instead of only the Quick Actions card.
+
+### Changed
+
+- Started bundle-size reduction with route-level lazy loading plus manual chunk splitting for Firebase, PDF.js, charts, and shared vendor code.
 
 ## [2026-03-06]
 

@@ -4,3 +4,4 @@ dist
 .env.server
 playwright-report
 test-results
+.vite-dev.log

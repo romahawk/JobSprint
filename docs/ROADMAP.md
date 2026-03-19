@@ -120,12 +120,13 @@ Data entry errors decrease and destructive actions are safer.
 - Make Today's Actions resilient to data gaps, especially when a role is marked progressed but no application row exists yet.
 - Reduce accidental duplicate records by tightening Job OS handoff flows and surfacing explicit success/error feedback.
 - Turn Assets Vault into a compact CV constructor with stable CV-to-application linking, import/export support, and reusable script/template editing.
+- Publish proof-of-work artifacts and keep trimming initial bundle cost as richer Job OS surfaces are added.
 
 ## Next Session Starting Point
 
-1. Add richer E2E coverage for Assets flows, especially CV create/duplicate/delete, default CV selection, and CV-id persistence after rename.
-2. Publish one outward-facing case-study/demo artifact that shows the improved dashboard and Job OS workflow.
-3. Start bundle-size reduction work so the main application chunk stops growing with each UX pass.
+1. Add one more E2E layer for import/export plus script/template editing so the newest Assets flows are locked down.
+2. Expand the outward-facing case study into a short screenshot-backed demo page or README section.
+3. Continue bundle-size reduction beyond route splitting, especially by shrinking the shared vendor chunk.
 
 ## Freeze List
 

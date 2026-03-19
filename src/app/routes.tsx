@@ -1,83 +1,85 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import Dashboard from "./pages/Dashboard";
-import Analytics from "./pages/Analytics";
-import JobOsAssetsPage from "./pages/job-os/JobOsAssetsPage";
-import JobOsCompaniesPage from "./pages/job-os/JobOsCompaniesPage";
-import JobOsRolesPage from "./pages/job-os/JobOsRolesPage";
-import JobOsApplicationsPage from "./pages/job-os/JobOsApplicationsPage";
-import JobOsOutreachPage from "./pages/job-os/JobOsOutreachPage";
-import CvOptimizerPage from "../features/cvOptimizer/CvOptimizerPage";
 import NotFound from "./pages/NotFound";
-import SignIn from "./pages/SignIn";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
+const DashboardPage = lazy(() =>
+  import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage }))
+);
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const JobOsAssetsPage = lazy(() => import("./pages/job-os/JobOsAssetsPage"));
+const JobOsCompaniesPage = lazy(() => import("./pages/job-os/JobOsCompaniesPage"));
+const JobOsRolesPage = lazy(() => import("./pages/job-os/JobOsRolesPage"));
+const JobOsApplicationsPage = lazy(() => import("./pages/job-os/JobOsApplicationsPage"));
+const JobOsOutreachPage = lazy(() => import("./pages/job-os/JobOsOutreachPage"));
+const CvOptimizerPage = lazy(() => import("../features/cvOptimizer/CvOptimizerPage"));
+const SignIn = lazy(() => import("./pages/SignIn"));
 const AfaCompliancePage = lazy(() => import("./pages/AfaCompliancePage"));
 
-function AfaComplianceFallback() {
+function RouteFallback() {
   return (
-    <div className="flex items-center justify-center min-h-screen text-neutral-400 dark:text-neutral-600 text-sm">
-      Loading session…
+    <div className="flex min-h-screen items-center justify-center text-sm text-neutral-400 dark:text-neutral-600">
+      Loading session...
     </div>
   );
+}
+
+function lazyElement(element: ReactNode) {
+  return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
 }
 
 export const router = createBrowserRouter([
   {
     path: "/signin",
-    Component: SignIn,
+    element: lazyElement(<SignIn />),
   },
   {
     Component: ProtectedRoute,
     children: [
       {
         path: "/",
-        Component: DashboardPage,
+        element: lazyElement(<DashboardPage />),
       },
       {
         path: "/overview",
-        Component: Dashboard,
+        element: lazyElement(<Dashboard />),
       },
       {
         path: "/analytics",
-        Component: Analytics,
+        element: lazyElement(<Analytics />),
       },
       {
         path: "/compliance/afa",
-        element: (
-          <Suspense fallback={<AfaComplianceFallback />}>
-            <AfaCompliancePage />
-          </Suspense>
-        ),
+        element: lazyElement(<AfaCompliancePage />),
       },
       {
         path: "/job-os",
-        Component: JobOsApplicationsPage,
+        element: lazyElement(<JobOsApplicationsPage />),
       },
       {
         path: "/job-os/assets",
-        Component: JobOsAssetsPage,
+        element: lazyElement(<JobOsAssetsPage />),
       },
       {
         path: "/job-os/companies",
-        Component: JobOsCompaniesPage,
+        element: lazyElement(<JobOsCompaniesPage />),
       },
       {
         path: "/job-os/roles",
-        Component: JobOsRolesPage,
+        element: lazyElement(<JobOsRolesPage />),
       },
       {
         path: "/job-os/applications",
-        Component: JobOsApplicationsPage,
+        element: lazyElement(<JobOsApplicationsPage />),
       },
       {
         path: "/job-os/outreach",
-        Component: JobOsOutreachPage,
+        element: lazyElement(<JobOsOutreachPage />),
       },
       {
         path: "/cv-optimizer",
-        Component: CvOptimizerPage,
+        element: lazyElement(<CvOptimizerPage />),
       },
     ],
   },
@@ -86,4 +88,3 @@ export const router = createBrowserRouter([
     Component: NotFound,
   },
 ]);
-

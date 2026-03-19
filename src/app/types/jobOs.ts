@@ -86,6 +86,8 @@ export interface JobOsCompany {
   sourceUrl?: string;
   sourcePlatform?: string;
   importConfidence?: number;
+  // Execution engine metadata
+  lastInteractionAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +109,9 @@ export interface JobOsRole {
   sourceType?: "manual" | "csv" | "link" | "generated";
   sourcePlatform?: string;
   importConfidence?: number;
+  // Execution engine metadata
+  lastInteractionAt?: string;
+  hasApplication?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -128,6 +133,8 @@ export interface JobOsApplication {
   tailoredCvSummary?: string;
   tailoredCvText?: string;
   tailoredCvUpdatedAt?: string;
+  // Execution engine metadata
+  lastResponseAt?: string;
   createdAt: string;
   updatedAt: string;
 }

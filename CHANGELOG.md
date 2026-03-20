@@ -6,6 +6,18 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ## [Unreleased]
 
+## [2026-03-20]
+
+### Added
+
+- Command Centre replaces legacy Dashboard as the primary surface: next-action engine, pipeline snapshot, probability engine panel (collapsible, closed by default with headline % visible), and hot opportunities.
+- Quick Actions pinned to top of Command Centre right column for always-accessible navigation.
+- Recruiter-origin flag (`origin: "self_sourced" | "recruiter"`) on roles: picker in Add Role form, inline edit support, violet "Recruiter" badge in roles table.
+- Probability engine extended with `responseRate`, `interviewRate`, `offerRate` derived from Job OS application data.
+- Paste Link import engine for companies (AI-assisted extraction from job posting URLs).
+- Case-study section added to README (problem, solution, key decisions, live link, Loom placeholder) â€” closes #39.
+- Playwright E2E baseline: 11 specs across auth, Command Centre, and Job OS navigation; CI `e2e` job added â€” closes #37.
+- JSON export/import at `/job-os/settings`: full pipeline backup (companies, roles, applications, outreach) with schema validation and 9 Vitest unit tests â€” closes #38.
 ### Added
 
 - Added collapsible `Probability Engine` panel, collapsed `Add Role` form by default, and sticky `Quick Actions` placement to compress dashboard and Job OS vertical space.
@@ -43,7 +55,7 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ### Infra
 
-- Added weekly roadmap sync workflow (`.github/workflows/weekly-sync.yml`) � opens a Monday issue automatically.
+- Added weekly roadmap sync workflow (`.github/workflows/weekly-sync.yml`) — opens a Monday issue automatically.
 - Aligned `@eslint/js` to v9 to match ESLint 9; CI now gates on lint.
 - Added `claude/*` branch pattern to PR policy allowlist for automation branches.
 - Lazy-loaded AfA compliance page via `React.lazy` to reduce initial bundle size.

@@ -5,6 +5,7 @@ import {
   FileText,
   FolderOpen,
   Megaphone,
+  Settings,
   WandSparkles,
 } from "lucide-react";
 import { AppNavbar } from "../AppNavbar";
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { to: "/job-os/applications", label: "Applications", icon: FileSpreadsheet },
   { to: "/job-os/outreach", label: "Outreach", icon: Megaphone },
   { to: "/cv-optimizer", label: "CV Optimizer", icon: WandSparkles },
+  { to: "/job-os/settings", label: "Settings", icon: Settings },
 ];
 
 export function JobOsLayout({

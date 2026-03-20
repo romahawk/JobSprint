@@ -2,6 +2,10 @@ node_modules
 dist
 .env
 .env.server
+
+# Playwright
+playwright-report/
+test-results/
 playwright-report
 test-results
 .vite-dev.log

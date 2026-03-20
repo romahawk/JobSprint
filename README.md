@@ -7,6 +7,34 @@ JobSprint is a job-search execution dashboard for solo operators: track applicat
 
 Most job searches fail from inconsistent execution, not lack of talent. JobSprint gives you a visible pipeline, weekly execution targets, and analytics so you can run your search like a measurable production system.
 
+## Case Study
+
+**Problem**
+
+Running a serious job search is a full-time operational problem. Most candidates track across a mix of spreadsheets, LinkedIn saved jobs, browser tabs, and email threads. There is no single place to see: which companies are in-flight, what the next action is, what the interview conversion rate looks like, or whether the current pace will realistically produce an offer.
+
+**Solution**
+
+JobSprint replaces that patchwork with a software-grade production system. It has a Command Centre that surfaces the three most urgent actions every day, a probability engine that models offer likelihood from actual funnel data, a Job OS (company engine, roles pipeline, applications log, outreach tracker), a CV tailoring workflow backed by an OpenAI API, and an AfA compliance module for German job-seekers.
+
+**Key Decisions**
+
+| Decision | Rationale |
+|---|---|
+| Vite + React 18 + TypeScript | Fast feedback loop; type safety across a growing codebase |
+| Tailwind CSS v4 + Radix UI | No duplicate styling systems; accessible primitives out of the box |
+| Firebase Auth + Firestore | Zero-ops persistence with real-time sync; local-storage fallback for offline |
+| Next-action engine (pure TS) | Deterministic, testable scoring without a backend round-trip |
+| Recruiter-origin flag on roles | Lets the probability engine separate inbound vs. outbound funnel rates |
+| Command Centre as primary surface | Forces daily review of the most important actions, not just passive tracking |
+
+**Live demo:** https://job-sprint-ten.vercel.app/
+
+**Walkthrough:** <!-- TODO: replace with Loom URL before merging -->
+
+![JobSprint Command Centre](./docs/assets/command-centre.png)
+<!-- TODO: capture and commit docs/assets/command-centre.png before merging -->
+
 ## Current Status
 
 - Stage: MVP+ (Firebase auth + Firestore persistence enabled)

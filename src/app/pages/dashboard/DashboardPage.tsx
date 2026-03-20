@@ -82,12 +82,12 @@ export function DashboardPage() {
 
           {/* Right — context column */}
           <div className="space-y-6">
+            <QuickActions />
             <PipelineStats stats={stats} isLoading={loading} />
             <ProbabilityPanel stats={stats} isLoading={loading} />
             {(loading || hotOpportunities.length > 0) && (
               <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
             )}
-            <QuickActions />
           </div>
         </div>
       </main>

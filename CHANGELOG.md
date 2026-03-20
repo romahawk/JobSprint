@@ -6,6 +6,17 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ## [Unreleased]
 
+## [2026-03-20]
+
+### Added
+
+- Command Centre replaces legacy Dashboard as the primary surface: next-action engine, pipeline snapshot, probability engine panel (collapsible, closed by default with headline % visible), and hot opportunities.
+- Quick Actions pinned to top of Command Centre right column for always-accessible navigation.
+- Recruiter-origin flag (`origin: "self_sourced" | "recruiter"`) on roles: picker in Add Role form, inline edit support, violet "Recruiter" badge in roles table.
+- Probability engine extended with `responseRate`, `interviewRate`, `offerRate` derived from Job OS application data.
+- Paste Link import engine for companies (AI-assisted extraction from job posting URLs).
+- Case-study section added to README (problem, solution, key decisions, live link, Loom placeholder) — closes #39.
+
 ## [2026-03-06]
 
 ### Added

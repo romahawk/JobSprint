@@ -1,6 +1,6 @@
 # Roadmap
 
-## Completion Snapshot (as of 2026-03-19)
+## Completion Snapshot (as of 2026-03-20)
 
 - Week 1 complete: baseline docs and repo clarity.
 - Week 2 complete: workflow governance and release discipline.
@@ -8,6 +8,7 @@
 - Week 4 complete: form hardening, safe delete with undo, smoke tests.
 - Month 2 complete: persistence boundary, migration helper, auth/session, sync status, Firebase integration.
 - Post-Month 2 UX hardening in progress: dashboard compression, clearer next actions, safer Role-to-Application handoff, and a stronger Assets Vault workflow.
+- Month 3 proof-of-work packaging is underway: a hosted Assets Vault case-study page now lives inside the app, and Playwright reporting artifacts are preserved in CI.
 
 ## Next 4 Weeks
 
@@ -121,12 +122,13 @@ Data entry errors decrease and destructive actions are safer.
 - Reduce accidental duplicate records by tightening Job OS handoff flows and surfacing explicit success/error feedback.
 - Turn Assets Vault into a compact CV constructor with stable CV-to-application linking, import/export support, reusable script/template editing, and explicit file-import feedback.
 - Publish proof-of-work artifacts and keep trimming initial bundle cost as richer Job OS surfaces are added.
+- Keep shrinking the remaining shared bundle weight now that CV import parsers load by file type and Playwright reporting is easier to inspect in CI.
 
 ## Next Session Starting Point
 
-1. Turn the case study into a more shareable demo page or lightweight hosted story.
-2. Continue bundle-size reduction beyond route/vendor splitting, especially around the heaviest shared dependencies.
-3. Add CI and reporting polish for the growing Playwright suite so failures are easier to inspect.
+1. Continue bundle-size reduction beyond route/vendor splitting, with focus on the remaining shared `vendor` chunk and other heavy always-on dependencies.
+2. Revisit Firebase/analytics loading boundaries to see whether more of the shared runtime can move off the default path.
+3. Review the hosted case-study page on Vercel and package any final reviewer-facing polish such as additional screenshots or a short Loom.
 
 ## Freeze List
 

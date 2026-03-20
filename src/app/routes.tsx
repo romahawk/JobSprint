@@ -16,6 +16,7 @@ const JobOsOutreachPage = lazy(() => import("./pages/job-os/JobOsOutreachPage"))
 const CvOptimizerPage = lazy(() => import("../features/cvOptimizer/CvOptimizerPage"));
 const SignIn = lazy(() => import("./pages/SignIn"));
 const AfaCompliancePage = lazy(() => import("./pages/AfaCompliancePage"));
+const CaseStudyAssetsVaultPage = lazy(() => import("./pages/CaseStudyAssetsVaultPage"));
 
 function RouteFallback() {
   return (
@@ -30,6 +31,10 @@ function lazyElement(element: ReactNode) {
 }
 
 export const router = createBrowserRouter([
+  {
+    path: "/case-study/assets-vault",
+    element: lazyElement(<CaseStudyAssetsVaultPage />),
+  },
   {
     path: "/signin",
     element: lazyElement(<SignIn />),

@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useApp } from "../context";
 import { useJobOs } from "../hooks/useJobOs";
 import { KPICard } from "../components/KPICard";
-import { PipelineBoard } from "../components/PipelineBoard";
 import { WeeklyExecutionPanel } from "../components/WeeklyExecutionPanel";
 import { ProbabilityEnginePanel } from "../components/ProbabilityEnginePanel";
 import { ActivitySignalCard } from "../components/ActivitySignalCard";
@@ -23,6 +22,12 @@ import {
 } from "lucide-react";
 import { calculateMetrics } from "../utils";
 import type { Application, PipelineStatus } from "../types";
+
+const PipelineBoard = lazy(() =>
+  import("../components/PipelineBoard").then((module) => ({
+    default: module.PipelineBoard,
+  }))
+);
 
 export default function Dashboard() {
   const {
@@ -168,11 +173,24 @@ export default function Dashboard() {
           <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-6">
             Application Pipeline
           </h2>
-          <PipelineBoard
-            applications={applications}
-            onUpdateStatus={handleUpdateStatus}
-            onCardClick={handleCardClick}
-          />
+          <Suspense
+            fallback={
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-7">
+                {Array.from({ length: 7 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="min-h-48 rounded-lg border border-border/80 bg-muted/40 animate-pulse"
+                  />
+                ))}
+              </div>
+            }
+          >
+            <PipelineBoard
+              applications={applications}
+              onUpdateStatus={handleUpdateStatus}
+              onCardClick={handleCardClick}
+            />
+          </Suspense>
         </div>
 
         {/* Activity and Execution Row */}

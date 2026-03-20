@@ -475,6 +475,12 @@ interface UseJobOsReturn extends JobOsState {
   removeCvProfile: (id: string) => Promise<void>;
   removeJobDescription: (id: string) => Promise<void>;
   removeCvTailoringRun: (id: string) => Promise<void>;
+  importAll: (data: {
+    companies: JobOsCompany[];
+    roles: JobOsRole[];
+    applications: JobOsApplication[];
+    outreach: JobOsOutreach[];
+  }) => Promise<void>;
 }
 
 export function useJobOs(userId: string | null): UseJobOsReturn {
@@ -1004,6 +1010,45 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     [firebase, localOnly, mutate, userId]
   );
 
+  const importAll = useCallback(
+    async (data: {
+      companies: JobOsCompany[];
+      roles: JobOsRole[];
+      applications: JobOsApplication[];
+      outreach: JobOsOutreach[];
+    }): Promise<void> => {
+      if (!userId) return;
+      const now = new Date().toISOString();
+      const COLLECTIONS = ["companies", "roles", "applications", "outreach"] as const;
+
+      // Optimistically update local state
+      setState((prev) => {
+        const next: JobOsState = {
+          ...prev,
+          companies: data.companies,
+          roles: data.roles,
+          applications: data.applications,
+          outreach: data.outreach,
+        };
+        writeLocal(userId, next);
+        return next;
+      });
+
+      if (!firebase || localOnly) return;
+
+      // Upsert each item into Firestore
+      for (const col of COLLECTIONS) {
+        for (const item of data[col]) {
+          const { id, ...rest } = item as { id: string } & Record<string, unknown>;
+          const ref = doc(firebase.db, "users", userId, col, id);
+          await setDoc(ref, { ...rest, updatedAt: now }, { merge: true });
+        }
+      }
+      setLastSyncedAt(new Date().toISOString());
+    },
+    [firebase, localOnly, userId]
+  );
+
   const actions = useMemo(
       () => ({
         updateCv,
@@ -1064,6 +1109,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     lastSyncedAt,
     storageMode: firebase && !localOnly ? "firebase" : "local",
     ...actions,
+    importAll,
   };
 }
 

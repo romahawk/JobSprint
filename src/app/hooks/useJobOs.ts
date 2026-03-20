@@ -1063,6 +1063,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       setLastSyncedAt(new Date().toISOString());
     },
     [firebase, localOnly, userId]
+  );
   const replaceState = useCallback(
     async (nextState: JobOsState) => {
       if (!userId) return;

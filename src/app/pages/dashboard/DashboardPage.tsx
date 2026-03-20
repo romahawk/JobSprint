@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
@@ -13,12 +13,17 @@ import { HotOpportunities } from "../../components/dashboard/HotOpportunities";
 import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
+import { FirstRunScreen, ONBOARDING_SKIPPED_KEY } from "../../components/dashboard/FirstRunScreen";
 
 export function DashboardPage() {
   const { session } = useApp();
   const jobOsSync = useJobOsSyncSnapshot();
-  const { companies, roles, applications, loading } = useJobOs(
-    session?.userId ?? null
+  const {
+    companies, roles, applications, loading,
+    addCompany, updateCompany, addRole,
+  } = useJobOs(session?.userId ?? null);
+  const [onboardingSkipped, setOnboardingSkipped] = useState(
+    () => localStorage.getItem(ONBOARDING_SKIPPED_KEY) === "1"
   );
 
   const lastSyncedLabel = jobOsSync.lastSyncedAt
@@ -59,6 +64,9 @@ export function DashboardPage() {
     [companies, roles, applications, loading]
   );
 
+  const isEmpty = !loading && companies.length === 0 && roles.length === 0;
+  const showFirstRun = isEmpty && !onboardingSkipped;
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black">
       <AppNavbar
@@ -73,8 +81,18 @@ export function DashboardPage() {
       />
 
       <main className="max-w-[1800px] mx-auto px-4 sm:px-6 py-6">
+        {showFirstRun ? (
+          <FirstRunScreen
+            existingCompanies={companies}
+            addCompany={addCompany}
+            updateCompany={updateCompany}
+            addRole={addRole}
+            onSkip={() => setOnboardingSkipped(true)}
+          />
+        ) : null}
+
         {/* 2-column grid on large screens */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6${showFirstRun ? " hidden" : ""}`}>
           {/* Left — primary action column */}
           <div className="lg:col-span-2 space-y-6">
             <TodayPanel actions={actions} isLoading={loading} />

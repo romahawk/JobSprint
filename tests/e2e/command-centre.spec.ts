@@ -27,12 +27,12 @@ test.describe("Command Centre", () => {
 
   test("Probability Engine toggle expands the panel", async ({ page }) => {
     // Panel is collapsed by default — the body should not be visible
-    await expect(page.getByText("Probability of ≥1 Offer")).not.toBeVisible();
+    await expect(page.getByText("Probability of at least 1 offer")).not.toBeVisible();
 
     // Click the toggle
     await page.getByRole("button", { name: /Probability Engine/i }).click();
 
     // Body should now be visible
-    await expect(page.getByText("Probability of ≥1 Offer")).toBeVisible();
+    await expect(page.getByText("Probability of at least 1 offer")).toBeVisible();
   });
 });

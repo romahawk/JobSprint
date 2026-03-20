@@ -9,6 +9,7 @@ import JobOsRolesPage from "./pages/job-os/JobOsRolesPage";
 import JobOsApplicationsPage from "./pages/job-os/JobOsApplicationsPage";
 import JobOsOutreachPage from "./pages/job-os/JobOsOutreachPage";
 import CvOptimizerPage from "../features/cvOptimizer/CvOptimizerPage";
+import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
 import SignIn from "./pages/SignIn";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -78,6 +79,10 @@ export const router = createBrowserRouter([
       {
         path: "/cv-optimizer",
         Component: CvOptimizerPage,
+      },
+      {
+        path: "/job-os/settings",
+        Component: JobOsSettingsPage,
       },
     ],
   },

@@ -19,4 +19,9 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  // Vitest: exclude Playwright E2E specs (those run via `npm run test:e2e`)
+  test: {
+    exclude: ['e2e/**', 'node_modules/**'],
+  },
 })

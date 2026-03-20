@@ -15,9 +15,32 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Recruiter-origin flag (`origin: "self_sourced" | "recruiter"`) on roles: picker in Add Role form, inline edit support, violet "Recruiter" badge in roles table.
 - Probability engine extended with `responseRate`, `interviewRate`, `offerRate` derived from Job OS application data.
 - Paste Link import engine for companies (AI-assisted extraction from job posting URLs).
-- Case-study section added to README (problem, solution, key decisions, live link, Loom placeholder) — closes #39.
-- Playwright E2E baseline: 11 specs across auth, Command Centre, and Job OS navigation; CI `e2e` job added — closes #37.
-- JSON export/import at `/job-os/settings`: full pipeline backup (companies, roles, applications, outreach) with schema validation and 9 Vitest unit tests — closes #38.
+- Case-study section added to README (problem, solution, key decisions, live link, Loom placeholder) â€” closes #39.
+- Playwright E2E baseline: 11 specs across auth, Command Centre, and Job OS navigation; CI `e2e` job added â€” closes #37.
+- JSON export/import at `/job-os/settings`: full pipeline backup (companies, roles, applications, outreach) with schema validation and 9 Vitest unit tests â€” closes #38.
+### Added
+
+- Added collapsible `Probability Engine` panel, collapsed `Add Role` form by default, and sticky `Quick Actions` placement to compress dashboard and Job OS vertical space.
+- Added `Log Application` next action when a role has progressed past `to_apply` but no linked application row exists.
+- Added Job OS import/export from the shared settings panel with validation and full-state replace support.
+- Added Playwright E2E baseline for role-to-application logging, duplicate prevention, and refresh persistence.
+- Added Playwright coverage for the Assets Vault CV constructor, including rename persistence, duplicate flow, and default CV behavior.
+- Added Playwright coverage for Job OS import/export, CV file import, and reusable script/template editing plus delete-confirmation flows.
+- Added Assets Vault CV constructor with up to 5 managed CV variants, one default CV, and application linkage visibility.
+- Added `docs/CASE_STUDY_ASSETS_VAULT.md` as an outward-facing product story for the Assets Vault upgrade.
+- Added screenshot-backed demo context to the Assets Vault case study and linked it from the README as the main proof-of-work artifact.
+
+### Fixed
+
+- Fixed silent application creation from the Roles page by showing explicit success/error feedback and preventing duplicate applications for the same role.
+- Fixed fragile CV selection by linking applications to stable `cvAssetId` values while preserving backward compatibility with older name-based records.
+- Fixed Assets delete flows by replacing browser confirms with proper modal confirmation and explicit toast feedback.
+- Fixed the dashboard right rail overlap by making the full context column sticky instead of only the Quick Actions card.
+
+### Changed
+
+- Started bundle-size reduction with route-level lazy loading plus manual chunk splitting for Firebase, PDF.js, charts, and shared vendor code.
+- Continued bundle-size reduction with focused manual chunks for Radix, motion, and shared UI support dependencies, plus lazy loading of CV file import tooling from the Assets page.
 
 ## [2026-03-06]
 

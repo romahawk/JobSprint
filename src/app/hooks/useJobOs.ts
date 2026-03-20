@@ -4,9 +4,11 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   serverTimestamp,
   setDoc,
+  writeBatch,
   type DocumentData,
 } from "firebase/firestore";
 import { getFirebaseContext } from "../services/firebase";
@@ -27,115 +29,19 @@ import type {
   JobOsState,
   JobOsTemplateAsset,
 } from "../types/jobOs";
+import {
+  EMPTY_JOB_OS_STATE,
+  JOB_OS_COLLECTION_KEYS,
+  normalizeJobOsState,
+} from "../services/jobOsState";
+import {
+  getApplicationCvAssetId,
+  MAX_CV_ASSETS,
+  normalizeCvDefaults,
+} from "../services/cvAssets";
 
 const LOCAL_KEY_PREFIX = "job_os_v1";
 const MUTATION_TIMEOUT_MS = 12000;
-
-const DEFAULT_CVS: JobOsCvAsset[] = [
-  {
-    id: "cv-tpm",
-    name: "CV - Technical Product Manager",
-    version: "v1.0",
-    fileUrl: "",
-    sourceText: "",
-    sourceTextUpdatedAt: "",
-    linkedProfileId: "cv-profile-tpm-core",
-    locked: true,
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-  {
-    id: "cv-product-engineer",
-    name: "CV - Product Engineer",
-    version: "v1.0",
-    fileUrl: "",
-    sourceText: "",
-    sourceTextUpdatedAt: "",
-    linkedProfileId: "cv-profile-po-ops",
-    locked: true,
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-  {
-    id: "cv-systems-pm",
-    name: "CV - Systems / Platform PM",
-    version: "v1.0",
-    fileUrl: "",
-    sourceText: "",
-    sourceTextUpdatedAt: "",
-    linkedProfileId: "cv-profile-implementation",
-    locked: true,
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-];
-const DEFAULT_CV_PROFILES: CvProfile[] = [
-  {
-    id: "cv-profile-tpm-core",
-    name: "TPM Core Profile",
-    targetTrack: "TPM",
-    headline: "Technical Product and Delivery Leader",
-    summary:
-      "Bridge product strategy, implementation delivery, and cross-functional execution for complex digital products.",
-    experience: [],
-    skills: [
-      "Stakeholder management",
-      "Product operations",
-      "Implementation delivery",
-      "Workflow optimization",
-      "Cross-functional leadership",
-    ],
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-  {
-    id: "cv-profile-po-ops",
-    name: "PO / Product Ops Profile",
-    targetTrack: "PO",
-    headline: "Product Operations and Process Builder",
-    summary:
-      "Translate business needs into scalable workflows, product requirements, and delivery systems that improve execution.",
-    experience: [],
-    skills: [
-      "Backlog management",
-      "Process design",
-      "Requirements gathering",
-      "Operational analytics",
-      "Team coordination",
-    ],
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-  {
-    id: "cv-profile-implementation",
-    name: "Implementation / Solutions Profile",
-    targetTrack: "Implementation",
-    headline: "Implementation and Solutions Manager",
-    summary:
-      "Lead onboarding, systems rollout, and operational adoption across technical and customer-facing implementation programs.",
-    experience: [],
-    skills: [
-      "Client onboarding",
-      "Systems implementation",
-      "Process training",
-      "Solution design",
-      "Operational rollout",
-    ],
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  },
-];
-
-const EMPTY_STATE: JobOsState = {
-  assets: { cvs: DEFAULT_CVS, scripts: [], templates: [] },
-  companies: [],
-  roles: [],
-  applications: [],
-  outreach: [],
-  cvProfiles: DEFAULT_CV_PROFILES,
-  jobDescriptions: [],
-  cvTailoringRuns: [],
-};
 
 function normalizeCompanyName(value: unknown): string {
   return String(value ?? "")
@@ -178,6 +84,20 @@ function localKey(userId: string): string {
   return `${LOCAL_KEY_PREFIX}_${userId}`;
 }
 
+function readLocal(userId: string): JobOsState {
+  try {
+    const raw = localStorage.getItem(localKey(userId));
+    if (!raw) return EMPTY_JOB_OS_STATE;
+    return normalizeJobOsState(JSON.parse(raw));
+  } catch {
+    return EMPTY_JOB_OS_STATE;
+  }
+}
+
+function writeLocal(userId: string, state: JobOsState): void {
+  localStorage.setItem(localKey(userId), JSON.stringify(state));
+}
+
 function asIso(value: unknown): string {
   if (
     value &&
@@ -197,149 +117,6 @@ function withTimestamps<T extends Record<string, unknown>>(record: T): T {
     createdAt: asIso(record.createdAt),
     updatedAt: asIso(record.updatedAt),
   };
-}
-
-function normalizeState(raw: unknown): JobOsState {
-  if (!raw || typeof raw !== "object") return EMPTY_STATE;
-  const maybe = raw as Partial<JobOsState>;
-  const cvs = Array.isArray(maybe.assets?.cvs)
-    ? maybe.assets?.cvs.map((v) =>
-        withTimestamps(v as Record<string, unknown>)
-      )
-    : DEFAULT_CVS;
-  const completeCvs = DEFAULT_CVS.map((base) => {
-    const found = cvs.find((c) => c.id === base.id);
-    if (!found) return base;
-    return {
-      ...base,
-      ...found,
-      locked: true,
-    };
-  });
-  const profiles = Array.isArray(maybe.cvProfiles)
-    ? (maybe.cvProfiles.map((v) =>
-        withTimestamps(v as Record<string, unknown>)
-      ) as CvProfile[])
-    : DEFAULT_CV_PROFILES;
-  const completeProfiles = DEFAULT_CV_PROFILES.map((base) => {
-    const found = profiles.find((profile) => profile.id === base.id);
-    return found ? { ...base, ...found } : base;
-  });
-  const customProfiles = profiles.filter(
-    (profile) => !DEFAULT_CV_PROFILES.some((base) => base.id === profile.id)
-  );
-
-  return {
-    assets: {
-      cvs: completeCvs as JobOsCvAsset[],
-      scripts: Array.isArray(maybe.assets?.scripts)
-        ? (maybe.assets.scripts.map((v) =>
-            withTimestamps(v as Record<string, unknown>)
-          ) as JobOsScriptAsset[])
-        : [],
-      templates: Array.isArray(maybe.assets?.templates)
-        ? (maybe.assets.templates.map((v) =>
-            withTimestamps(v as Record<string, unknown>)
-          ) as JobOsTemplateAsset[])
-        : [],
-    },
-    companies: Array.isArray(maybe.companies)
-      ? (maybe.companies.map((v) =>
-          withTimestamps(v as Record<string, unknown>)
-        ) as JobOsCompany[])
-      : [],
-    roles: Array.isArray(maybe.roles)
-      ? (maybe.roles.map((v) =>
-          withTimestamps(v as Record<string, unknown>)
-        ) as JobOsRole[])
-      : [],
-    applications: Array.isArray(maybe.applications)
-      ? (maybe.applications.map((v) =>
-          withTimestamps(v as Record<string, unknown>)
-        ) as JobOsApplication[])
-      : [],
-    outreach: Array.isArray(maybe.outreach)
-      ? (maybe.outreach.map((v) =>
-          withTimestamps(v as Record<string, unknown>)
-        ) as JobOsOutreach[])
-      : [],
-    cvProfiles: [...completeProfiles, ...customProfiles],
-    jobDescriptions: Array.isArray(maybe.jobDescriptions)
-      ? (maybe.jobDescriptions.map((v) => ({
-          ...(v as Record<string, unknown>),
-          id: String((v as { id?: string }).id ?? ""),
-          company: String((v as { company?: string }).company ?? ""),
-          title: String((v as { title?: string }).title ?? ""),
-          rawText: String((v as { rawText?: string }).rawText ?? ""),
-          sourceUrl: String((v as { sourceUrl?: string }).sourceUrl ?? ""),
-          applicationId:
-            typeof (v as { applicationId?: string }).applicationId === "string"
-              ? (v as { applicationId?: string }).applicationId
-              : undefined,
-          roleId:
-            typeof (v as { roleId?: string }).roleId === "string"
-              ? (v as { roleId?: string }).roleId
-              : undefined,
-          clientRequestId:
-            typeof (v as { clientRequestId?: string }).clientRequestId === "string"
-              ? (v as { clientRequestId?: string }).clientRequestId
-              : undefined,
-          createdAt: asIso((v as { createdAt?: unknown }).createdAt),
-        })) as JobDescription[])
-      : [],
-    cvTailoringRuns: Array.isArray(maybe.cvTailoringRuns)
-      ? (maybe.cvTailoringRuns.map((v) => ({
-          ...(v as Record<string, unknown>),
-          id: String((v as { id?: string }).id ?? ""),
-          mode: (v as { mode?: CvTailoringRun["mode"] }).mode ?? "analysis",
-          jobDescriptionId: String(
-            (v as { jobDescriptionId?: string }).jobDescriptionId ?? ""
-          ),
-          cvProfileId: String((v as { cvProfileId?: string }).cvProfileId ?? ""),
-          extractedKeywords: Array.isArray(
-            (v as { extractedKeywords?: unknown[] }).extractedKeywords
-          )
-            ? (v as { extractedKeywords: string[] }).extractedKeywords
-            : [],
-          strengths: Array.isArray((v as { strengths?: unknown[] }).strengths)
-            ? (v as { strengths: string[] }).strengths
-            : [],
-          gaps: Array.isArray((v as { gaps?: unknown[] }).gaps)
-            ? (v as { gaps: string[] }).gaps
-            : [],
-          recruiterRisks: Array.isArray(
-            (v as { recruiterRisks?: unknown[] }).recruiterRisks
-          )
-            ? (v as { recruiterRisks: string[] }).recruiterRisks
-            : [],
-          rewrittenBullets: Array.isArray(
-            (v as { rewrittenBullets?: unknown[] }).rewrittenBullets
-          )
-            ? (v as { rewrittenBullets: string[] }).rewrittenBullets
-            : [],
-          portfolioRecommendations: Array.isArray(
-            (v as { portfolioRecommendations?: unknown[] }).portfolioRecommendations
-          )
-            ? (v as { portfolioRecommendations: string[] }).portfolioRecommendations
-            : [],
-          createdAt: asIso((v as { createdAt?: unknown }).createdAt),
-        })) as CvTailoringRun[])
-      : [],
-  };
-}
-
-function readLocal(userId: string): JobOsState {
-  try {
-    const raw = localStorage.getItem(localKey(userId));
-    if (!raw) return EMPTY_STATE;
-    return normalizeState(JSON.parse(raw));
-  } catch {
-    return EMPTY_STATE;
-  }
-}
-
-function writeLocal(userId: string, state: JobOsState): void {
-  localStorage.setItem(localKey(userId), JSON.stringify(state));
 }
 
 function randomId(prefix: string): string {
@@ -450,10 +227,16 @@ interface UseJobOsReturn extends JobOsState {
   storageMode: "firebase" | "local";
   updateCv: (
     id: string,
-    updates: Partial<Pick<JobOsCvAsset, "version" | "fileUrl" | "sourceText" | "sourceTextUpdatedAt" | "linkedProfileId">>
+    updates: Partial<Pick<JobOsCvAsset, "name" | "version" | "fileUrl" | "sourceText" | "sourceTextUpdatedAt" | "linkedProfileId" | "isDefault">>
   ) => Promise<void>;
+  addCv: (payload: Omit<JobOsCvAsset, "id" | "createdAt" | "updatedAt">) => Promise<string | null>;
+  removeCv: (id: string) => Promise<void>;
   addScript: (payload: Omit<JobOsScriptAsset, "id" | "createdAt" | "updatedAt" | "lastUpdated">) => Promise<void>;
+  updateScript: (id: string, updates: Partial<JobOsScriptAsset>) => Promise<void>;
+  removeScript: (id: string) => Promise<void>;
   addTemplate: (payload: Omit<JobOsTemplateAsset, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  updateTemplate: (id: string, updates: Partial<JobOsTemplateAsset>) => Promise<void>;
+  removeTemplate: (id: string) => Promise<void>;
   addCompany: (payload: Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">) => Promise<string | null>;
   updateCompany: (id: string, updates: Partial<JobOsCompany>) => Promise<void>;
   addRole: (payload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt">) => Promise<string | null>;
@@ -481,17 +264,19 @@ interface UseJobOsReturn extends JobOsState {
     applications: JobOsApplication[];
     outreach: JobOsOutreach[];
   }) => Promise<void>;
+  exportState: () => JobOsState;
+  replaceState: (nextState: JobOsState) => Promise<void>;
 }
 
 export function useJobOs(userId: string | null): UseJobOsReturn {
   const firebase = getFirebaseContext();
-  const [state, setState] = useState<JobOsState>(EMPTY_STATE);
+  const [state, setState] = useState<JobOsState>(EMPTY_JOB_OS_STATE);
   const [loading, setLoading] = useState(true);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [localOnly, setLocalOnly] = useState(false);
   const [pendingWrites, setPendingWrites] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
-  const effectiveState = userId ? state : EMPTY_STATE;
+  const effectiveState = userId ? state : EMPTY_JOB_OS_STATE;
   const effectiveLoading = userId ? loading : false;
   const effectiveSyncNotice = userId
     ? firebase
@@ -588,7 +373,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       (snapshot) => {
         setState((prev) => {
           const remote = snapshot.exists()
-            ? normalizeState({
+            ? normalizeJobOsState({
                 assets: snapshot.data() as JobOsState["assets"],
                 companies: prev.companies,
                 roles: prev.roles,
@@ -621,9 +406,20 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     subscribeCollection("roles", (id, data) =>
       withTimestamps({ ...(data as Record<string, unknown>), id })
     );
-    subscribeCollection("applications", (id, data) =>
-      withTimestamps({ ...(data as Record<string, unknown>), id })
-    );
+    subscribeCollection("applications", (id, data) => {
+      const localAssets = readLocal(userId).assets.cvs;
+      const normalized = withTimestamps({ ...(data as Record<string, unknown>), id }) as JobOsApplication;
+      const resolvedCvAssetId = getApplicationCvAssetId(normalized, localAssets);
+      const matchedCv = resolvedCvAssetId
+        ? localAssets.find((cv) => cv.id === resolvedCvAssetId)
+        : undefined;
+
+      return {
+        ...normalized,
+        cvAssetId: resolvedCvAssetId,
+        cvVersion: matchedCv?.name ?? normalized.cvVersion,
+      };
+    });
     subscribeCollection("outreach", (id, data) =>
       withTimestamps({ ...(data as Record<string, unknown>), id })
     );
@@ -704,33 +500,115 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   const updateCv = useCallback(
     async (
       id: string,
-      updates: Partial<Pick<JobOsCvAsset, "version" | "fileUrl" | "sourceText" | "sourceTextUpdatedAt" | "linkedProfileId">>
+      updates: Partial<Pick<JobOsCvAsset, "name" | "version" | "fileUrl" | "sourceText" | "sourceTextUpdatedAt" | "linkedProfileId" | "isDefault">>
     ) => {
       const now = new Date().toISOString();
       await mutate(
         "Update CV",
         (prev) => {
+          const nextCvs = normalizeCvDefaults(
+            prev.assets.cvs.map((cv) =>
+              cv.id === id ? { ...cv, ...updates, updatedAt: now } : cv
+            )
+          );
           const next: JobOsState = {
             ...prev,
             assets: {
               ...prev.assets,
-              cvs: prev.assets.cvs.map((cv) =>
-                cv.id === id ? { ...cv, ...updates, updatedAt: now } : cv
-              ),
+              cvs: nextCvs,
             },
           };
           return next;
         },
         firebase && userId && !localOnly
           ? async () => {
-              const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
-              const nextCvs = state.assets.cvs.map((cv) =>
-                cv.id === id ? { ...cv, ...updates, updatedAt: now } : cv
+            const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
+              const nextCvs = normalizeCvDefaults(
+                state.assets.cvs.map((cv) =>
+                  cv.id === id ? { ...cv, ...updates, updatedAt: now } : cv
+                )
               );
               await setDoc(
                 assetDoc,
                 {
                   cvs: nextCvs,
+                  scripts: state.assets.scripts,
+                  templates: state.assets.templates,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          : null
+      );
+    },
+    [firebase, localOnly, mutate, state.assets, userId]
+  );
+
+  const addCv = useCallback(
+    async (payload: Omit<JobOsCvAsset, "id" | "createdAt" | "updatedAt">) => {
+      if (state.assets.cvs.length >= MAX_CV_ASSETS) {
+        throw new Error(`You can store up to ${MAX_CV_ASSETS} CV versions.`);
+      }
+
+      const now = new Date().toISOString();
+      const localItem: JobOsCvAsset = {
+        id: randomId("cv"),
+        ...payload,
+        locked: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await mutate(
+        "Add CV",
+        (prev) => ({
+          ...prev,
+          assets: {
+            ...prev.assets,
+            cvs: normalizeCvDefaults([localItem, ...prev.assets.cvs]),
+          },
+        }),
+        firebase && userId && !localOnly
+          ? async () => {
+              const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
+              await setDoc(
+                assetDoc,
+                {
+                  cvs: normalizeCvDefaults([localItem, ...state.assets.cvs]),
+                  scripts: state.assets.scripts,
+                  templates: state.assets.templates,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          : null
+      );
+
+      return localItem.id;
+    },
+    [firebase, localOnly, mutate, state.assets, userId]
+  );
+
+  const removeCv = useCallback(
+    async (id: string) => {
+      await mutate(
+        "Remove CV",
+        (prev) => ({
+          ...prev,
+          assets: {
+            ...prev.assets,
+            cvs: normalizeCvDefaults(prev.assets.cvs.filter((cv) => cv.id !== id)),
+          },
+        }),
+        firebase && userId && !localOnly
+          ? async () => {
+              const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
+              await setDoc(
+                assetDoc,
+                {
+                  cvs: normalizeCvDefaults(state.assets.cvs.filter((cv) => cv.id !== id)),
                   scripts: state.assets.scripts,
                   templates: state.assets.templates,
                   updatedAt: serverTimestamp(),
@@ -788,6 +666,77 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     [firebase, localOnly, mutate, state.assets, userId]
   );
 
+  const updateScript = useCallback(
+    async (id: string, updates: Partial<JobOsScriptAsset>) => {
+      const now = new Date().toISOString();
+      await mutate(
+        "Update script",
+        (prev) => ({
+          ...prev,
+          assets: {
+            ...prev.assets,
+            scripts: prev.assets.scripts.map((script) =>
+              script.id === id
+                ? { ...script, ...updates, lastUpdated: now, updatedAt: now }
+                : script
+            ),
+          },
+        }),
+        firebase && userId && !localOnly
+          ? async () => {
+              const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
+              await setDoc(
+                assetDoc,
+                {
+                  cvs: state.assets.cvs,
+                  scripts: state.assets.scripts.map((script) =>
+                    script.id === id
+                      ? { ...script, ...updates, lastUpdated: now, updatedAt: now }
+                      : script
+                  ),
+                  templates: state.assets.templates,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          : null
+      );
+    },
+    [firebase, localOnly, mutate, state.assets, userId]
+  );
+
+  const removeScript = useCallback(
+    async (id: string) => {
+      await mutate(
+        "Remove script",
+        (prev) => ({
+          ...prev,
+          assets: {
+            ...prev.assets,
+            scripts: prev.assets.scripts.filter((script) => script.id !== id),
+          },
+        }),
+        firebase && userId && !localOnly
+          ? async () => {
+              const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
+              await setDoc(
+                assetDoc,
+                {
+                  cvs: state.assets.cvs,
+                  scripts: state.assets.scripts.filter((script) => script.id !== id),
+                  templates: state.assets.templates,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          : null
+      );
+    },
+    [firebase, localOnly, mutate, state.assets, userId]
+  );
+
   const addTemplate = useCallback(
     async (
       payload: Omit<JobOsTemplateAsset, "id" | "createdAt" | "updatedAt">
@@ -817,6 +766,73 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                   cvs: state.assets.cvs,
                   scripts: state.assets.scripts,
                   templates: [localItem, ...state.assets.templates],
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          : null
+      );
+    },
+    [firebase, localOnly, mutate, state.assets, userId]
+  );
+
+  const updateTemplate = useCallback(
+    async (id: string, updates: Partial<JobOsTemplateAsset>) => {
+      const now = new Date().toISOString();
+      await mutate(
+        "Update template",
+        (prev) => ({
+          ...prev,
+          assets: {
+            ...prev.assets,
+            templates: prev.assets.templates.map((template) =>
+              template.id === id ? { ...template, ...updates, updatedAt: now } : template
+            ),
+          },
+        }),
+        firebase && userId && !localOnly
+          ? async () => {
+              const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
+              await setDoc(
+                assetDoc,
+                {
+                  cvs: state.assets.cvs,
+                  scripts: state.assets.scripts,
+                  templates: state.assets.templates.map((template) =>
+                    template.id === id ? { ...template, ...updates, updatedAt: now } : template
+                  ),
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          : null
+      );
+    },
+    [firebase, localOnly, mutate, state.assets, userId]
+  );
+
+  const removeTemplate = useCallback(
+    async (id: string) => {
+      await mutate(
+        "Remove template",
+        (prev) => ({
+          ...prev,
+          assets: {
+            ...prev.assets,
+            templates: prev.assets.templates.filter((template) => template.id !== id),
+          },
+        }),
+        firebase && userId && !localOnly
+          ? async () => {
+              const assetDoc = doc(firebase.db, "users", userId, "assets", "vault");
+              await setDoc(
+                assetDoc,
+                {
+                  cvs: state.assets.cvs,
+                  scripts: state.assets.scripts,
+                  templates: state.assets.templates.filter((template) => template.id !== id),
                   updatedAt: serverTimestamp(),
                 },
                 { merge: true }
@@ -1047,13 +1063,62 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       setLastSyncedAt(new Date().toISOString());
     },
     [firebase, localOnly, userId]
+  const replaceState = useCallback(
+    async (nextState: JobOsState) => {
+      if (!userId) return;
+
+      const normalizedState = normalizeJobOsState(nextState);
+
+      await mutate(
+        "Import Job OS state",
+        () => normalizedState,
+        firebase && !localOnly
+          ? async () => {
+              const batch = writeBatch(firebase.db);
+              const assetsDoc = doc(firebase.db, "users", userId, "assets", "vault");
+
+              batch.set(
+                assetsDoc,
+                {
+                  ...normalizedState.assets,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: false }
+              );
+
+              for (const key of JOB_OS_COLLECTION_KEYS) {
+                const collectionRef = collection(firebase.db, "users", userId, key);
+                const snapshot = await getDocs(collectionRef);
+
+                snapshot.docs.forEach((item) => {
+                  batch.delete(item.ref);
+                });
+
+                (normalizedState[key] as Array<Record<string, unknown> & { id: string }>).forEach((item) => {
+                  const itemRef = doc(firebase.db, "users", userId, key, item.id);
+                  batch.set(itemRef, stripUndefinedFields(item));
+                });
+              }
+
+              await batch.commit();
+            }
+          : null
+      );
+    },
+    [firebase, localOnly, mutate, userId]
   );
 
   const actions = useMemo(
       () => ({
         updateCv,
+        addCv,
+        removeCv,
         addScript,
+        updateScript,
+        removeScript,
         addTemplate,
+        updateTemplate,
+        removeTemplate,
         addCompany: (payload: Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">) =>
           addCollectionItem<JobOsCompany>("companies", "company", payload, { hasUpdatedAt: true }),
         updateCompany: (id: string, updates: Partial<JobOsCompany>) =>
@@ -1062,9 +1127,19 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           addCollectionItem<JobOsRole>("roles", "role", payload, { hasUpdatedAt: true }),
         updateRole: (id: string, updates: Partial<JobOsRole>) =>
           updateCollectionItem<JobOsRole>("roles", id, updates, { hasUpdatedAt: true }),
-        addApplication: (
+        addApplication: async (
           payload: Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">
-        ) => addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true }),
+        ) => {
+          const roleId = payload.roleId?.trim();
+          if (
+            roleId &&
+            state.applications.some((application) => application.roleId === roleId)
+          ) {
+            throw new Error("An application for this role already exists.");
+          }
+
+          return addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true });
+        },
         updateApplication: (id: string, updates: Partial<JobOsApplication>) =>
           updateCollectionItem<JobOsApplication>("applications", id, updates, { hasUpdatedAt: true }),
         addOutreach: (payload: Omit<JobOsOutreach, "id" | "createdAt" | "updatedAt">) =>
@@ -1090,14 +1165,24 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         removeCvProfile: (id: string) => removeCollectionItem("cvProfiles", id),
         removeJobDescription: (id: string) => removeCollectionItem("jobDescriptions", id),
         removeCvTailoringRun: (id: string) => removeCollectionItem("cvTailoringRuns", id),
+        exportState: () => normalizeJobOsState(state),
+        replaceState,
       }),
     [
       addCollectionItem,
+      addCv,
       addScript,
       addTemplate,
       removeCollectionItem,
+      removeCv,
+      removeScript,
+      removeTemplate,
+      replaceState,
+      state,
       updateCollectionItem,
       updateCv,
+      updateScript,
+      updateTemplate,
     ]
   );
 

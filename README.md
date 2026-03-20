@@ -38,7 +38,7 @@ JobSprint replaces that patchwork with a software-grade production system. It ha
 ## Current Status
 
 - Stage: MVP+ (Firebase auth + Firestore persistence enabled)
-- Scope: dashboard, pipeline tracking, analytics, weekly execution panel, sync status, safe delete undo
+- Scope: dashboard, pipeline tracking, analytics, weekly execution panel, sync status, safe delete undo, Job OS role/application guardrails
 - Adoption: AI Production OS v1 process active since March 2, 2026
 - Milestone checkpoint: Month 2 foundation completed on March 3, 2026
 
@@ -93,6 +93,13 @@ App access requires sign-in. If the `VITE_FIREBASE_*` env vars are configured, a
 
 ### Analytics
 ![JobSprint Analytics](./docs/assets/analytics.png)
+
+## Demo Artifact
+
+- Hosted case study: https://job-sprint-ten.vercel.app/case-study/assets-vault
+- Repo case study source: [Assets Vault Case Study](./docs/CASE_STUDY_ASSETS_VAULT.md)
+
+This is the clearest current proof-of-work artifact for JobSprint's product direction: turning a job-search tracker into an execution system with stable CV assets, reusable scripts, and linked application context. The hosted page is designed for reviewers who want the story without needing repo context first.
 
 ## Documentation
 

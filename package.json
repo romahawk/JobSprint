@@ -10,6 +10,8 @@
         "preview": "vite preview",
         "test": "vitest run",
         "test:e2e": "playwright test",
+        "test:e2e": "playwright test",
+        "test": "vitest run",
         "dev:api": "node server/cv-tailor-server.mjs",
         "start:api": "node server/cv-tailor-server.mjs"
     },

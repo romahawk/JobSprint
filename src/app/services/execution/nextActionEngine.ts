@@ -9,6 +9,7 @@ import type {
 
 export type NextActionType =
   | "apply"
+  | "log_application"
   | "follow_up"
   | "add_role"
   | "research"
@@ -46,6 +47,7 @@ const PRIORITY_WEIGHT: Record<CompanyPriority, number> = { A: 30, B: 15, C: 5 };
 const FIT_WEIGHT = 5; // per fitScore point (1–5)
 const FOLLOW_UP_BASE = 60;
 const APPLY_BASE = 50;
+const LOG_APPLICATION_BASE = 65;
 const OPTIMIZE_CV_BASE = 70;
 const ADD_ROLE_BASE = 40;
 const RESEARCH_BASE = 25;
@@ -140,6 +142,43 @@ function generateFollowUpActions(
         reason: `Applied ${days} day${days !== 1 ? "s" : ""} ago — no response yet`,
         actionLabel: "Follow Up",
         href: "/job-os/applications",
+      };
+    });
+}
+
+function generateLogApplicationActions(
+  roles: JobOsRole[],
+  companies: JobOsCompany[],
+  applications: JobOsApplication[]
+): NextAction[] {
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+  const appliedRoleIds = new Set(applications.map((a) => a.roleId));
+
+  return roles
+    .filter(
+      (role) =>
+        role.status !== "to_apply" &&
+        role.status !== "closed" &&
+        !appliedRoleIds.has(role.id)
+    )
+    .map((role) => {
+      const company = companyMap.get(role.companyId);
+      const priorityBonus = company ? PRIORITY_WEIGHT[company.priority] : 0;
+      const fitBonus = role.fitScore * FIT_WEIGHT;
+      const score = clamp(LOG_APPLICATION_BASE + priorityBonus + fitBonus, 0, 100);
+
+      return {
+        id: `log-application-${role.id}`,
+        type: "log_application" as NextActionType,
+        priority: toPriority(score),
+        score,
+        companyId: role.companyId,
+        companyName: company?.name,
+        roleId: role.id,
+        roleTitle: role.title,
+        reason: `Role is marked ${role.status} but no application record exists yet`,
+        actionLabel: "Log Application",
+        href: "/job-os/roles",
       };
     });
 }
@@ -383,6 +422,7 @@ export function getNextActions(
   const all: NextAction[] = [
     ...generateOptimizeCvActions(applications, companies),
     ...generateFollowUpActions(applications, companies),
+    ...generateLogApplicationActions(roles, companies, applications),
     ...generateApplyActions(roles, companies, applications),
     ...generateAddRoleActions(companies, roles),
     ...generateResearchActions(companies, roles),

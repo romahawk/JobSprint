@@ -38,7 +38,9 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { PasteLinkImportDialog } from "../../components/job-os/PasteLinkImportDialog";
+import { getDefaultCvAsset } from "../../services/cvAssets";
 import type { CompanyPriority, CompanyStatus, JobOsCompany } from "../../types/jobOs";
 
 const STATUS_VALUES: CompanyStatus[] = [
@@ -117,6 +119,7 @@ export default function JobOsCompaniesPage() {
     roles,
     outreach,
     applications,
+    assets,
     addCompany,
     updateCompany,
     addRole,
@@ -124,6 +127,8 @@ export default function JobOsCompaniesPage() {
     addApplication,
     removeCompany,
     syncNotice,
+    exportState,
+    replaceState,
   } = useJobOs(session?.userId ?? null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -157,6 +162,7 @@ export default function JobOsCompaniesPage() {
       [c.name, c.industry, c.notes].join(" ").toLowerCase().includes(q)
     );
   }, [companies, search]);
+  const defaultCv = getDefaultCvAsset(assets.cvs);
 
   const sortedCompanies = useMemo(() => {
     const priorityRank: Record<CompanyPriority, number> = { A: 0, B: 1, C: 2 };
@@ -422,6 +428,7 @@ export default function JobOsCompaniesPage() {
       title="Company Engine"
       subtitle="Account-based target company tracking"
       notice={syncNotice}
+      settingsFooter={<JobOsTransferControls getExportState={exportState} onImportState={replaceState} />}
     >
       {/* ── Add Company (collapsible) ── */}
       <Card>
@@ -876,7 +883,8 @@ export default function JobOsCompaniesPage() {
                       roleId: "",
                       dateApplied: new Date().toISOString().slice(0, 10),
                       channel: "LinkedIn",
-                      cvVersion: "CV - Technical Product Manager",
+                      cvAssetId: defaultCv?.id,
+                      cvVersion: defaultCv?.name ?? "",
                       status: "sent",
                       nextAction: "Follow up in 5 days",
                       notes: "",

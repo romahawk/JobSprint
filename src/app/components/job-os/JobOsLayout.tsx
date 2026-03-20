@@ -28,12 +28,14 @@ export function JobOsLayout({
   notice,
   children,
   actions,
+  settingsFooter,
 }: {
   title: string;
   subtitle?: string;
   notice?: string | null;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  settingsFooter?: React.ReactNode;
 }) {
   const { session } = useApp();
   const jobOsSync = useJobOsSyncSnapshot();
@@ -55,6 +57,7 @@ export function JobOsLayout({
           Status: {jobOsSync.syncNotice ?? (jobOsSync.pendingWrites > 0 ? "Saving changes..." : "Cloud sync healthy")}
         </div>
       </div>
+      {settingsFooter}
     </div>
   ) : null;
 

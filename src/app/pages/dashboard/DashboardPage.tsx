@@ -88,6 +88,15 @@ export function DashboardPage() {
             {(loading || hotOpportunities.length > 0) && (
               <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
             )}
+          <div className="lg:self-start">
+            <div className="space-y-6 lg:sticky lg:top-24">
+              <QuickActions />
+              <PipelineStats stats={stats} isLoading={loading} />
+              <ProbabilityPanel stats={stats} isLoading={loading} />
+              {(loading || hotOpportunities.length > 0) && (
+                <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
+              )}
+            </div>
           </div>
         </div>
       </main>

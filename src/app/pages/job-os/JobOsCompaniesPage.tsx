@@ -38,7 +38,6 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
-import { DataManagementCard } from "../../components/job-os/DataManagementCard";
 import { PasteLinkImportDialog } from "../../components/job-os/PasteLinkImportDialog";
 import type { CompanyPriority, CompanyStatus, JobOsCompany } from "../../types/jobOs";
 
@@ -125,7 +124,6 @@ export default function JobOsCompaniesPage() {
     addApplication,
     removeCompany,
     syncNotice,
-    importAll,
   } = useJobOs(session?.userId ?? null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1014,15 +1012,6 @@ export default function JobOsCompaniesPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* ── Data Management ── */}
-      <DataManagementCard
-        companies={companies}
-        roles={roles}
-        applications={applications}
-        outreach={outreach}
-        onImport={importAll}
-      />
 
       {/* ── Paste Link Dialog ── */}
       <PasteLinkImportDialog

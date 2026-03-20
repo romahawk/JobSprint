@@ -16,6 +16,8 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - Probability engine extended with `responseRate`, `interviewRate`, `offerRate` derived from Job OS application data.
 - Paste Link import engine for companies (AI-assisted extraction from job posting URLs).
 - Case-study section added to README (problem, solution, key decisions, live link, Loom placeholder) — closes #39.
+- Playwright E2E baseline: 11 specs across auth, Command Centre, and Job OS navigation; CI `e2e` job added — closes #37.
+- JSON export/import at `/job-os/settings`: full pipeline backup (companies, roles, applications, outreach) with schema validation and 9 Vitest unit tests — closes #38.
 
 ## [2026-03-06]
 

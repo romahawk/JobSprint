@@ -4,6 +4,7 @@ import { signIn } from "./helpers";
 test.describe("Command Centre", () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
+    await page.goto("/dashboard");
   });
 
   test("renders Today's Actions panel", async ({ page }) => {

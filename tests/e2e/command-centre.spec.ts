@@ -10,31 +10,21 @@ test.describe("Command Centre", () => {
     await expect(page.getByText("Today's Actions")).toBeVisible();
   });
 
-  test("renders Pipeline Snapshot panel", async ({ page }) => {
-    await expect(page.getByText("Pipeline Snapshot")).toBeVisible();
+  test("renders empty-state heading", async ({ page }) => {
+    await expect(page.getByText("Paste a job URL to begin")).toBeVisible();
   });
 
-  test("renders Quick Actions", async ({ page }) => {
-    await expect(page.getByText("Quick Actions")).toBeVisible();
+  test("renders Job posting URL input", async ({ page }) => {
+    await expect(page.getByLabel("Job posting URL")).toBeVisible();
   });
 
-  test("Quick Actions contains all four nav links", async ({ page }) => {
-    await expect(page.getByRole("link", { name: /Add Company/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Log Application/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Tailor CV/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Browse Roles/i })).toBeVisible();
+  test("renders Import job button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: "Import job" })).toBeVisible();
   });
 
-  test("Probability Engine toggle expands the panel", async ({ page }) => {
-    const body = page.getByText("Log applications to see offer probability.");
-
-    // Panel is collapsed by default
-    await expect(body).not.toBeVisible();
-
-    // Click the toggle
-    await page.getByRole("button", { name: /Probability Engine/i }).click();
-
-    // Body should now be visible (empty-pipeline state message)
-    await expect(body).toBeVisible();
+  test("shows paste-text area for LinkedIn URLs", async ({ page }) => {
+    const input = page.getByLabel("Job posting URL");
+    await input.fill("https://www.linkedin.com/jobs/view/123456789");
+    await expect(page.getByLabel(/Paste job description/i)).toBeVisible();
   });
 });

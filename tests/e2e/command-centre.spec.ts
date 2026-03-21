@@ -6,8 +6,8 @@ test.describe("Command Centre", () => {
     await signIn(page);
   });
 
-  test("renders Today's Actions panel", async ({ page }) => {
-    await expect(page.getByText("Today's Actions")).toBeVisible();
+  test("renders empty-state description", async ({ page }) => {
+    await expect(page.getByText(/score the opportunity/)).toBeVisible();
   });
 
   test("renders empty-state heading", async ({ page }) => {

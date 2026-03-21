@@ -49,6 +49,9 @@ function normalizeData(raw: unknown): AppData | null {
   return {
     applications: maybe.applications,
     weeklyGoals: maybe.weeklyGoals || DEFAULT_WEEKLY_GOALS,
+    tasks: Array.isArray(maybe.tasks) ? maybe.tasks : [],
+    opportunityScores: Array.isArray(maybe.opportunityScores) ? maybe.opportunityScores : [],
+    userProfileSignals: maybe.userProfileSignals ?? undefined,
   };
 }
 
@@ -261,4 +264,7 @@ export function createRepository(storage: StorageLike): AppRepository {
 export const DEFAULT_APP_DATA: AppData = {
   applications: [],
   weeklyGoals: DEFAULT_WEEKLY_GOALS,
+  tasks: [],
+  opportunityScores: [],
+  userProfileSignals: undefined,
 };

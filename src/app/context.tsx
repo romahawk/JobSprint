@@ -10,10 +10,7 @@ import React, {
 import type {
   Application,
   AppContextType,
-  NextActionTask,
-  OpportunityScore,
   PendingDeletion,
-  UserProfileSignals,
   WeeklyGoals,
 } from "./types";
 import { createRepository, DEFAULT_APP_DATA } from "./services/storage";
@@ -23,12 +20,6 @@ import {
   deleteApplicationRecord,
   updateApplicationRecord,
 } from "./state/applicationOperations";
-import {
-  addTasksRecord,
-  dismissTaskRecord,
-  replaceTasksForApplication,
-  toggleTaskRecord,
-} from "./state/taskOperations";
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 const DELETE_UNDO_WINDOW_MS = 7000;
@@ -156,11 +147,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoals>(
     DEFAULT_APP_DATA.weeklyGoals
   );
-  const [tasks, setTasks] = useState<NextActionTask[]>([]);
-  const [opportunityScores, setOpportunityScores] = useState<OpportunityScore[]>([]);
-  const [userProfileSignals, setUserProfileSignalsState] = useState<
-    UserProfileSignals | undefined
-  >(undefined);
   const [darkMode, setDarkMode] = useState(true);
   const [session, setSession] = useState<AppContextType["session"]>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -188,15 +174,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (data) {
           setApplications(data.applications);
           setWeeklyGoals(data.weeklyGoals);
-          setTasks(data.tasks ?? []);
-          setOpportunityScores(data.opportunityScores ?? []);
-          setUserProfileSignalsState(data.userProfileSignals ?? undefined);
         } else {
           setApplications(SAMPLE_APPLICATIONS);
           setWeeklyGoals(DEFAULT_APP_DATA.weeklyGoals);
-          setTasks([]);
-          setOpportunityScores([]);
-          setUserProfileSignalsState(undefined);
         }
         setSyncState((prev) => ({
           ...prev,
@@ -269,13 +249,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const persist = async () => {
       setSyncState((prev) => ({ ...prev, isSyncing: true, error: null }));
       try {
-        await repository.saveAppData(session.userId, {
-          applications,
-          weeklyGoals,
-          tasks,
-          opportunityScores,
-          userProfileSignals,
-        });
+        await repository.saveAppData(session.userId, { applications, weeklyGoals });
         setSyncState((prev) => ({
           ...prev,
           isSyncing: false,
@@ -292,7 +266,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     persist();
-  }, [applications, opportunityScores, repository, session, tasks, userProfileSignals, weeklyGoals]);
+  }, [applications, repository, session, weeklyGoals]);
 
   const refreshData = useCallback(async () => {
     if (!session) return;
@@ -333,9 +307,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setApplications([]);
     setWeeklyGoals(DEFAULT_APP_DATA.weeklyGoals);
-    setTasks([]);
-    setOpportunityScores([]);
-    setUserProfileSignalsState(undefined);
     setPendingDeletions([]);
     deletedCacheRef.current.clear();
     deleteTimersRef.current.forEach((timerId) => clearTimeout(timerId));
@@ -344,56 +315,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addApplication = useCallback((app: Omit<Application, "id">) => {
     setApplications((prev) => addApplicationRecord(prev, app));
-  }, []);
-
-  const addApplicationAndReturn = useCallback(
-    (app: Omit<Application, "id">): Application => {
-      const next = addApplicationRecord([], app)[0];
-      setApplications((prev) => [...prev, next]);
-      return next;
-    },
-    []
-  );
-
-  const createTasksForApplication = useCallback(
-    (
-      applicationId: string,
-      incoming: Omit<NextActionTask, "id" | "createdAt" | "updatedAt">[]
-    ) => {
-      const withId = incoming.map((t) => ({ ...t, applicationId }));
-      setTasks((prev) => addTasksRecord(prev, withId));
-    },
-    []
-  );
-
-  const toggleTaskStatus = useCallback((taskId: string) => {
-    setTasks((prev) => toggleTaskRecord(prev, taskId));
-  }, []);
-
-  const dismissTask = useCallback((taskId: string) => {
-    setTasks((prev) => dismissTaskRecord(prev, taskId));
-  }, []);
-
-  const regenerateTasksForApplication = useCallback(
-    (
-      applicationId: string,
-      incoming: Omit<NextActionTask, "id" | "createdAt" | "updatedAt">[]
-    ) => {
-      const withId = incoming.map((t) => ({ ...t, applicationId }));
-      setTasks((prev) => replaceTasksForApplication(prev, applicationId, withId));
-    },
-    []
-  );
-
-  const setUserProfileSignals = useCallback((signals: UserProfileSignals) => {
-    setUserProfileSignalsState(signals);
-  }, []);
-
-  const saveOpportunityScore = useCallback((score: OpportunityScore) => {
-    setOpportunityScores((prev) => {
-      const without = prev.filter((s) => s.applicationId !== score.applicationId);
-      return [...without, score];
-    });
   }, []);
 
   const updateApplication = useCallback(
@@ -463,27 +384,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         applications,
         weeklyGoals,
-        tasks,
-        opportunityScores,
-        userProfileSignals,
         darkMode,
         session,
         authLoading,
         syncState,
         pendingDeletions,
         addApplication,
-        addApplicationAndReturn,
         updateApplication,
         scheduleDeleteApplication,
         undoDeleteApplication,
         updateWeeklyGoals,
         toggleChecklistItem,
-        createTasksForApplication,
-        toggleTaskStatus,
-        dismissTask,
-        regenerateTasksForApplication,
-        setUserProfileSignals,
-        saveOpportunityScore,
         signIn,
         signInWithGoogle,
         supportsGoogleSignIn: auth.supportsGoogleSignIn,

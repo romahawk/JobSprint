@@ -1,9 +1,18 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router";
+import { DashboardPage } from "./pages/dashboard/DashboardPage";
+import Dashboard from "./pages/Dashboard";
+import Analytics from "./pages/Analytics";
+import JobOsAssetsPage from "./pages/job-os/JobOsAssetsPage";
+import JobOsCompaniesPage from "./pages/job-os/JobOsCompaniesPage";
+import JobOsRolesPage from "./pages/job-os/JobOsRolesPage";
+import JobOsApplicationsPage from "./pages/job-os/JobOsApplicationsPage";
+import JobOsOutreachPage from "./pages/job-os/JobOsOutreachPage";
+import CvOptimizerPage from "../features/cvOptimizer/CvOptimizerPage";
+import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
-const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 const DashboardPage = lazy(() =>
   import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage }))
 );
@@ -15,9 +24,6 @@ const JobOsRolesPage = lazy(() => import("./pages/job-os/JobOsRolesPage"));
 const JobOsApplicationsPage = lazy(() => import("./pages/job-os/JobOsApplicationsPage"));
 const JobOsOutreachPage = lazy(() => import("./pages/job-os/JobOsOutreachPage"));
 const CvOptimizerPage = lazy(() => import("../features/cvOptimizer/CvOptimizerPage"));
-const JobOsSettingsPage = lazy(() =>
-  import("./pages/job-os/JobOsSettingsPage").then((m) => ({ default: m.default }))
-);
 const SignIn = lazy(() => import("./pages/SignIn"));
 const AfaCompliancePage = lazy(() => import("./pages/AfaCompliancePage"));
 
@@ -43,10 +49,6 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: lazyElement(<CommandCenter />),
-      },
-      {
-        path: "/dashboard",
         element: lazyElement(<DashboardPage />),
       },
       {
@@ -91,7 +93,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/job-os/settings",
-        element: lazyElement(<JobOsSettingsPage />),
+        Component: JobOsSettingsPage,
       },
     ],
   },

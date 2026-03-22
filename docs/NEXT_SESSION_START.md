@@ -22,9 +22,9 @@ Current production URL: https://job-sprint-ten.vercel.app/
 - Job OS import/export is available from the shared settings panel on all major Job OS surfaces.
 - Assets Vault now works like a CV constructor: up to 5 managed CV variants, one default CV, linked application visibility, inline script/template editing, and stable `cvAssetId` links behind application records.
 - Playwright now covers role-to-application logging, the Assets Vault CV constructor, CV file import, reusable asset delete confirmations, and Job OS import/export.
-- Route-level lazy loading and focused manual chunk splitting are in place, including a lazy-loaded pipeline board on the legacy dashboard and file-type-specific CV import parsing for PDF and DOCX.
-- Outward-facing artifact is now packaged as a hosted page: `/case-study/assets-vault`, with the repo markdown case study kept as source/supporting material.
-- The README now points at the hosted case study first, and Playwright CI uploads HTML + raw artifacts plus JUnit output for easier failure inspection.
+- Route-level lazy loading and focused manual chunk splitting are in place, including lazy-loaded CV import tooling on the Assets page; the initial entry bundle is smaller even though the heaviest shared vendor chunks still need attention.
+- Outward-facing artifact drafted: `docs/CASE_STUDY_ASSETS_VAULT.md`.
+- The case study is now linked from the README as the main proof-of-work artifact.
 
 ## Start Here (first 30 minutes)
 
@@ -44,14 +44,13 @@ Current production URL: https://job-sprint-ten.vercel.app/
    - Try to create the same application again and confirm duplicate prevention
 5. Reproduce the latest Assets Vault behavior in browser:
    - Upload a CV text file and confirm snapshot import feedback appears
-   - Upload one PDF CV and one DOCX CV and confirm the import path still succeeds after the parser split
    - Create, duplicate, rename, and delete a CV variant
    - Delete a script/template via modal and confirm toast feedback appears
    - Export then import Job OS state from settings and confirm reusable assets reappear
 6. Open or confirm Month 3 issues for:
-   - final reviewer-facing polish for the hosted case study
-   - deeper shared-vendor bundle reduction
-   - any extra CI/reporting polish beyond the new HTML/JUnit artifact setup
+   - screenshot-backed or hosted demo packaging for the case study
+   - deeper dependency-level bundle reduction
+   - CI/reporting polish for the growing Playwright suite
 
 **Command Centre & UX**
 - Command Centre replaces legacy Dashboard as primary surface: next-action engine,
@@ -70,7 +69,6 @@ Current production URL: https://job-sprint-ten.vercel.app/
 - `ci.yml`: `e2e` job (needs: build) installs chromium, builds, runs `test:e2e`, uploads
   report artifact on failure.
 - `vite.config.ts`: excludes `e2e/**` from Vitest runner.
-`[M3-06] perf: reduce remaining shared vendor bundle weight`
 
 **#38 — JSON export/import**
 - `src/app/services/jobOsExport.ts`: serialize / parse / download utilities, schema v1.
@@ -82,10 +80,6 @@ Current production URL: https://job-sprint-ten.vercel.app/
 **#39 — Case Study README**
 - Problem / solution / key-decisions table / live link / Loom placeholder added.
 - CHANGELOG updated.
-- The remaining shared `vendor` chunk is materially smaller or split more intentionally.
-- The default signed-in path avoids loading dependencies that are only needed for secondary workflows.
-- Existing unit, E2E, and build checks stay green.
-- Any chunking tradeoffs are captured in docs or commit notes.
 
 ## Open TODOs (require human action before merging PR)
 
@@ -113,6 +107,4 @@ Current production URL: https://job-sprint-ten.vercel.app/
 - Bundle size is high — do not add new heavy dependencies without checking impact.
 - Firestore rules must stay aligned with user-scoped document paths.
 - Browser privacy blockers (especially Brave Shields) can break Firebase connectivity.
-- Firestore authorization rules must stay aligned with user-scoped document path.
-- Bundle size improved after route splitting, dashboard DnD lazy loading, and file-type-specific CV import loading, but the shared vendor chunk is still the main pressure point.
 - CV labels are now safer because application rows carry `cvAssetId`, but older records may still rely on name fallback until more users touch or re-save them.

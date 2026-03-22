@@ -2,8 +2,6 @@
 
 Last updated: 2026-03-19
 
-Hosted demo page: https://job-sprint-ten.vercel.app/case-study/assets-vault
-
 ## Demo Surface
 
 ### Command Centre Context

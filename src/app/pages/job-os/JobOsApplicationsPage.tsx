@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -24,17 +24,21 @@ const STATUS_VALUES: ApplicationStatus[] = [
   "ghosted",
 ];
 
-function createDraft(
-  defaultCv?: { id: string; name: string }
-): Omit<JobOsApplication, "id" | "createdAt" | "updatedAt"> {
-  return {
+export default function JobOsApplicationsPage() {
+  const { session } = useApp();
+  const { applications, companies, roles, assets, addApplication, updateApplication, removeApplication, syncNotice, exportState, replaceState } = useJobOs(
+    session?.userId ?? null
+  );
+  const defaultCv = getDefaultCvAsset(assets.cvs);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>({
     dateApplied: new Date().toISOString().slice(0, 10),
     companyId: "",
     roleId: "",
     channel: "LinkedIn",
     cvAssetId: defaultCv?.id,
     cvVersion: defaultCv?.name ?? "",
-    status: "sent" as ApplicationStatus,
+    status: "sent",
     nextAction: "",
     notes: "",
     latestJobDescriptionId: undefined,
@@ -43,19 +47,13 @@ function createDraft(
     tailoredCvSummary: "",
     tailoredCvText: "",
     tailoredCvUpdatedAt: undefined,
-  };
-}
+  });
 
-export default function JobOsApplicationsPage() {
-  const { session } = useApp();
-  const { applications, companies, roles, assets, addApplication, updateApplication, removeApplication, syncNotice, exportState, replaceState } = useJobOs(
-    session?.userId ?? null
-  );
-  const defaultCv = getDefaultCvAsset(assets.cvs);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>(
-    () => createDraft(defaultCv)
-  );
+  useEffect(() => {
+    if (!draft.cvVersion && defaultCv?.name) {
+      setDraft((current) => ({ ...current, cvAssetId: defaultCv.id, cvVersion: defaultCv.name }));
+    }
+  }, [defaultCv?.name, draft.cvVersion]);
 
   const byId = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -102,7 +100,7 @@ export default function JobOsApplicationsPage() {
           </Select>
           <Input value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} placeholder="Channel" />
           <Select
-            value={draft.cvAssetId ?? defaultCv?.id ?? ""}
+            value={draft.cvAssetId ?? ""}
             onValueChange={(value) => {
               const selectedCv = assets.cvs.find((cv) => cv.id === value);
               setDraft((current) => ({
@@ -123,14 +121,8 @@ export default function JobOsApplicationsPage() {
           <Button
             onClick={() => {
               if (!draft.companyId) return;
-              const selectedCv = assets.cvs.find((cv) => cv.id === draft.cvAssetId) ?? defaultCv;
-              const nextDraft = {
-                ...draft,
-                cvAssetId: selectedCv?.id,
-                cvVersion: selectedCv?.name ?? draft.cvVersion,
-              };
-              void addApplication(nextDraft);
-              setDraft(createDraft(selectedCv));
+              void addApplication(draft);
+              setDraft((current) => ({ ...current, nextAction: "", notes: "" }));
             }}
           >
             Save

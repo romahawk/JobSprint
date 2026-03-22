@@ -20,7 +20,6 @@ const JobOsSettingsPage = lazy(() =>
 );
 const SignIn = lazy(() => import("./pages/SignIn"));
 const AfaCompliancePage = lazy(() => import("./pages/AfaCompliancePage"));
-const CaseStudyAssetsVaultPage = lazy(() => import("./pages/CaseStudyAssetsVaultPage"));
 
 function RouteFallback() {
   return (
@@ -35,10 +34,6 @@ function lazyElement(element: ReactNode) {
 }
 
 export const router = createBrowserRouter([
-  {
-    path: "/case-study/assets-vault",
-    element: lazyElement(<CaseStudyAssetsVaultPage />),
-  },
   {
     path: "/signin",
     element: lazyElement(<SignIn />),

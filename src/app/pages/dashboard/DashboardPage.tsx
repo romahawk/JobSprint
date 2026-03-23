@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useNavigate } from "react-router";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
@@ -8,7 +9,6 @@ import {
   getPipelineStats,
 } from "../../services/execution/nextActionEngine";
 import {
-  loadDashboardOnboardingStatus,
   persistDashboardOnboardingStatus,
   type DashboardOnboardingStatus,
 } from "../../services/dashboardOnboarding";
@@ -22,47 +22,12 @@ import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
 
 export function DashboardPage() {
   const { session } = useApp();
+  const navigate = useNavigate();
   const jobOsSync = useJobOsSyncSnapshot();
   const {
     companies, roles, applications, loading,
     addCompany, updateCompany, addRole,
   } = useJobOs(session?.userId ?? null);
-
-  const [onboardingStatus, setOnboardingStatus] =
-    useState<DashboardOnboardingStatus>("completed");
-  const [onboardingReady, setOnboardingReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      if (!session?.userId) {
-        if (!cancelled) {
-          setOnboardingStatus("completed");
-          setOnboardingReady(true);
-        }
-        return;
-      }
-
-      setOnboardingReady(false);
-      const storedStatus = await loadDashboardOnboardingStatus(session.userId);
-      if (cancelled) return;
-
-      if (storedStatus) {
-        setOnboardingStatus(storedStatus);
-        setOnboardingReady(true);
-        return;
-      }
-
-      setOnboardingStatus("pending");
-      setOnboardingReady(true);
-      void persistDashboardOnboardingStatus(session.userId, "pending");
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.userId]);
 
   const lastSyncedLabel = jobOsSync.lastSyncedAt
     ? new Date(jobOsSync.lastSyncedAt).toLocaleString()
@@ -103,12 +68,15 @@ export function DashboardPage() {
   );
 
   const isEmpty = !loading && companies.length === 0 && roles.length === 0;
-  const showFirstRun = onboardingReady && isEmpty && onboardingStatus === "pending";
-  const holdDashboard = isEmpty && !onboardingReady;
+  // Show the first-run screen whenever the workspace is provably empty — regardless
+  // of any stored onboarding status.  A user who dismissed before adding data, or
+  // who deleted all their records, should always land here rather than on an empty
+  // pipeline.  The "Skip" path navigates away so the user is never trapped.
+  const showFirstRun = isEmpty;
+  const holdDashboard = loading;
 
   function updateOnboardingStatus(nextStatus: DashboardOnboardingStatus) {
     if (!session?.userId) return;
-    setOnboardingStatus(nextStatus);
     void persistDashboardOnboardingStatus(session.userId, nextStatus);
   }
 
@@ -138,7 +106,10 @@ export function DashboardPage() {
             addCompany={addCompany}
             updateCompany={updateCompany}
             addRole={addRole}
-            onDismiss={() => updateOnboardingStatus("dismissed")}
+            onDismiss={() => {
+              updateOnboardingStatus("dismissed");
+              void navigate("/job-os/companies");
+            }}
             onComplete={() => updateOnboardingStatus("completed")}
           />
         ) : null}

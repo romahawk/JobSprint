@@ -1,14 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import Dashboard from "./pages/Dashboard";
-import Analytics from "./pages/Analytics";
-import JobOsAssetsPage from "./pages/job-os/JobOsAssetsPage";
-import JobOsCompaniesPage from "./pages/job-os/JobOsCompaniesPage";
-import JobOsRolesPage from "./pages/job-os/JobOsRolesPage";
-import JobOsApplicationsPage from "./pages/job-os/JobOsApplicationsPage";
-import JobOsOutreachPage from "./pages/job-os/JobOsOutreachPage";
-import CvOptimizerPage from "../features/cvOptimizer/CvOptimizerPage";
 import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -26,7 +17,6 @@ const JobOsOutreachPage = lazy(() => import("./pages/job-os/JobOsOutreachPage"))
 const CvOptimizerPage = lazy(() => import("../features/cvOptimizer/CvOptimizerPage"));
 const SignIn = lazy(() => import("./pages/SignIn"));
 const AfaCompliancePage = lazy(() => import("./pages/AfaCompliancePage"));
-const CaseStudyAssetsVaultPage = lazy(() => import("./pages/CaseStudyAssetsVaultPage"));
 
 function RouteFallback() {
   return (
@@ -41,10 +31,6 @@ function lazyElement(element: ReactNode) {
 }
 
 export const router = createBrowserRouter([
-  {
-    path: "/case-study/assets-vault",
-    element: lazyElement(<CaseStudyAssetsVaultPage />),
-  },
   {
     path: "/signin",
     element: lazyElement(<SignIn />),

@@ -1,6 +1,6 @@
 # Roadmap
 
-## Completion Snapshot (as of 2026-03-20)
+## Completion Snapshot (as of 2026-03-19)
 
 - Week 1 complete: baseline docs and repo clarity.
 - Week 2 complete: workflow governance and release discipline.
@@ -8,7 +8,6 @@
 - Week 4 complete: form hardening, safe delete with undo, smoke tests.
 - Month 2 complete: persistence boundary, migration helper, auth/session, sync status, Firebase integration.
 - Post-Month 2 UX hardening in progress: dashboard compression, clearer next actions, safer Role-to-Application handoff, and a stronger Assets Vault workflow.
-- Month 3 proof-of-work packaging is underway: a hosted Assets Vault case-study page now lives inside the app, and Playwright reporting artifacts are preserved in CI.
 - E2E suite stabilised: Probability Engine toggle test fixed to assert the correct empty-pipeline state message (all 15 Playwright tests now pass).
 
 ## Next 4 Weeks
@@ -123,16 +122,14 @@ Data entry errors decrease and destructive actions are safer.
 - Reduce accidental duplicate records by tightening Job OS handoff flows and surfacing explicit success/error feedback.
 - Turn Assets Vault into a compact CV constructor with stable CV-to-application linking, import/export support, reusable script/template editing, and explicit file-import feedback.
 - Publish proof-of-work artifacts and keep trimming initial bundle cost as richer Job OS surfaces are added.
-- Keep shrinking the remaining shared bundle weight now that CV import parsers load by file type and Playwright reporting is easier to inspect in CI.
 
 ## Next Session Starting Point
 
 The E2E suite is fully green (15/15 Playwright tests pass as of 2026-03-20).
 
-1. **Paste-link import engine** — continue implementation on `claude/paste-link-import-engine-Gmr65`; the branch exists and is pushed. Check the linked issue for remaining acceptance criteria.
+1. **Paste-link import engine** - continue implementation on `claude/paste-link-import-engine-Gmr65`; the branch exists and is pushed. Check the linked issue for remaining acceptance criteria.
 2. Continue bundle-size reduction: focus on the remaining shared `vendor` chunk and heavy always-on dependencies.
 3. Revisit Firebase/analytics loading boundaries to see whether more of the shared runtime can move off the default path.
-4. Review the hosted case-study page on Vercel and package any final reviewer-facing polish (additional screenshots or a short Loom).
 
 ## Freeze List
 

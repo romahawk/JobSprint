@@ -6,20 +6,13 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  outputDir: "test-results/playwright",
-  reporter: process.env.CI
-    ? [
-        ["github"],
-        ["html", { open: "never", outputFolder: "playwright-report" }],
-        ["junit", { outputFile: "test-results/playwright/junit.xml" }],
-      ]
-    : [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",
   },
   webServer: {
-    // Serves the production build — run `npm run build` before `npm run test:e2e`.
+    // Serves the production build - run `npm run build` before `npm run test:e2e`.
     // CI does this in a prior step.
     command: "npm run preview",
     url: "http://localhost:4173",

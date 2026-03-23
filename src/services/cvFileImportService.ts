@@ -1,8 +1,21 @@
-import { normalizeExtractedText, toImportResult } from "./cvImportShared";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import mammoth from "mammoth/mammoth.browser";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export interface CvImportResult {
   text: string;
   sourceLabel: string;
+}
+
+function normalizeExtractedText(value: string): string {
+  return value
+    .split(String.fromCharCode(0))
+    .join(" ")
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function buildGoogleDocTextExportUrl(value: string): string | null {
@@ -22,34 +35,77 @@ export async function importGoogleDocText(fileUrl: string): Promise<CvImportResu
     throw new Error(`Import failed (${response.status})`);
   }
 
-  return toImportResult(
-    await response.text(),
-    "Google Doc export",
-    "The linked Google Doc returned no readable text."
-  );
+  const text = normalizeExtractedText(await response.text());
+  if (!text) {
+    throw new Error("The linked Google Doc returned no readable text.");
+  }
+
+  return {
+    text,
+    sourceLabel: "Google Doc export",
+  };
+}
+
+async function extractTextFromPdf(file: File): Promise<CvImportResult> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    pages.push(pageText);
+  }
+
+  const text = normalizeExtractedText(pages.join("\n\n"));
+  if (!text) {
+    throw new Error("No readable text could be extracted from this PDF.");
+  }
+
+  return {
+    text,
+    sourceLabel: "PDF upload",
+  };
+}
+
+async function extractTextFromDocx(file: File): Promise<CvImportResult> {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  const text = normalizeExtractedText(result.value);
+  if (!text) {
+    throw new Error("No readable text could be extracted from this DOCX file.");
+  }
+
+  return {
+    text,
+    sourceLabel: "DOCX upload",
+  };
 }
 
 async function extractTextFromPlainText(file: File): Promise<CvImportResult> {
-  return toImportResult(
-    await file.text(),
-    "Text upload",
-    "The uploaded text file is empty."
-  );
+  const text = normalizeExtractedText(await file.text());
+  if (!text) {
+    throw new Error("The uploaded text file is empty.");
+  }
+
+  return {
+    text,
+    sourceLabel: "Text upload",
+  };
 }
 
 export async function extractTextFromCvFile(file: File): Promise<CvImportResult> {
   const name = file.name.toLowerCase();
 
   if (name.endsWith(".docx")) {
-    const { extractTextFromDocx } = await import("./cvDocxImportService");
     return extractTextFromDocx(file);
   }
-
   if (name.endsWith(".pdf")) {
-    const { extractTextFromPdf } = await import("./cvPdfImportService");
     return extractTextFromPdf(file);
   }
-
   if (name.endsWith(".txt") || file.type.startsWith("text/")) {
     return extractTextFromPlainText(file);
   }
@@ -57,4 +113,3 @@ export async function extractTextFromCvFile(file: File): Promise<CvImportResult>
   throw new Error("Unsupported file type. Upload a .docx, .pdf, or .txt CV.");
 }
 
-export { normalizeExtractedText };

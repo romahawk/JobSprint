@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
@@ -7,13 +7,17 @@ import {
   getHotOpportunities,
   getPipelineStats,
 } from "../../services/execution/nextActionEngine";
+import {
+  getOnboardingSkipped,
+  markOnboardingSkipped,
+} from "../../services/dashboardOnboarding";
 import { AppNavbar } from "../../components/AppNavbar";
 import { TodayPanel } from "../../components/dashboard/TodayPanel";
 import { HotOpportunities } from "../../components/dashboard/HotOpportunities";
 import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
-import { FirstRunScreen, ONBOARDING_SKIPPED_KEY } from "../../components/dashboard/FirstRunScreen";
+import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
 
 export function DashboardPage() {
   const { session } = useApp();
@@ -22,9 +26,21 @@ export function DashboardPage() {
     companies, roles, applications, loading,
     addCompany, updateCompany, addRole,
   } = useJobOs(session?.userId ?? null);
-  const [onboardingSkipped, setOnboardingSkipped] = useState(
-    () => localStorage.getItem(ONBOARDING_SKIPPED_KEY) === "1"
-  );
+
+  // null = still resolving, true/false = resolved
+  const [onboardingSkipped, setOnboardingSkipped] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const userId = session?.userId;
+    let cancelled = false;
+    const resolveSkipped = userId
+      ? getOnboardingSkipped(userId)
+      : Promise.resolve(localStorage.getItem("jobsprint_onboarding_skipped") === "1");
+    resolveSkipped.then((skipped) => {
+      if (!cancelled) setOnboardingSkipped(skipped);
+    });
+    return () => { cancelled = true; };
+  }, [session?.userId]);
 
   const lastSyncedLabel = jobOsSync.lastSyncedAt
     ? new Date(jobOsSync.lastSyncedAt).toLocaleString()
@@ -65,7 +81,8 @@ export function DashboardPage() {
   );
 
   const isEmpty = !loading && companies.length === 0 && roles.length === 0;
-  const showFirstRun = isEmpty && !onboardingSkipped;
+  // Only show when we know the flag is false (don't flash while loading)
+  const showFirstRun = isEmpty && onboardingSkipped === false;
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black">
@@ -87,7 +104,10 @@ export function DashboardPage() {
             addCompany={addCompany}
             updateCompany={updateCompany}
             addRole={addRole}
-            onSkip={() => setOnboardingSkipped(true)}
+            onSkip={() => {
+              setOnboardingSkipped(true);
+              if (session?.userId) markOnboardingSkipped(session.userId);
+            }}
           />
         ) : null}
 

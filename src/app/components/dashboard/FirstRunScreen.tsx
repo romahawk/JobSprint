@@ -198,5 +198,3 @@ export function FirstRunScreen({
     </div>
   );
 }
-
-export { ONBOARDING_SKIPPED_KEY };

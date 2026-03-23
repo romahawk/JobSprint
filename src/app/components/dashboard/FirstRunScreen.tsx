@@ -136,7 +136,7 @@ export function FirstRunScreen({
   const isAnalyzing = step === "analyzing";
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col justify-center px-4 py-4">
+    <div className="flex min-h-[calc(100vh-7rem)] flex-col justify-center px-4">
       {step === "input" || step === "analyzing" ? (
         <div className="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_36%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(241,245,249,0.96))] p-6 shadow-[0_30px_90px_-45px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.20),_transparent_32%),linear-gradient(135deg,_rgba(10,15,30,0.98),_rgba(5,8,18,0.96))]">

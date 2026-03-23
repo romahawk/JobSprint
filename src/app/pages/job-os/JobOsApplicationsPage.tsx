@@ -51,9 +51,12 @@ export default function JobOsApplicationsPage() {
 
   useEffect(() => {
     if (!draft.cvVersion && defaultCv?.name) {
-      setDraft((current) => ({ ...current, cvAssetId: defaultCv.id, cvVersion: defaultCv.name }));
+      const { id, name } = defaultCv;
+      void Promise.resolve().then(() =>
+        setDraft((current) => ({ ...current, cvAssetId: id, cvVersion: name }))
+      );
     }
-  }, [defaultCv?.name, draft.cvVersion]);
+  }, [defaultCv, draft.cvVersion]);
 
   const byId = useMemo(() => new Set(selectedIds), [selectedIds]);
 

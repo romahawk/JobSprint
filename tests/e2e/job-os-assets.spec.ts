@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 const E2E_EMAIL = "e2e@example.com";
 const E2E_USER_ID = "user_e2e_example_com";

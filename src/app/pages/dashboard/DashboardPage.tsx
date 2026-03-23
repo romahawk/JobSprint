@@ -7,6 +7,11 @@ import {
   getHotOpportunities,
   getPipelineStats,
 } from "../../services/execution/nextActionEngine";
+import {
+  loadDashboardOnboardingStatus,
+  persistDashboardOnboardingStatus,
+  type DashboardOnboardingStatus,
+} from "../../services/dashboardOnboarding";
 import { AppNavbar } from "../../components/AppNavbar";
 import { TodayPanel } from "../../components/dashboard/TodayPanel";
 import { HotOpportunities } from "../../components/dashboard/HotOpportunities";
@@ -14,11 +19,6 @@ import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
 import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
-import {
-  loadDashboardOnboardingStatus,
-  persistDashboardOnboardingStatus,
-  type DashboardOnboardingStatus,
-} from "../../services/dashboardOnboarding";
 
 export function DashboardPage() {
   const { session } = useApp();
@@ -27,20 +27,23 @@ export function DashboardPage() {
     companies, roles, applications, loading,
     addCompany, updateCompany, addRole,
   } = useJobOs(session?.userId ?? null);
+
   const [onboardingStatus, setOnboardingStatus] =
     useState<DashboardOnboardingStatus>("completed");
   const [onboardingReady, setOnboardingReady] = useState(false);
 
   useEffect(() => {
-    if (!session?.userId) {
-      setOnboardingStatus("completed");
-      setOnboardingReady(true);
-      return;
-    }
-
     let cancelled = false;
 
     void (async () => {
+      if (!session?.userId) {
+        if (!cancelled) {
+          setOnboardingStatus("completed");
+          setOnboardingReady(true);
+        }
+        return;
+      }
+
       setOnboardingReady(false);
       const storedStatus = await loadDashboardOnboardingStatus(session.userId);
       if (cancelled) return;

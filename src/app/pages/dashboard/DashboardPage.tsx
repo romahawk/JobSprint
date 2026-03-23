@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
@@ -13,7 +13,12 @@ import { HotOpportunities } from "../../components/dashboard/HotOpportunities";
 import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
-import { FirstRunScreen, ONBOARDING_SKIPPED_KEY } from "../../components/dashboard/FirstRunScreen";
+import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
+import {
+  loadDashboardOnboardingStatus,
+  persistDashboardOnboardingStatus,
+  type DashboardOnboardingStatus,
+} from "../../services/dashboardOnboarding";
 
 export function DashboardPage() {
   const { session } = useApp();
@@ -22,9 +27,39 @@ export function DashboardPage() {
     companies, roles, applications, loading,
     addCompany, updateCompany, addRole,
   } = useJobOs(session?.userId ?? null);
-  const [onboardingSkipped, setOnboardingSkipped] = useState(
-    () => localStorage.getItem(ONBOARDING_SKIPPED_KEY) === "1"
-  );
+  const [onboardingStatus, setOnboardingStatus] =
+    useState<DashboardOnboardingStatus>("completed");
+  const [onboardingReady, setOnboardingReady] = useState(false);
+
+  useEffect(() => {
+    if (!session?.userId) {
+      setOnboardingStatus("completed");
+      setOnboardingReady(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      setOnboardingReady(false);
+      const storedStatus = await loadDashboardOnboardingStatus(session.userId);
+      if (cancelled) return;
+
+      if (storedStatus) {
+        setOnboardingStatus(storedStatus);
+        setOnboardingReady(true);
+        return;
+      }
+
+      setOnboardingStatus("pending");
+      setOnboardingReady(true);
+      void persistDashboardOnboardingStatus(session.userId, "pending");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.userId]);
 
   const lastSyncedLabel = jobOsSync.lastSyncedAt
     ? new Date(jobOsSync.lastSyncedAt).toLocaleString()
@@ -65,7 +100,14 @@ export function DashboardPage() {
   );
 
   const isEmpty = !loading && companies.length === 0 && roles.length === 0;
-  const showFirstRun = isEmpty && !onboardingSkipped;
+  const showFirstRun = onboardingReady && isEmpty && onboardingStatus === "pending";
+  const holdDashboard = isEmpty && !onboardingReady;
+
+  function updateOnboardingStatus(nextStatus: DashboardOnboardingStatus) {
+    if (!session?.userId) return;
+    setOnboardingStatus(nextStatus);
+    void persistDashboardOnboardingStatus(session.userId, nextStatus);
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black">
@@ -81,18 +123,25 @@ export function DashboardPage() {
       />
 
       <main className="max-w-[1800px] mx-auto px-4 sm:px-6 py-6">
+        {holdDashboard ? (
+          <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center text-sm text-neutral-400 dark:text-neutral-600">
+            Loading workspace...
+          </div>
+        ) : null}
+
         {showFirstRun ? (
           <FirstRunScreen
             existingCompanies={companies}
             addCompany={addCompany}
             updateCompany={updateCompany}
             addRole={addRole}
-            onSkip={() => setOnboardingSkipped(true)}
+            onDismiss={() => updateOnboardingStatus("dismissed")}
+            onComplete={() => updateOnboardingStatus("completed")}
           />
         ) : null}
 
         {/* 2-column grid on large screens */}
-        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6${showFirstRun ? " hidden" : ""}`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6${showFirstRun || holdDashboard ? " hidden" : ""}`}>
           {/* Left — primary action column */}
           <div className="lg:col-span-2 space-y-6">
             <TodayPanel actions={actions} isLoading={loading} />

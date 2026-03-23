@@ -1,14 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import Dashboard from "./pages/Dashboard";
-import Analytics from "./pages/Analytics";
-import JobOsAssetsPage from "./pages/job-os/JobOsAssetsPage";
-import JobOsCompaniesPage from "./pages/job-os/JobOsCompaniesPage";
-import JobOsRolesPage from "./pages/job-os/JobOsRolesPage";
-import JobOsApplicationsPage from "./pages/job-os/JobOsApplicationsPage";
-import JobOsOutreachPage from "./pages/job-os/JobOsOutreachPage";
-import CvOptimizerPage from "../features/cvOptimizer/CvOptimizerPage";
 import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";

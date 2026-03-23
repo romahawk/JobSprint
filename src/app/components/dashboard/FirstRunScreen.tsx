@@ -21,7 +21,6 @@ import type {
   NormalizedRoleDraft,
 } from "../../services/ingestion/types";
 import type { JobOsCompany, JobOsRole } from "../../types/jobOs";
-import type { DashboardOnboardingStatus } from "../../services/dashboardOnboarding";
 
 type Step = "input" | "analyzing" | "reviewing" | "saving";
 

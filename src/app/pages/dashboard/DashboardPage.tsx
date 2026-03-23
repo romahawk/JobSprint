@@ -8,8 +8,9 @@ import {
   getPipelineStats,
 } from "../../services/execution/nextActionEngine";
 import {
-  getOnboardingSkipped,
-  markOnboardingSkipped,
+  loadDashboardOnboardingStatus,
+  persistDashboardOnboardingStatus,
+  type DashboardOnboardingStatus,
 } from "../../services/dashboardOnboarding";
 import { AppNavbar } from "../../components/AppNavbar";
 import { TodayPanel } from "../../components/dashboard/TodayPanel";
@@ -18,11 +19,6 @@ import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
 import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
-import {
-  loadDashboardOnboardingStatus,
-  persistDashboardOnboardingStatus,
-  type DashboardOnboardingStatus,
-} from "../../services/dashboardOnboarding";
 
 export function DashboardPage() {
   const { session } = useApp();
@@ -32,33 +28,22 @@ export function DashboardPage() {
     addCompany, updateCompany, addRole,
   } = useJobOs(session?.userId ?? null);
 
-  // null = still resolving, true/false = resolved
-  const [onboardingSkipped, setOnboardingSkipped] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const userId = session?.userId;
-    let cancelled = false;
-    const resolveSkipped = userId
-      ? getOnboardingSkipped(userId)
-      : Promise.resolve(localStorage.getItem("jobsprint_onboarding_skipped") === "1");
-    resolveSkipped.then((skipped) => {
-      if (!cancelled) setOnboardingSkipped(skipped);
-    });
-    return () => { cancelled = true; };
   const [onboardingStatus, setOnboardingStatus] =
     useState<DashboardOnboardingStatus>("completed");
   const [onboardingReady, setOnboardingReady] = useState(false);
 
   useEffect(() => {
-    if (!session?.userId) {
-      setOnboardingStatus("completed");
-      setOnboardingReady(true);
-      return;
-    }
-
     let cancelled = false;
 
     void (async () => {
+      if (!session?.userId) {
+        if (!cancelled) {
+          setOnboardingStatus("completed");
+          setOnboardingReady(true);
+        }
+        return;
+      }
+
       setOnboardingReady(false);
       const storedStatus = await loadDashboardOnboardingStatus(session.userId);
       if (cancelled) return;
@@ -118,8 +103,6 @@ export function DashboardPage() {
   );
 
   const isEmpty = !loading && companies.length === 0 && roles.length === 0;
-  // Only show when we know the flag is false (don't flash while loading)
-  const showFirstRun = isEmpty && onboardingSkipped === false;
   const showFirstRun = onboardingReady && isEmpty && onboardingStatus === "pending";
   const holdDashboard = isEmpty && !onboardingReady;
 
@@ -155,10 +138,6 @@ export function DashboardPage() {
             addCompany={addCompany}
             updateCompany={updateCompany}
             addRole={addRole}
-            onSkip={() => {
-              setOnboardingSkipped(true);
-              if (session?.userId) markOnboardingSkipped(session.userId);
-            }}
             onDismiss={() => updateOnboardingStatus("dismissed")}
             onComplete={() => updateOnboardingStatus("completed")}
           />

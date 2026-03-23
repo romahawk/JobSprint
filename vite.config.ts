@@ -17,6 +17,14 @@ export default defineConfig({
     },
   },
 
+  // Bind preview server to IPv4 loopback so Playwright's health-check URL
+  // (http://127.0.0.1:4173) resolves correctly on Linux CI runners where
+  // 'localhost' resolves to ::1 (IPv6) by default.
+  preview: {
+    host: '127.0.0.1',
+    port: 4173,
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 

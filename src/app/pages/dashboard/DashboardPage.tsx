@@ -77,7 +77,6 @@ export function DashboardPage() {
 
   function updateOnboardingStatus(nextStatus: DashboardOnboardingStatus) {
     if (!session?.userId) return;
-    setOnboardingStatus(nextStatus);
     void persistDashboardOnboardingStatus(session.userId, nextStatus);
   }
 

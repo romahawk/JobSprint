@@ -136,39 +136,39 @@ export function FirstRunScreen({
   const isAnalyzing = step === "analyzing";
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col justify-center px-4 py-10">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col justify-center px-4 py-4">
       {step === "input" || step === "analyzing" ? (
-        <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_36%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(241,245,249,0.96))] p-8 shadow-[0_30px_90px_-45px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.20),_transparent_32%),linear-gradient(135deg,_rgba(10,15,30,0.98),_rgba(5,8,18,0.96))]">
-            <div className="max-w-2xl space-y-6">
+        <div className="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+          <section className="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_36%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(241,245,249,0.96))] p-6 shadow-[0_30px_90px_-45px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.20),_transparent_32%),linear-gradient(135deg,_rgba(10,15,30,0.98),_rgba(5,8,18,0.96))]">
+            <div className="max-w-2xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-300/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 First Login Flow
               </div>
 
-              <div className="space-y-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/12 shadow-inner shadow-primary/10">
-                  <Link2 className="h-8 w-8 text-primary" />
+              <div className="space-y-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/12 shadow-inner shadow-primary/10">
+                  <Link2 className="h-5 w-5 text-primary" />
                 </div>
-                <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                <h1 className="max-w-xl text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
                   Start with one real job and let JobSprint build the system around it
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
+                <p className="max-w-2xl text-sm leading-5 text-slate-600 dark:text-slate-300">
                   Instead of dropping you into an empty workspace, this first-login flow
                   uses your first opportunity to create context across the pipeline.
                   Import one posting now, then move naturally into Job OS, CV fit, and CV tailoring.
                 </p>
               </div>
 
-              <div className="grid gap-3">
+              <div className="grid gap-2">
                 {ONBOARDING_STEPS.map((item, index) => {
                   const Icon = item.icon;
                   return (
                     <div
                       key={item.title}
-                      className="flex items-start gap-4 rounded-2xl border border-white/70 bg-white/70 p-4 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/45"
+                      className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/70 p-3 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/45"
                     >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-950">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-950">
                         {index + 1}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -176,7 +176,7 @@ export function FirstRunScreen({
                           <Icon className="h-4 w-4 text-primary" />
                           {item.title}
                         </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        <p className="mt-0.5 text-sm leading-5 text-slate-600 dark:text-slate-300">
                           {item.description}
                         </p>
                       </div>
@@ -185,16 +185,16 @@ export function FirstRunScreen({
                 })}
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
                 <Link
                   to="/job-os/roles"
-                  className="rounded-full border border-slate-300/80 px-4 py-2 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
+                  className="rounded-full border border-slate-300/80 px-3 py-1.5 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
                 >
                   Preview Job OS
                 </Link>
                 <Link
                   to="/cv-optimizer"
-                  className="rounded-full border border-slate-300/80 px-4 py-2 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
+                  className="rounded-full border border-slate-300/80 px-3 py-1.5 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
                 >
                   Explore CV Fit / Tailor
                 </Link>
@@ -202,33 +202,33 @@ export function FirstRunScreen({
             </div>
           </section>
 
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-950">
-            <div className="space-y-6">
-              <div className="space-y-2">
+          <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-950">
+            <div className="space-y-4">
+              <div className="space-y-1">
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
                   Guided Setup
                 </div>
-                <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+                <h2 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
                   Import your first opportunity
                 </h2>
-                <p className="text-sm leading-6 text-neutral-500 dark:text-neutral-400">
+                <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">
                   Paste a job URL and we will extract the role, attach the job description,
                   and give you a useful first record to build from.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/50">
                 <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   What this unlocks
                 </div>
-                <div className="mt-2 grid gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <div className="mt-1.5 grid gap-1.5 text-sm text-slate-600 dark:text-slate-300">
                   <div>Job OS gets your first company and role.</div>
                   <div>You can open CV Fit with the same role context.</div>
                   <div>Your dashboard starts surfacing meaningful next actions.</div>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <Input
                   placeholder="https://boards.greenhouse.io/... or https://jobs.ashbyhq.com/..."
                   value={url}
@@ -237,14 +237,14 @@ export function FirstRunScreen({
                     if (e.key === "Enter") handleAnalyze();
                   }}
                   disabled={isAnalyzing}
-                  className="h-12 text-base"
+                  className="h-10 text-base"
                   autoFocus
                 />
                 <Button
                   size="lg"
                   onClick={handleAnalyze}
                   disabled={!url.trim() || isAnalyzing}
-                  className="h-12 w-full gap-2"
+                  className="h-10 w-full gap-2"
                 >
                   {isAnalyzing ? (
                     "Analyzing..."
@@ -262,12 +262,12 @@ export function FirstRunScreen({
             </div>
 
             {error ? (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
                 {error}
               </div>
             ) : null}
 
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5 dark:border-slate-800">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
               <button
                 onClick={onDismiss}
                 className="text-sm text-neutral-400 underline-offset-2 hover:text-neutral-600 hover:underline dark:hover:text-neutral-300"

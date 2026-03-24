@@ -4,13 +4,16 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
-  timeout: 15_000,
+  globalTimeout: process.env.CI ? 5 * 60 * 1000 : undefined,
+  timeout: 20_000,
+  expect: { timeout: 10_000 },
   use: {
     baseURL: "http://127.0.0.1:4173",
     trace: "on-first-retry",
+    actionTimeout: 10_000,
     navigationTimeout: 10_000,
   },
   webServer: {

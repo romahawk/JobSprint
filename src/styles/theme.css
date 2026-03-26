@@ -186,6 +186,20 @@
     scrollbar-gutter: stable;
   }
 
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  body[data-scroll-locked]:has([data-slot="select-content"]) {
+    overflow: auto !important;
+    overscroll-behavior: auto !important;
+    position: static !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    --removed-body-scroll-bar-size: 0px;
+  }
+
   h1 {
     font-size: var(--text-2xl);
     font-weight: 700;

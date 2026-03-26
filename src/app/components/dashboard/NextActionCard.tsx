@@ -22,19 +22,20 @@ const TYPE_COLORS: Record<NextAction["type"], string> = {
 interface NextActionCardProps {
   action: NextAction;
   rank: number;
+  compact?: boolean;
 }
 
-export function NextActionCard({ action, rank }: NextActionCardProps) {
+export function NextActionCard({ action, rank, compact = false }: NextActionCardProps) {
   return (
     <div
-      className={`flex items-start gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 border-l-4 ${TYPE_COLORS[action.type]} bg-white dark:bg-neutral-900 p-3 shadow-sm`}
+      className={`flex items-start gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 border-l-4 ${TYPE_COLORS[action.type]} bg-white dark:bg-neutral-900 shadow-sm ${
+        compact ? "p-2.5" : "p-3"
+      }`}
     >
-      {/* Rank */}
       <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
         {rank}
       </span>
 
-      {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           {action.companyName && (
@@ -48,13 +49,12 @@ export function NextActionCard({ action, rank }: NextActionCardProps) {
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2">
+        <p className={`mt-0.5 text-xs text-neutral-500 dark:text-neutral-400 ${compact ? "line-clamp-1" : "line-clamp-2"}`}>
           {action.reason}
         </p>
       </div>
 
-      {/* Right side */}
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
+      <div className={`flex shrink-0 flex-col items-end ${compact ? "gap-1" : "gap-1.5"}`}>
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_STYLES[action.priority]}`}
         >
@@ -62,7 +62,7 @@ export function NextActionCard({ action, rank }: NextActionCardProps) {
         </span>
         <Link
           to={action.href}
-          className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          className={`flex items-center gap-1 font-medium text-primary hover:underline ${compact ? "text-[11px]" : "text-xs"}`}
         >
           {action.actionLabel}
           <ArrowRight className="h-3 w-3" />

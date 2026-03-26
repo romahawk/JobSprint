@@ -31,13 +31,13 @@ export function ApplicationCard({
     <div
       ref={drag}
       onClick={onClick}
-      className={`cursor-pointer rounded-lg border border-border border-l-4 bg-card p-2.5 transition-all hover:shadow-sm ${
+      className={`cursor-pointer rounded-xl border border-border border-l-4 bg-card p-3 transition-all hover:-translate-y-0.5 hover:shadow-md ${
         PRIORITY_COLORS[application.priority]
       } ${isDragging ? "opacity-40 scale-95" : "opacity-100"}`}
     >
-      <div className="mb-1.5 flex items-start justify-between gap-2">
+      <div className="mb-2 flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h4 className="truncate text-[13px] font-medium leading-tight text-neutral-900 dark:text-neutral-100">
+          <h4 className="truncate text-[13px] font-semibold leading-tight text-neutral-900 dark:text-neutral-100">
             {application.company}
           </h4>
           <p className="truncate text-[11px] leading-tight text-neutral-500 dark:text-neutral-400">
@@ -58,12 +58,12 @@ export function ApplicationCard({
       </div>
 
       <div className="flex items-center justify-between gap-2 text-[10px] text-neutral-500 dark:text-neutral-400">
-        <span>{new Date(application.dateApplied).toLocaleDateString()}</span>
+        <span className="truncate">{new Date(application.dateApplied).toLocaleDateString()}</span>
         {application.notes && <StickyNote className="h-3 w-3 shrink-0" />}
       </div>
 
       {application.salary && (
-        <div className="mt-1.5 truncate text-[10px] text-neutral-600 dark:text-neutral-300">
+        <div className="mt-2 truncate text-[10px] text-neutral-600 dark:text-neutral-300">
           {application.salary}
         </div>
       )}

@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import {
-  ArrowRight,
-  BriefcaseBusiness,
-  Link2,
-  Sparkles,
-  Workflow,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowRight, Link2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { PasteLinkReviewStep } from "../job-os/PasteLinkReviewStep";
 import {
   normalizeImportResult,
@@ -37,27 +32,6 @@ interface FirstRunScreenProps {
   onComplete: () => void;
 }
 
-const ONBOARDING_STEPS = [
-  {
-    title: "Capture the role into Job OS",
-    description:
-      "Paste one posting and JobSprint creates the company, role, and job description context for your pipeline.",
-    icon: BriefcaseBusiness,
-  },
-  {
-    title: "See fit before you apply",
-    description:
-      "Use the saved role in CV Fit to understand strengths, gaps, and the positioning that will matter most.",
-    icon: Workflow,
-  },
-  {
-    title: "Tailor with real context",
-    description:
-      "Move into CV Tailor when you are ready to adapt your best CV version to that exact opportunity.",
-    icon: Sparkles,
-  },
-] as const;
-
 export function FirstRunScreen({
   existingCompanies,
   addCompany,
@@ -70,6 +44,7 @@ export function FirstRunScreen({
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<NormalizedImportResult | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   async function handleAnalyze() {
     const trimmed = url.trim();
@@ -83,7 +58,7 @@ export function FirstRunScreen({
       setStep("reviewing");
     } catch {
       setError(
-        "Could not read that URL. Try pasting the job description text in the full importer instead."
+        "Could not read that URL. Try entering the company and role manually if the posting is blocked."
       );
       setStep("input");
     }
@@ -136,153 +111,83 @@ export function FirstRunScreen({
   const isAnalyzing = step === "analyzing";
 
   return (
-    <div className="flex min-h-[calc(100vh-7rem)] flex-col justify-center px-4">
+    <div className="flex min-h-[calc(100vh-7.5rem)] items-center justify-center px-4 py-4">
       {step === "input" || step === "analyzing" ? (
-        <div className="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_36%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(241,245,249,0.96))] p-6 shadow-[0_30px_90px_-45px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.20),_transparent_32%),linear-gradient(135deg,_rgba(10,15,30,0.98),_rgba(5,8,18,0.96))]">
-            <div className="max-w-2xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-300/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                First Login Flow
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/12 shadow-inner shadow-primary/10">
-                  <Link2 className="h-5 w-5 text-primary" />
-                </div>
-                <h1 className="max-w-xl text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                  Start with one real job and let JobSprint build the system around it
-                </h1>
-                <p className="max-w-2xl text-sm leading-5 text-slate-600 dark:text-slate-300">
-                  Instead of dropping you into an empty workspace, this first-login flow
-                  uses your first opportunity to create context across the pipeline.
-                  Import one posting now, then move naturally into Job OS, CV fit, and CV tailoring.
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                {ONBOARDING_STEPS.map((item, index) => {
-                  const Icon = item.icon;
-                  return (
-                    <div
-                      key={item.title}
-                      className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/70 p-3 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/45"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-950">
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          <Icon className="h-4 w-4 text-primary" />
-                          {item.title}
-                        </div>
-                        <p className="mt-0.5 text-sm leading-5 text-slate-600 dark:text-slate-300">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Link
-                  to="/job-os/roles"
-                  className="rounded-full border border-slate-300/80 px-3 py-1.5 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
-                >
-                  Preview Job OS
-                </Link>
-                <Link
-                  to="/cv-optimizer"
-                  className="rounded-full border border-slate-300/80 px-3 py-1.5 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
-                >
-                  Explore CV Fit / Tailor
-                </Link>
-              </div>
+        <section className="w-full max-w-3xl rounded-[2rem] border border-slate-200 bg-white px-6 py-8 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-950 sm:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+              <Link2 className="h-5 w-5 text-primary" />
             </div>
-          </section>
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-[2rem]">
+              Paste your first job link
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Start with one real opportunity and JobSprint will build the first company and role context around it.
+            </p>
 
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-950">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-                  Guided Setup
-                </div>
-                <h2 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-                  Import your first opportunity
-                </h2>
-                <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">
-                  Paste a job URL and we will extract the role, attach the job description,
-                  and give you a useful first record to build from.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/50">
-                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  What this unlocks
-                </div>
-                <div className="mt-1.5 grid gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-                  <div>Job OS gets your first company and role.</div>
-                  <div>You can open CV Fit with the same role context.</div>
-                  <div>Your dashboard starts surfacing meaningful next actions.</div>
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                <Input
-                  placeholder="https://boards.greenhouse.io/... or https://jobs.ashbyhq.com/..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAnalyze();
-                  }}
-                  disabled={isAnalyzing}
-                  className="h-10 text-base"
-                  autoFocus
-                />
-                <Button
-                  size="lg"
-                  onClick={handleAnalyze}
-                  disabled={!url.trim() || isAnalyzing}
-                  className="h-10 w-full gap-2"
-                >
-                  {isAnalyzing ? (
-                    "Analyzing..."
-                  ) : (
-                    <>
-                      Import first role <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs leading-5 text-neutral-400">
-                  Supports Greenhouse, Lever, Ashby, Himalayas, and most ATS pages.
-                  For LinkedIn, paste the job description text after clicking import.
-                </p>
-              </div>
+            <div className="mt-8 space-y-3 text-left">
+              <Input
+                placeholder="https://boards.greenhouse.io/... or https://jobs.ashbyhq.com/..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAnalyze();
+                }}
+                disabled={isAnalyzing}
+                className="h-12 rounded-xl px-4 text-base"
+                autoFocus
+              />
+              <Button
+                size="lg"
+                onClick={handleAnalyze}
+                disabled={!url.trim() || isAnalyzing}
+                className="h-12 w-full rounded-xl gap-2 text-sm font-semibold"
+              >
+                {isAnalyzing ? (
+                  "Analyzing..."
+                ) : (
+                  <>
+                    Import first job
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+              <p className="text-center text-xs leading-5 text-neutral-500">
+                Supports LinkedIn, Greenhouse, Lever, Ashby, Himalayas, and most career pages.
+              </p>
             </div>
 
             {error ? (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
                 {error}
               </div>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
-              <button
-                onClick={onDismiss}
-                className="text-sm text-neutral-400 underline-offset-2 hover:text-neutral-600 hover:underline dark:hover:text-neutral-300"
-              >
-                Skip for now and set up manually
-              </button>
-              <Link
-                to="/job-os/companies"
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Open manual setup
-              </Link>
+            <div className="mt-5 flex items-center justify-center">
+              <Button variant="ghost" asChild className="text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200">
+                <Link to="/job-os/companies" onClick={onDismiss}>
+                  Enter manually
+                </Link>
+              </Button>
             </div>
-          </section>
-        </div>
+
+            <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/80 text-left dark:border-slate-800 dark:bg-slate-900/40">
+                <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                  <span>How it works</span>
+                  <span className="ml-auto text-neutral-400">
+                    {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t border-slate-200 px-4 py-3 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                    We extract the company, role, and job description from the link, then send you to a quick review step before anything is saved.
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          </div>
+        </section>
       ) : (
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <div className="mb-5 space-y-1">
@@ -290,7 +195,7 @@ export function FirstRunScreen({
               Review extracted details
             </h2>
             <p className="text-sm text-neutral-500">
-              Confirm what we found, then save to unlock Job OS, fit analysis, and CV tailoring from the same role context.
+              Confirm what we found, then save your first company and role.
             </p>
           </div>
           {result ? (

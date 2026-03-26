@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { ChevronDown, ChevronUp, Layers3 } from "lucide-react";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
@@ -13,20 +14,28 @@ import {
   type DashboardOnboardingStatus,
 } from "../../services/dashboardOnboarding";
 import { AppNavbar } from "../../components/AppNavbar";
+import { FocusedNextAction } from "../../components/dashboard/FocusedNextAction";
 import { TodayPanel } from "../../components/dashboard/TodayPanel";
 import { HotOpportunities } from "../../components/dashboard/HotOpportunities";
 import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
 import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 
 export function DashboardPage() {
   const { session } = useApp();
   const navigate = useNavigate();
   const jobOsSync = useJobOsSyncSnapshot();
+  const [supportOpen, setSupportOpen] = useState(false);
   const {
-    companies, roles, applications, loading,
-    addCompany, updateCompany, addRole,
+    companies,
+    roles,
+    applications,
+    loading,
+    addCompany,
+    updateCompany,
+    addRole,
   } = useJobOs(session?.userId ?? null);
 
   const lastSyncedLabel = jobOsSync.lastSyncedAt
@@ -62,18 +71,27 @@ export function DashboardPage() {
   const stats = useMemo(
     () =>
       loading
-        ? { totalCompanies: 0, totalRoles: 0, toApply: 0, applied: 0, inReview: 0, interviewing: 0, offers: 0, conversionRate: 0, responseRate: 0, interviewRate: 0, offerRate: 0 }
+        ? {
+            totalCompanies: 0,
+            totalRoles: 0,
+            toApply: 0,
+            applied: 0,
+            inReview: 0,
+            interviewing: 0,
+            offers: 0,
+            conversionRate: 0,
+            responseRate: 0,
+            interviewRate: 0,
+            offerRate: 0,
+          }
         : getPipelineStats(companies, roles, applications),
     [companies, roles, applications, loading]
   );
 
   const isEmpty = !loading && companies.length === 0 && roles.length === 0;
-  // Show the first-run screen whenever the workspace is provably empty — regardless
-  // of any stored onboarding status.  A user who dismissed before adding data, or
-  // who deleted all their records, should always land here rather than on an empty
-  // pipeline.  The "Skip" path navigates away so the user is never trapped.
   const showFirstRun = isEmpty;
   const holdDashboard = loading;
+  const primaryAction = actions[0];
 
   function updateOnboardingStatus(nextStatus: DashboardOnboardingStatus) {
     if (!session?.userId) return;
@@ -93,7 +111,7 @@ export function DashboardPage() {
         settingsContent={settingsContent}
       />
 
-      <main className="max-w-[1800px] mx-auto px-4 sm:px-6 py-6">
+      <main className="mx-auto max-w-[1800px] px-4 py-5 sm:px-6">
         {holdDashboard ? (
           <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center text-sm text-neutral-400 dark:text-neutral-600">
             Loading workspace...
@@ -114,22 +132,52 @@ export function DashboardPage() {
           />
         ) : null}
 
-        {/* 2-column grid on large screens */}
-        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6${showFirstRun || holdDashboard ? " hidden" : ""}`}>
-          {/* Left — primary action column */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className={`grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_360px] xl:grid-cols-[minmax(0,1.8fr)_380px]${showFirstRun || holdDashboard ? " hidden" : ""}`}>
+          <div className="min-w-0 space-y-4">
+            <FocusedNextAction
+              action={primaryAction}
+              isLoading={loading}
+              queueSize={Math.max(actions.length - 1, 0)}
+            />
             <TodayPanel actions={actions} isLoading={loading} />
           </div>
 
-          {/* Right — context column */}
-          <div className="lg:self-start">
-            <div className="space-y-6 lg:sticky lg:top-24">
+          <div className="min-w-0 lg:self-start">
+            <div className="space-y-4 lg:sticky lg:top-24">
               <QuickActions />
               <PipelineStats stats={stats} isLoading={loading} />
               <ProbabilityPanel stats={stats} isLoading={loading} />
-              {(loading || hotOpportunities.length > 0) && (
-                <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
-              )}
+              <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>
+                <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                  <CollapsibleTrigger className="w-full text-left">
+                    <div className="flex items-center gap-2 px-4 py-3">
+                      <Layers3 className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                      <div>
+                        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-400">
+                          Supporting Signals
+                        </h2>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                          Use these when you want more context, not before.
+                        </p>
+                      </div>
+                      <span className="ml-auto text-neutral-400">
+                        {supportOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </span>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="border-t border-neutral-200 px-4 py-4 dark:border-neutral-800">
+                      {(loading || hotOpportunities.length > 0) ? (
+                        <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
+                      ) : (
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          No additional hot opportunities to surface right now.
+                        </p>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </section>
+              </Collapsible>
             </div>
           </div>
         </div>

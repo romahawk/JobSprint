@@ -1,15 +1,14 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import {
-  BarChart3,
   BriefcaseBusiness,
+  FolderOpen,
+  Lock,
   LayoutDashboard,
   LogOut,
   Moon,
   Settings,
-  ShieldCheck,
   Sun,
-  WandSparkles,
 } from "lucide-react";
 import { useApp } from "../context";
 import { useJobOsSyncSnapshot } from "../services/jobOsSync";
@@ -26,11 +25,33 @@ interface AppNavbarProps {
 }
 
 const NAV_ITEMS = [
-  { to: "/", label: "Command Centre", icon: LayoutDashboard },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/job-os/companies", label: "Job OS", icon: BriefcaseBusiness, activePrefix: "/job-os" },
-  { to: "/cv-optimizer", label: "CV Optimizer", icon: WandSparkles },
-  { to: "/compliance/afa", label: "AfA Compliance", icon: ShieldCheck },
+  {
+    to: "/",
+    label: "Action",
+    icon: LayoutDashboard,
+    matches: (pathname: string) => pathname === "/" || pathname === "/overview" || pathname === "/analytics",
+  },
+  {
+    to: "/job-os/applications",
+    label: "Pipeline",
+    icon: BriefcaseBusiness,
+    matches: (pathname: string) =>
+      pathname === "/job-os" ||
+      pathname === "/job-os/companies" ||
+      pathname === "/job-os/roles" ||
+      pathname === "/job-os/applications" ||
+      pathname === "/job-os/outreach",
+  },
+  {
+    to: "/job-os/assets",
+    label: "System",
+    icon: FolderOpen,
+    matches: (pathname: string) =>
+      pathname === "/job-os/assets" ||
+      pathname === "/job-os/settings" ||
+      pathname === "/cv-optimizer" ||
+      pathname === "/compliance/afa",
+  },
 ];
 
 export function AppNavbar({
@@ -44,6 +65,7 @@ export function AppNavbar({
   const jobOsSync = useJobOsSyncSnapshot();
   const location = useLocation();
   const logoutBlocked = jobOsSync.pendingWrites > 0;
+  const hasSettingsMenu = Boolean(settingsContent);
 
   useEffect(() => {
     trackPageView(`${location.pathname}${location.search}`);
@@ -64,12 +86,7 @@ export function AppNavbar({
             <nav className="hidden md:flex items-center gap-0.5">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
-                const active =
-                  location.pathname === item.to ||
-                  (item.to !== "/" &&
-                    location.pathname.startsWith(
-                      "activePrefix" in item ? (item as { activePrefix: string }).activePrefix : item.to
-                    ));
+                const active = item.matches(location.pathname);
                 return (
                   <Link
                     key={item.to}
@@ -95,21 +112,32 @@ export function AppNavbar({
               </div>
             )}
             {rightActions}
-            {settingsContent ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    aria-label="Open settings"
-                    className="w-8 h-8 flex items-center justify-center rounded-md text-white/65 hover:text-white hover:bg-white/10 transition-colors"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label="Open settings"
+                  className="w-8 h-8 flex items-center justify-center rounded-md text-white/65 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className={hasSettingsMenu ? "w-[360px] p-0" : "w-[220px] p-1"}>
+                {settingsContent}
+                {settingsContent ? <div className="border-t border-neutral-200 dark:border-neutral-800" /> : null}
+                <div className="bg-white p-1 dark:bg-neutral-950">
+                  <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
+                    Private Access
+                  </div>
+                  <Link
+                    to="/compliance/afa"
+                    className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-900"
                   >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[360px] p-0">
-                  {settingsContent}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
+                    <Lock className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                    <span>AfA Compliance</span>
+                  </Link>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               onClick={toggleDarkMode}
               aria-label="Toggle dark mode"

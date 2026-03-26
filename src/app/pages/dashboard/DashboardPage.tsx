@@ -36,6 +36,7 @@ export function DashboardPage() {
     addCompany,
     updateCompany,
     addRole,
+    addApplication,
   } = useJobOs(session?.userId ?? null);
 
   const lastSyncedLabel = jobOsSync.lastSyncedAt
@@ -124,6 +125,7 @@ export function DashboardPage() {
             addCompany={addCompany}
             updateCompany={updateCompany}
             addRole={addRole}
+            addApplication={addApplication}
             onDismiss={() => {
               updateOnboardingStatus("dismissed");
               void navigate("/job-os/companies");

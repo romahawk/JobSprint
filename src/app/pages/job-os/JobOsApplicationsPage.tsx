@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { KanbanSquare, List, Plus, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, KanbanSquare, List, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
@@ -35,6 +35,8 @@ const STATUS_VALUES: ApplicationStatus[] = [
 
 type PipelineViewMode = "board" | "list";
 type ApplicationStageGroup = keyof typeof APPLICATION_STAGE_GROUPS;
+type SortField = "company" | "role" | "status" | "date" | "nextAction";
+type SortDirection = "asc" | "desc";
 
 const EMPTY_APPLICATION_DRAFT = {
   dateApplied: new Date().toISOString().slice(0, 10),
@@ -78,13 +80,15 @@ export default function JobOsApplicationsPage() {
   } = useJobOs(session?.userId ?? null);
 
   const defaultCv = getDefaultCvAsset(assets.cvs);
-  const [viewMode, setViewMode] = useState<PipelineViewMode>("board");
+  const [viewMode, setViewMode] = useState<PipelineViewMode>("list");
   const [stageGroup, setStageGroup] = useState<ApplicationStageGroup>("active");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "notes"> | null>(null);
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
 
   useEffect(() => {
@@ -119,7 +123,7 @@ export default function JobOsApplicationsPage() {
   const filteredApplications = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
-    return applications.filter((application) => {
+    const visibleApplications = applications.filter((application) => {
       if (!groupStatuses.includes(application.status)) return false;
       if (!query) return true;
 
@@ -137,7 +141,32 @@ export default function JobOsApplicationsPage() {
 
       return haystack.includes(query);
     });
-  }, [applications, companiesById, groupStatuses, rolesById, searchTerm]);
+
+    return [...visibleApplications].sort((left, right) => {
+      const leftCompany = companiesById.get(left.companyId)?.name ?? "";
+      const rightCompany = companiesById.get(right.companyId)?.name ?? "";
+      const leftRole = rolesById.get(left.roleId)?.title ?? "";
+      const rightRole = rolesById.get(right.roleId)?.title ?? "";
+
+      const comparison = (() => {
+        switch (sortField) {
+          case "company":
+            return leftCompany.localeCompare(rightCompany);
+          case "role":
+            return leftRole.localeCompare(rightRole);
+          case "status":
+            return APPLICATION_STATUS_LABELS[left.status].localeCompare(APPLICATION_STATUS_LABELS[right.status]);
+          case "nextAction":
+            return (left.nextAction || "").localeCompare(right.nextAction || "");
+          case "date":
+          default:
+            return left.dateApplied.localeCompare(right.dateApplied);
+        }
+      })();
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [applications, companiesById, groupStatuses, rolesById, searchTerm, sortDirection, sortField]);
 
   function resetDraft(): void {
     setDraft(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
@@ -145,6 +174,32 @@ export default function JobOsApplicationsPage() {
 
   function toggleSelection(id: string): void {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
+  }
+
+  function toggleSort(field: SortField): void {
+    if (sortField === field) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection(field === "date" ? "desc" : "asc");
+  }
+
+  function SortHeader({ label, field }: { label: string; field: SortField }) {
+    const active = sortField === field;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(field)}
+        className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
+      >
+        <span>{label}</span>
+        {!active && <ArrowUpDown className="h-3.5 w-3.5 opacity-60" />}
+        {active && sortDirection === "asc" && <ArrowUp className="h-3.5 w-3.5 text-primary" />}
+        {active && sortDirection === "desc" && <ArrowDown className="h-3.5 w-3.5 text-primary" />}
+      </button>
+    );
   }
 
   async function applyBulkStatus(status: ApplicationStatus): Promise<void> {
@@ -185,7 +240,7 @@ export default function JobOsApplicationsPage() {
             <div className="space-y-1">
               <CardTitle className="text-base">Pipeline</CardTitle>
               <CardDescription>
-                The active applications route now prioritizes a grouped workflow view instead of a permanent spreadsheet.
+                Start with the readable execution list, then switch to board view when you need stage-level triage.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -288,22 +343,26 @@ export default function JobOsApplicationsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead />
-                  <TableHead>Company</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Applied</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>CV</TableHead>
-                  <TableHead>Next Action</TableHead>
+                  <TableHead><SortHeader label="Company" field="company" /></TableHead>
+                  <TableHead><SortHeader label="Role" field="role" /></TableHead>
+                  <TableHead><SortHeader label="Status" field="status" /></TableHead>
+                  <TableHead><SortHeader label="Date" field="date" /></TableHead>
+                  <TableHead><SortHeader label="Next Action" field="nextAction" /></TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredApplications.map((application) => (
-                  <TableRow key={application.id}>
+                  <TableRow
+                    key={application.id}
+                    className="cursor-pointer"
+                    onClick={() => setDetailId(application.id)}
+                  >
                     <TableCell>
                       <input
                         type="checkbox"
                         checked={selectedSet.has(application.id)}
+                        onClick={(event) => event.stopPropagation()}
                         onChange={() => toggleSelection(application.id)}
                       />
                     </TableCell>
@@ -311,9 +370,11 @@ export default function JobOsApplicationsPage() {
                       {companiesById.get(application.companyId)?.name ?? "-"}
                     </TableCell>
                     <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
-                    <TableCell>{application.dateApplied}</TableCell>
                     <TableCell>
-                      <Select value={application.status} onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}>
+                      <Select
+                        value={application.status}
+                        onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}
+                      >
                         <SelectTrigger className="w-36">
                           <SelectValue />
                         </SelectTrigger>
@@ -326,31 +387,25 @@ export default function JobOsApplicationsPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>{getApplicationCvLabel(application, assets.cvs)}</TableCell>
+                    <TableCell>{application.dateApplied}</TableCell>
                     <TableCell className="max-w-[220px] truncate">{application.nextAction || "-"}</TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setDetailId(application.id)}>
-                          View
-                        </Button>
-                        <Button asChild size="sm" variant="outline">
-                          <Link to={`/cv-optimizer?applicationId=${application.id}`}>Tailor CV</Link>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-500"
-                          onClick={() => void removeApplication(application.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDetailId(application.id);
+                        }}
+                      >
+                        Open
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredApplications.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                       No applications match this stage group and search.
                     </TableCell>
                   </TableRow>
@@ -494,6 +549,14 @@ export default function JobOsApplicationsPage() {
                     Channel
                   </div>
                   <div className="text-sm text-foreground">{detailApplication.channel}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    CV
+                  </div>
+                  <div className="text-sm text-foreground">
+                    {getApplicationCvLabel(detailApplication, assets.cvs)}
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <Select value={detailDraft.status} onValueChange={(value) => setDetailDraft((current) => current ? { ...current, status: value as ApplicationStatus } : current)}>

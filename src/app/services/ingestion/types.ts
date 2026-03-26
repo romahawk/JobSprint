@@ -71,6 +71,7 @@ export interface NormalizedRoleDraft {
   track: "TPM" | "Product Engineer" | "Systems PM";
   fitScore: 1 | 2 | 3 | 4 | 5;
   status: "to_apply" | "applied" | "interview" | "rejected" | "offer" | "closed";
+  nextAction?: string;
   jobDescription?: string;
   sourcePlatform?: string;
   importConfidence?: number;

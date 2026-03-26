@@ -16,7 +16,12 @@ import type {
   NormalizedRoleDraft,
   ImportMode,
 } from "../../services/ingestion/types";
-import type { CompanyPriority, CompanyStatus, JobTrack, RoleStatus } from "../../types/jobOs";
+import type {
+  CompanyPriority,
+  CompanyStatus,
+  JobTrack,
+  RoleStatus,
+} from "../../types/jobOs";
 import { ImportConfidenceBadge } from "./ImportConfidenceBadge";
 import { DuplicateMatchAlert } from "./DuplicateMatchAlert";
 
@@ -28,6 +33,7 @@ const COMPANY_STATUSES: CompanyStatus[] = [
   "Interviewing",
   "Closed",
 ];
+
 const ROLE_STATUSES: RoleStatus[] = [
   "to_apply",
   "applied",
@@ -36,13 +42,13 @@ const ROLE_STATUSES: RoleStatus[] = [
   "offer",
   "closed",
 ];
+
 const TRACKS: JobTrack[] = ["TPM", "Product Engineer", "Systems PM"];
 
 interface PasteLinkReviewStepProps {
   result: NormalizedImportResult;
   defaultMode: ImportMode;
-  isSaving: boolean;
-  onSave: (
+  onContinue: (
     companyDraft: NormalizedCompanyDraft,
     roleDraft: NormalizedRoleDraft | undefined,
     mode: ImportMode,
@@ -55,8 +61,7 @@ interface PasteLinkReviewStepProps {
 export function PasteLinkReviewStep({
   result,
   defaultMode,
-  isSaving,
-  onSave,
+  onContinue,
   onBack,
   onCancel,
 }: PasteLinkReviewStepProps) {
@@ -81,12 +86,13 @@ export function PasteLinkReviewStep({
     setRole((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
-  function handleSave(includeRole: boolean) {
+  function handleContinue(includeRole: boolean) {
     const updateId =
       result.duplicateMatch && duplicateAction === "update"
         ? result.duplicateMatch.companyId
         : undefined;
-    onSave(
+
+    onContinue(
       company,
       includeRole ? role : undefined,
       includeRole ? "company_and_role" : "company_only",
@@ -99,13 +105,11 @@ export function PasteLinkReviewStep({
 
   return (
     <div className="space-y-5">
-      {/* Confidence + source badge */}
       <ImportConfidenceBadge
         confidence={result.confidence}
         platform={result.sourcePlatform}
       />
 
-      {/* Duplicate warning */}
       {result.duplicateMatch && (
         <DuplicateMatchAlert
           existingCompanyName={result.duplicateMatch.companyName}
@@ -115,7 +119,6 @@ export function PasteLinkReviewStep({
         />
       )}
 
-      {/* ── Company Fields ── */}
       <section className="space-y-3">
         <h3 className="text-sm font-semibold border-b pb-1">Company</h3>
         <div className="grid md:grid-cols-2 gap-3">
@@ -124,8 +127,7 @@ export function PasteLinkReviewStep({
             <Input
               id="rv-name"
               value={company.name}
-              onChange={(e) => setC("name", e.target.value)}
-              disabled={isSaving}
+              onChange={(event) => setC("name", event.target.value)}
             />
           </div>
 
@@ -134,11 +136,8 @@ export function PasteLinkReviewStep({
             <Input
               id="rv-website"
               value={company.website ?? ""}
-              onChange={(e) =>
-                setC("website", e.target.value || undefined)
-              }
+              onChange={(event) => setC("website", event.target.value || undefined)}
               placeholder="https://example.com"
-              disabled={isSaving}
             />
           </div>
 
@@ -147,11 +146,8 @@ export function PasteLinkReviewStep({
             <Input
               id="rv-careers"
               value={company.careersUrl ?? ""}
-              onChange={(e) =>
-                setC("careersUrl", e.target.value || undefined)
-              }
+              onChange={(event) => setC("careersUrl", event.target.value || undefined)}
               placeholder="https://example.com/careers"
-              disabled={isSaving}
             />
           </div>
 
@@ -160,8 +156,7 @@ export function PasteLinkReviewStep({
             <Input
               id="rv-industry"
               value={company.industry}
-              onChange={(e) => setC("industry", e.target.value)}
-              disabled={isSaving}
+              onChange={(event) => setC("industry", event.target.value)}
             />
           </div>
 
@@ -170,9 +165,8 @@ export function PasteLinkReviewStep({
             <Input
               id="rv-size"
               value={company.size}
-              onChange={(e) => setC("size", e.target.value)}
-              placeholder="e.g. 51–200"
-              disabled={isSaving}
+              onChange={(event) => setC("size", event.target.value)}
+              placeholder="e.g. 51-200"
             />
           </div>
 
@@ -181,10 +175,7 @@ export function PasteLinkReviewStep({
             <Input
               id="rv-location"
               value={company.location ?? ""}
-              onChange={(e) =>
-                setC("location", e.target.value || undefined)
-              }
-              disabled={isSaving}
+              onChange={(event) => setC("location", event.target.value || undefined)}
             />
           </div>
 
@@ -193,9 +184,8 @@ export function PasteLinkReviewStep({
             <Input
               id="rv-remote"
               value={company.remotePolicy}
-              onChange={(e) => setC("remotePolicy", e.target.value)}
+              onChange={(event) => setC("remotePolicy", event.target.value)}
               placeholder="Remote / Hybrid / On-site"
-              disabled={isSaving}
             />
           </div>
 
@@ -203,8 +193,7 @@ export function PasteLinkReviewStep({
             <Label>English-First</Label>
             <Select
               value={company.englishFirst ?? "Unknown"}
-              onValueChange={(v) => setC("englishFirst", v)}
-              disabled={isSaving}
+              onValueChange={(value) => setC("englishFirst", value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -221,8 +210,7 @@ export function PasteLinkReviewStep({
             <Label>Priority</Label>
             <Select
               value={company.priority}
-              onValueChange={(v) => setC("priority", v as CompanyPriority)}
-              disabled={isSaving}
+              onValueChange={(value) => setC("priority", value as CompanyPriority)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -239,16 +227,15 @@ export function PasteLinkReviewStep({
             <Label>Status</Label>
             <Select
               value={company.status}
-              onValueChange={(v) => setC("status", v as CompanyStatus)}
-              disabled={isSaving}
+              onValueChange={(value) => setC("status", value as CompanyStatus)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {COMPANY_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
+                {COMPANY_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -261,14 +248,12 @@ export function PasteLinkReviewStep({
           <Textarea
             id="rv-notes"
             value={company.notes}
-            onChange={(e) => setC("notes", e.target.value)}
+            onChange={(event) => setC("notes", event.target.value)}
             rows={3}
-            disabled={isSaving}
           />
         </div>
       </section>
 
-      {/* ── Role Fields ── */}
       {hasRole && (
         <section className="space-y-3">
           <div className="flex items-center justify-between border-b pb-1">
@@ -282,7 +267,6 @@ export function PasteLinkReviewStep({
                   checked={mode === "company_only"}
                   onChange={() => setMode("company_only")}
                   className="accent-primary"
-                  disabled={isSaving}
                 />
                 Company only
               </label>
@@ -294,7 +278,6 @@ export function PasteLinkReviewStep({
                   checked={mode === "company_and_role"}
                   onChange={() => setMode("company_and_role")}
                   className="accent-primary"
-                  disabled={isSaving}
                 />
                 Include role
               </label>
@@ -308,8 +291,7 @@ export function PasteLinkReviewStep({
                 <Input
                   id="rv-role-title"
                   value={role.title}
-                  onChange={(e) => setR("title", e.target.value)}
-                  disabled={isSaving}
+                  onChange={(event) => setR("title", event.target.value)}
                 />
               </div>
 
@@ -318,8 +300,7 @@ export function PasteLinkReviewStep({
                 <Input
                   id="rv-role-url"
                   value={role.url}
-                  onChange={(e) => setR("url", e.target.value)}
-                  disabled={isSaving}
+                  onChange={(event) => setR("url", event.target.value)}
                 />
               </div>
 
@@ -328,8 +309,7 @@ export function PasteLinkReviewStep({
                 <Input
                   id="rv-role-location"
                   value={role.location}
-                  onChange={(e) => setR("location", e.target.value)}
-                  disabled={isSaving}
+                  onChange={(event) => setR("location", event.target.value)}
                 />
               </div>
 
@@ -338,8 +318,7 @@ export function PasteLinkReviewStep({
                 <Input
                   id="rv-seniority"
                   value={role.seniority}
-                  onChange={(e) => setR("seniority", e.target.value)}
-                  disabled={isSaving}
+                  onChange={(event) => setR("seniority", event.target.value)}
                 />
               </div>
 
@@ -347,16 +326,15 @@ export function PasteLinkReviewStep({
                 <Label>Track</Label>
                 <Select
                   value={role.track}
-                  onValueChange={(v) => setR("track", v as JobTrack)}
-                  disabled={isSaving}
+                  onValueChange={(value) => setR("track", value as JobTrack)}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {TRACKS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
+                    {TRACKS.map((track) => (
+                      <SelectItem key={track} value={track}>
+                        {track}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -367,16 +345,15 @@ export function PasteLinkReviewStep({
                 <Label>Role Status</Label>
                 <Select
                   value={role.status}
-                  onValueChange={(v) => setR("status", v as RoleStatus)}
-                  disabled={isSaving}
+                  onValueChange={(value) => setR("status", value as RoleStatus)}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLE_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                    {ROLE_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -388,7 +365,7 @@ export function PasteLinkReviewStep({
                   <Label>Job Description Preview</Label>
                   <div className="text-xs text-neutral-600 dark:text-neutral-400 rounded border p-2 max-h-32 overflow-y-auto whitespace-pre-wrap bg-neutral-50 dark:bg-neutral-900">
                     {role.jobDescription.slice(0, 600)}
-                    {role.jobDescription.length > 600 && "…"}
+                    {role.jobDescription.length > 600 && "..."}
                   </div>
                 </div>
               )}
@@ -397,27 +374,20 @@ export function PasteLinkReviewStep({
         </section>
       )}
 
-      {/* Actions */}
       <div className="flex gap-2 justify-end pt-2 border-t">
-        <Button variant="outline" onClick={onBack} disabled={isSaving}>
+        <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button variant="outline" onClick={onCancel} disabled={isSaving}>
+        <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         {mode === "company_and_role" && hasRole ? (
-          <Button
-            onClick={() => handleSave(true)}
-            disabled={!company.name.trim() || isSaving}
-          >
-            {isSaving ? "Saving…" : "Save Company + Role"}
+          <Button onClick={() => handleContinue(true)} disabled={!company.name.trim()}>
+            Continue
           </Button>
         ) : (
-          <Button
-            onClick={() => handleSave(false)}
-            disabled={!company.name.trim() || isSaving}
-          >
-            {isSaving ? "Saving…" : "Save Company"}
+          <Button onClick={() => handleContinue(false)} disabled={!company.name.trim()}>
+            Continue
           </Button>
         )}
       </div>

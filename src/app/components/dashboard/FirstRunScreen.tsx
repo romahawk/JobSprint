@@ -6,6 +6,10 @@ import { Input } from "../ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { PasteLinkReviewStep } from "../job-os/PasteLinkReviewStep";
 import {
+  PasteLinkNextActionStep,
+  type InitialImportStage,
+} from "../job-os/PasteLinkNextActionStep";
+import {
   normalizeImportResult,
   parseFromInput,
 } from "../../services/ingestion/companyIngestionService";
@@ -15,9 +19,20 @@ import type {
   NormalizedImportResult,
   NormalizedRoleDraft,
 } from "../../services/ingestion/types";
-import type { JobOsCompany, JobOsRole } from "../../types/jobOs";
+import type {
+  JobOsApplication,
+  JobOsCompany,
+  JobOsRole,
+} from "../../types/jobOs";
 
-type Step = "input" | "analyzing" | "reviewing" | "saving";
+type Step = "input" | "analyzing" | "reviewing" | "next_action" | "saving";
+
+interface PendingImportState {
+  companyDraft: NormalizedCompanyDraft;
+  roleDraft: NormalizedRoleDraft | undefined;
+  mode: ImportMode;
+  updateExistingId?: string;
+}
 
 interface FirstRunScreenProps {
   existingCompanies: JobOsCompany[];
@@ -28,6 +43,9 @@ interface FirstRunScreenProps {
   addRole: (
     payload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt">
   ) => Promise<string | null>;
+  addApplication: (
+    payload: Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">
+  ) => Promise<string | null>;
   onDismiss: () => void;
   onComplete: () => void;
 }
@@ -37,6 +55,7 @@ export function FirstRunScreen({
   addCompany,
   updateCompany,
   addRole,
+  addApplication,
   onDismiss,
   onComplete,
 }: FirstRunScreenProps) {
@@ -45,12 +64,17 @@ export function FirstRunScreen({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<NormalizedImportResult | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
+  const [initialStage, setInitialStage] = useState<InitialImportStage>("to_apply");
+  const [nextAction, setNextAction] = useState("Apply");
 
   async function handleAnalyze() {
     const trimmed = url.trim();
     if (!trimmed) return;
+
     setError(null);
     setStep("analyzing");
+
     try {
       const parsed = await parseFromInput({ url: trimmed });
       const normalized = normalizeImportResult(parsed, trimmed, existingCompanies);
@@ -64,47 +88,107 @@ export function FirstRunScreen({
     }
   }
 
-  async function handleSave(
+  function handleReviewContinue(
     companyDraft: NormalizedCompanyDraft,
     roleDraft: NormalizedRoleDraft | undefined,
     mode: ImportMode,
     updateExistingId?: string
   ) {
+    setPendingImport({
+      companyDraft,
+      roleDraft,
+      mode,
+      updateExistingId,
+    });
+
+    if (mode === "company_and_role" && roleDraft) {
+      setInitialStage(roleDraft.status === "applied" ? "applied" : "to_apply");
+      setNextAction(roleDraft.nextAction?.trim() || "Apply");
+      setStep("next_action");
+      return;
+    }
+
+    setInitialStage("saved");
+    setNextAction("Research");
+    void handleSave(
+      {
+        companyDraft,
+        roleDraft,
+        mode,
+        updateExistingId,
+      },
+      "saved",
+      "Research"
+    );
+  }
+
+  async function handleSave(
+    pending: PendingImportState,
+    stage: InitialImportStage,
+    action: string
+  ) {
     setStep("saving");
+
     try {
       const {
         englishFirst,
-        sourceType: cSourceType,
+        sourceType: companySourceType,
         ...coreCompany
-      } = companyDraft;
+      } = pending.companyDraft;
 
       const companyPayload: Omit<JobOsCompany, "id" | "createdAt" | "updatedAt"> = {
         ...coreCompany,
         englishFirst: (englishFirst as JobOsCompany["englishFirst"]) ?? undefined,
-        sourceType: (cSourceType as JobOsCompany["sourceType"]) ?? undefined,
+        sourceType: (companySourceType as JobOsCompany["sourceType"]) ?? undefined,
       };
 
       let companyId: string | null;
-      if (updateExistingId) {
-        await updateCompany(updateExistingId, companyPayload);
-        companyId = updateExistingId;
+      if (pending.updateExistingId) {
+        await updateCompany(pending.updateExistingId, companyPayload);
+        companyId = pending.updateExistingId;
       } else {
         companyId = await addCompany(companyPayload);
       }
 
-      if (mode === "company_and_role" && roleDraft && companyId) {
-        const { sourceType: rSourceType, ...coreRole } = roleDraft;
-        await addRole({
+      if (pending.mode === "company_and_role" && pending.roleDraft && companyId) {
+        const {
+          sourceType: roleSourceType,
+          ...coreRole
+        } = pending.roleDraft;
+
+        const roleId = await addRole({
           ...coreRole,
           companyId,
-          sourceType: (rSourceType as JobOsRole["sourceType"]) ?? undefined,
+          status: stage === "applied" ? "applied" : "to_apply",
+          nextAction: action,
+          sourceType: (roleSourceType as JobOsRole["sourceType"]) ?? undefined,
         });
+
+        if (stage === "applied" && roleId) {
+          await addApplication({
+            companyId,
+            roleId,
+            dateApplied: new Date().toISOString().slice(0, 10),
+            channel: "Imported link",
+            cvAssetId: undefined,
+            cvVersion: "",
+            status: "sent",
+            nextAction: action,
+            notes: "",
+            latestJobDescriptionId: undefined,
+            latestCvTailoringRunId: undefined,
+            tailoredCvHeadline: "",
+            tailoredCvSummary: "",
+            tailoredCvText: "",
+            tailoredCvUpdatedAt: undefined,
+          });
+        }
       }
 
       onComplete();
     } catch {
       setError("Failed to save. Please try again.");
-      setStep("reviewing");
+      setStep(pending.mode === "company_and_role" && pending.roleDraft ? "next_action" : "reviewing");
     }
   }
 
@@ -129,9 +213,9 @@ export function FirstRunScreen({
               <Input
                 placeholder="https://boards.greenhouse.io/... or https://jobs.ashbyhq.com/..."
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAnalyze();
+                onChange={(event) => setUrl(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleAnalyze();
                 }}
                 disabled={isAnalyzing}
                 className="h-12 rounded-xl px-4 text-base"
@@ -164,7 +248,11 @@ export function FirstRunScreen({
             ) : null}
 
             <div className="mt-5 flex items-center justify-center">
-              <Button variant="ghost" asChild className="text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200">
+              <Button
+                variant="ghost"
+                asChild
+                className="text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+              >
                 <Link to="/job-os/companies" onClick={onDismiss}>
                   Enter manually
                 </Link>
@@ -176,12 +264,16 @@ export function FirstRunScreen({
                 <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
                   <span>How it works</span>
                   <span className="ml-auto text-neutral-400">
-                    {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {detailsOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
                   </span>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="border-t border-slate-200 px-4 py-3 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:text-slate-300">
-                    We extract the company, role, and job description from the link, then send you to a quick review step before anything is saved.
+                    We extract the company, role, and job description from the link, then guide you through review and the first pipeline action before anything is saved.
                   </div>
                 </CollapsibleContent>
               </div>
@@ -192,23 +284,39 @@ export function FirstRunScreen({
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <div className="mb-5 space-y-1">
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-              Review extracted details
+              {step === "reviewing" ? "Review extracted details" : "Set the first workflow move"}
             </h2>
             <p className="text-sm text-neutral-500">
-              Confirm what we found, then save your first company and role.
+              {step === "reviewing"
+                ? "Confirm what we found, then choose how the role should enter your pipeline."
+                : "Finish the import with a clear starting stage and next action."}
             </p>
           </div>
-          {result ? (
+
+          {step === "reviewing" && result ? (
             <PasteLinkReviewStep
               result={result}
               defaultMode="company_and_role"
-              isSaving={step === "saving"}
-              onSave={handleSave}
+              onContinue={handleReviewContinue}
               onBack={() => {
                 setStep("input");
                 setResult(null);
               }}
               onCancel={onDismiss}
+            />
+          ) : null}
+
+          {(step === "next_action" || step === "saving") && pendingImport ? (
+            <PasteLinkNextActionStep
+              roleTitle={pendingImport.roleDraft?.title}
+              stage={initialStage}
+              nextAction={nextAction}
+              isSaving={step === "saving"}
+              onStageChange={setInitialStage}
+              onNextActionChange={setNextAction}
+              onBack={() => setStep("reviewing")}
+              onCancel={onDismiss}
+              onSave={() => void handleSave(pendingImport, initialStage, nextAction.trim())}
             />
           ) : null}
         </div>

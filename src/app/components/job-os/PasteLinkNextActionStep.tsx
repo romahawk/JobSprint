@@ -1,6 +1,8 @@
+import { CircleHelp } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "../ui/utils";
 
 export type InitialImportStage = "saved" | "to_apply" | "applied";
@@ -57,6 +59,13 @@ export function PasteLinkNextActionStep({
   onCancel,
   onSave,
 }: PasteLinkNextActionStepProps) {
+  function handleNextActionKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" && !isSaving && nextAction.trim()) {
+      event.preventDefault();
+      onSave();
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="space-y-1">
@@ -70,10 +79,23 @@ export function PasteLinkNextActionStep({
 
       <section className="space-y-3">
         <div className="space-y-1">
-          <Label>Initial Stage</Label>
-          <p className="text-xs text-muted-foreground">
-            Keep this lightweight: one starting point, one immediate action.
-          </p>
+          <div className="flex items-center gap-2">
+            <Label>Initial Stage</Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="How initial stage works"
+                >
+                  <CircleHelp className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                Pick the starting lane. You can change it later if the workflow changes.
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           {STAGE_OPTIONS.map((option) => {
@@ -104,10 +126,23 @@ export function PasteLinkNextActionStep({
 
       <section className="space-y-3">
         <div className="space-y-1">
-          <Label htmlFor="paste-link-next-action">Next Action</Label>
-          <p className="text-xs text-muted-foreground">
-            This becomes the visible operating cue after the import is saved.
-          </p>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="paste-link-next-action">Next Action</Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="How next action works"
+                >
+                  <CircleHelp className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                This becomes the first visible cue in your workflow after the import is saved.
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -132,9 +167,13 @@ export function PasteLinkNextActionStep({
           id="paste-link-next-action"
           value={nextAction}
           onChange={(event) => onNextActionChange(event.target.value)}
-          placeholder="What should happen next?"
+          onKeyDown={handleNextActionKeyDown}
+          placeholder="e.g. Tailor CV for this role"
           disabled={isSaving}
         />
+        <p className="text-xs text-muted-foreground">
+          Press Enter to save once the action looks right.
+        </p>
       </section>
 
       <div className="flex gap-2 justify-end pt-2 border-t">

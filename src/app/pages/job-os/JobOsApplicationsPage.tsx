@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, KanbanSquare, List, Plus, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Textarea } from "../../components/ui/textarea";
 import { Badge } from "../../components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import { AppPageShell } from "../../components/layout/AppPageShell";
 import {
   APPLICATION_STAGE_GROUPS,
   APPLICATION_STATUS_LABELS,
@@ -225,6 +227,101 @@ export default function JobOsApplicationsPage() {
     setDetailId(null);
   }
 
+  function handleCreateDialogKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
+  ): void {
+    const isModifierEnter =
+      event.key === "Enter" &&
+      ((event.metaKey || event.ctrlKey) || event.currentTarget instanceof HTMLInputElement);
+
+    if (isModifierEnter && draft.companyId && draft.roleId) {
+      event.preventDefault();
+      void handleCreateApplication();
+    }
+  }
+
+  function handleDetailDialogKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
+  ): void {
+    const isModifierEnter =
+      event.key === "Enter" &&
+      ((event.metaKey || event.ctrlKey) || event.currentTarget instanceof HTMLInputElement);
+
+    if (isModifierEnter && detailApplication && detailDraft) {
+      event.preventDefault();
+      void handleSaveDetails();
+    }
+  }
+
+  const shellActions = (
+    <>
+      <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-background/70 p-1">
+        <Button
+          type="button"
+          size="sm"
+          variant={viewMode === "board" ? "default" : "ghost"}
+          className="rounded-lg"
+          onClick={() => setViewMode("board")}
+        >
+          <KanbanSquare className="h-4 w-4" />
+          Board
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={viewMode === "list" ? "default" : "ghost"}
+          className="rounded-lg"
+          onClick={() => setViewMode("list")}
+        >
+          <List className="h-4 w-4" />
+          List
+        </Button>
+      </div>
+      <Button onClick={() => setCreateOpen(true)} className="gap-2">
+        <Plus className="h-4 w-4" />
+        Add Application
+      </Button>
+    </>
+  );
+
+  const shellToolbar = (
+    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <Tabs
+        value={stageGroup}
+        onValueChange={(value) => setStageGroup(value as ApplicationStageGroup)}
+        className="gap-3"
+      >
+        <TabsList className="h-auto w-full flex-wrap justify-start rounded-2xl bg-muted/70 p-1 sm:w-fit">
+          {(Object.keys(APPLICATION_STAGE_GROUPS) as ApplicationStageGroup[]).map((group) => (
+            <TabsTrigger key={group} value={group} className="rounded-xl px-3 py-2 text-sm">
+              {APPLICATION_STAGE_GROUPS[group].label}
+              <Badge
+                variant="outline"
+                className="ml-1 rounded-full bg-background/70 px-1.5 py-0 text-[10px]"
+              >
+                {
+                  applications.filter((application) =>
+                    APPLICATION_STAGE_GROUPS[group].statuses.includes(application.status)
+                  ).length
+                }
+              </Badge>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      <div className="relative w-full xl:max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Search company, role, next action, notes"
+          className="pl-9"
+        />
+      </div>
+    </div>
+  );
+
   return (
     <JobOsLayout
       title="Applications"
@@ -234,187 +331,154 @@ export default function JobOsApplicationsPage() {
         <JobOsTransferControls getExportState={exportState} onImportState={replaceState} />
       }
     >
-      <Card>
-        <CardHeader className="gap-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-base">Pipeline</CardTitle>
-              <CardDescription>
-                Start with the readable execution list, then switch to board view when you need stage-level triage.
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-background/70 p-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={viewMode === "board" ? "default" : "ghost"}
-                  className="rounded-lg"
-                  onClick={() => setViewMode("board")}
-                >
-                  <KanbanSquare className="h-4 w-4" />
-                  Board
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  className="rounded-lg"
-                  onClick={() => setViewMode("list")}
-                >
-                  <List className="h-4 w-4" />
-                  List
-                </Button>
-              </div>
-              <Button onClick={() => setCreateOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Application
-              </Button>
-            </div>
-          </div>
+      <AppPageShell
+        title="Pipeline"
+        subtitle="Start with the readable execution list, then switch to board view when you need stage-level triage."
+        actions={shellActions}
+        toolbar={shellToolbar}
+      >
+        <div className="space-y-4">
+          {selectedIds.length > 0 ? (
+            <Card>
+              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {selectedIds.length} application{selectedIds.length === 1 ? "" : "s"} selected.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => void bulkFollowUp()}>
+                    Set Follow-up
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("screen")}>
+                    Move to Screen
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("rejected")}>
+                    Mark Rejected
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
+                    Clear
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <Tabs value={stageGroup} onValueChange={(value) => setStageGroup(value as ApplicationStageGroup)} className="gap-3">
-              <TabsList className="h-auto w-full flex-wrap justify-start rounded-2xl bg-muted/70 p-1 sm:w-fit">
-                {(Object.keys(APPLICATION_STAGE_GROUPS) as ApplicationStageGroup[]).map((group) => (
-                  <TabsTrigger key={group} value={group} className="rounded-xl px-3 py-2 text-sm">
-                    {APPLICATION_STAGE_GROUPS[group].label}
-                    <Badge variant="outline" className="ml-1 rounded-full bg-background/70 px-1.5 py-0 text-[10px]">
-                      {applications.filter((application) => APPLICATION_STAGE_GROUPS[group].statuses.includes(application.status)).length}
-                    </Badge>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-
-            <div className="relative w-full xl:max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search company, role, next action, notes"
-                className="pl-9"
-              />
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {selectedIds.length > 0 ? (
-        <Card>
-          <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-muted-foreground">
-              {selectedIds.length} application{selectedIds.length === 1 ? "" : "s"} selected.
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => void bulkFollowUp()}>
-                Set Follow-up
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("screen")}>
-                Move to Screen
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("rejected")}>
-                Mark Rejected
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
-                Clear
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {viewMode === "board" ? (
-        <Card>
-          <CardContent className="pt-6">
-            <JobOsPipelineBoard
-              applications={filteredApplications}
-              companiesById={companiesById as Map<string, JobOsCompany>}
-              rolesById={rolesById as Map<string, JobOsRole>}
-              group={stageGroup}
-              onSelectApplication={(application) => setDetailId(application.id)}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead />
-                  <TableHead><SortHeader label="Company" field="company" /></TableHead>
-                  <TableHead><SortHeader label="Role" field="role" /></TableHead>
-                  <TableHead><SortHeader label="Status" field="status" /></TableHead>
-                  <TableHead><SortHeader label="Date" field="date" /></TableHead>
-                  <TableHead><SortHeader label="Next Action" field="nextAction" /></TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredApplications.map((application) => (
-                  <TableRow
-                    key={application.id}
-                    className="cursor-pointer"
-                    onClick={() => setDetailId(application.id)}
-                  >
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={selectedSet.has(application.id)}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={() => toggleSelection(application.id)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {companiesById.get(application.companyId)?.name ?? "-"}
-                    </TableCell>
-                    <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={application.status}
-                        onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}
+          {viewMode === "board" ? (
+            <Card>
+              <CardContent className="pt-6">
+                <JobOsPipelineBoard
+                  applications={filteredApplications}
+                  companiesById={companiesById as Map<string, JobOsCompany>}
+                  rolesById={rolesById as Map<string, JobOsRole>}
+                  group={stageGroup}
+                  onSelectApplication={(application) => setDetailId(application.id)}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead />
+                      <TableHead><SortHeader label="Company" field="company" /></TableHead>
+                      <TableHead><SortHeader label="Role" field="role" /></TableHead>
+                      <TableHead><SortHeader label="Status" field="status" /></TableHead>
+                      <TableHead><SortHeader label="Date" field="date" /></TableHead>
+                      <TableHead><SortHeader label="Next Action" field="nextAction" /></TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredApplications.map((application) => (
+                      <TableRow
+                        key={application.id}
+                        className="cursor-pointer"
+                        onClick={() => setDetailId(application.id)}
                       >
-                        <SelectTrigger className="w-36">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_VALUES.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {APPLICATION_STATUS_LABELS[status]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>{application.dateApplied}</TableCell>
-                    <TableCell className="max-w-[220px] truncate">{application.nextAction || "-"}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setDetailId(application.id);
-                        }}
-                      >
-                        Open
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredApplications.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                      No applications match this stage group and search.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedSet.has(application.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={() => toggleSelection(application.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {companiesById.get(application.companyId)?.name ?? "-"}
+                        </TableCell>
+                        <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={application.status}
+                            onValueChange={(value) =>
+                              void updateApplication(application.id, {
+                                status: value as ApplicationStatus,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-36">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_VALUES.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {APPLICATION_STATUS_LABELS[status]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>{application.dateApplied}</TableCell>
+                        <TableCell className="max-w-[220px] truncate">
+                          {application.nextAction || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDetailId(application.id);
+                            }}
+                          >
+                            Open
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredApplications.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={7}
+                          className="py-10 text-center text-sm text-muted-foreground"
+                        >
+                          <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+                            <p>No applications match this stage group and search.</p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                              {searchTerm ? (
+                                <Button size="sm" variant="outline" onClick={() => setSearchTerm("")}>
+                                  Clear search
+                                </Button>
+                              ) : null}
+                              <Button size="sm" variant="outline" onClick={() => setStageGroup("active")}>
+                                Switch to Active
+                              </Button>
+                              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                                Add application
+                              </Button>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </AppPageShell>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -426,16 +490,18 @@ export default function JobOsApplicationsPage() {
           </DialogHeader>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              type="date"
-              value={draft.dateApplied}
-              onChange={(event) => setDraft((current) => ({ ...current, dateApplied: event.target.value }))}
-            />
-            <Input
-              value={draft.channel}
-              onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))}
-              placeholder="Channel"
-            />
+              <Input
+                type="date"
+                value={draft.dateApplied}
+                onChange={(event) => setDraft((current) => ({ ...current, dateApplied: event.target.value }))}
+                onKeyDown={handleCreateDialogKeyDown}
+              />
+              <Input
+                value={draft.channel}
+                onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))}
+                onKeyDown={handleCreateDialogKeyDown}
+                placeholder="Application source"
+              />
             <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value, roleId: "" }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Company" />
@@ -500,20 +566,35 @@ export default function JobOsApplicationsPage() {
               <Input
                 value={draft.nextAction}
                 onChange={(event) => setDraft((current) => ({ ...current, nextAction: event.target.value }))}
-                placeholder="Next action"
+                onKeyDown={handleCreateDialogKeyDown}
+                placeholder="e.g. Follow up next Tuesday"
               />
             </div>
             <div className="md:col-span-2">
               <Textarea
                 value={draft.notes}
                 onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+                onKeyDown={handleCreateDialogKeyDown}
                 rows={4}
-                placeholder="Notes"
+                placeholder="Context, recruiter notes, or submission details"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <CircleHelp className="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Press Enter in a field, or Cmd/Ctrl + Enter in notes, to save quickly.
+                </TooltipContent>
+              </Tooltip>
+              Keyboard shortcut available
+            </div>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
@@ -576,15 +657,17 @@ export default function JobOsApplicationsPage() {
                   <Input
                     value={detailDraft.nextAction}
                     onChange={(event) => setDetailDraft((current) => current ? { ...current, nextAction: event.target.value } : current)}
-                    placeholder="Next action"
+                    onKeyDown={handleDetailDialogKeyDown}
+                    placeholder="What should happen next?"
                   />
                 </div>
                 <div className="md:col-span-2">
                   <Textarea
                     value={detailDraft.notes}
                     onChange={(event) => setDetailDraft((current) => current ? { ...current, notes: event.target.value } : current)}
+                    onKeyDown={handleDetailDialogKeyDown}
                     rows={5}
-                    placeholder="Notes"
+                    placeholder="Add context, response notes, or follow-up details"
                   />
                 </div>
               </div>
@@ -605,9 +688,12 @@ export default function JobOsApplicationsPage() {
                     Delete
                   </Button>
                 </div>
-                <Button onClick={() => void handleSaveDetails()}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Cmd/Ctrl + Enter saves</span>
+                  <Button onClick={() => void handleSaveDetails()}>
                   Save Changes
-                </Button>
+                  </Button>
+                </div>
               </div>
             </>
           ) : null}

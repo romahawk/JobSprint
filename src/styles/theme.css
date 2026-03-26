@@ -178,10 +178,12 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
   }
 
   html {
     font-size: var(--font-size);
+    scrollbar-gutter: stable;
   }
 
   h1 {

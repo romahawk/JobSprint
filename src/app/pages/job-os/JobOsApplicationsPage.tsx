@@ -1,17 +1,26 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
+import { KanbanSquare, List, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Textarea } from "../../components/ui/textarea";
+import { Badge } from "../../components/ui/badge";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import {
+  APPLICATION_STAGE_GROUPS,
+  APPLICATION_STATUS_LABELS,
+  JobOsPipelineBoard,
+} from "../../components/job-os/JobOsPipelineBoard";
 import { getApplicationCvLabel, getDefaultCvAsset } from "../../services/cvAssets";
-import type { ApplicationStatus, JobOsApplication } from "../../types/jobOs";
+import type { ApplicationStatus, JobOsApplication, JobOsCompany, JobOsRole } from "../../types/jobOs";
 
 const STATUS_VALUES: ApplicationStatus[] = [
   "sent",
@@ -24,43 +33,117 @@ const STATUS_VALUES: ApplicationStatus[] = [
   "ghosted",
 ];
 
-export default function JobOsApplicationsPage() {
-  const { session } = useApp();
-  const { applications, companies, roles, assets, addApplication, updateApplication, removeApplication, syncNotice, exportState, replaceState } = useJobOs(
-    session?.userId ?? null
-  );
-  const defaultCv = getDefaultCvAsset(assets.cvs);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>({
-    dateApplied: new Date().toISOString().slice(0, 10),
-    companyId: "",
-    roleId: "",
-    channel: "LinkedIn",
+type PipelineViewMode = "board" | "list";
+type ApplicationStageGroup = keyof typeof APPLICATION_STAGE_GROUPS;
+
+const EMPTY_APPLICATION_DRAFT = {
+  dateApplied: new Date().toISOString().slice(0, 10),
+  companyId: "",
+  roleId: "",
+  channel: "LinkedIn",
+  cvAssetId: undefined,
+  cvVersion: "",
+  status: "sent" as ApplicationStatus,
+  nextAction: "",
+  notes: "",
+  latestJobDescriptionId: undefined,
+  latestCvTailoringRunId: undefined,
+  tailoredCvHeadline: "",
+  tailoredCvSummary: "",
+  tailoredCvText: "",
+  tailoredCvUpdatedAt: undefined,
+};
+
+function createDraft(defaultCv?: { id: string; name: string }): Omit<JobOsApplication, "id" | "createdAt" | "updatedAt"> {
+  return {
+    ...EMPTY_APPLICATION_DRAFT,
     cvAssetId: defaultCv?.id,
     cvVersion: defaultCv?.name ?? "",
-    status: "sent",
-    nextAction: "",
-    notes: "",
-    latestJobDescriptionId: undefined,
-    latestCvTailoringRunId: undefined,
-    tailoredCvHeadline: "",
-    tailoredCvSummary: "",
-    tailoredCvText: "",
-    tailoredCvUpdatedAt: undefined,
-  });
+  };
+}
+
+export default function JobOsApplicationsPage() {
+  const { session } = useApp();
+  const {
+    applications,
+    companies,
+    roles,
+    assets,
+    addApplication,
+    updateApplication,
+    removeApplication,
+    syncNotice,
+    exportState,
+    replaceState,
+  } = useJobOs(session?.userId ?? null);
+
+  const defaultCv = getDefaultCvAsset(assets.cvs);
+  const [viewMode, setViewMode] = useState<PipelineViewMode>("board");
+  const [stageGroup, setStageGroup] = useState<ApplicationStageGroup>("active");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "notes"> | null>(null);
+  const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
 
   useEffect(() => {
     if (!draft.cvVersion && defaultCv?.name) {
-      const { id, name } = defaultCv;
-      void Promise.resolve().then(() =>
-        setDraft((current) => ({ ...current, cvAssetId: id, cvVersion: name }))
-      );
+      setDraft((current) => ({
+        ...current,
+        cvAssetId: defaultCv.id,
+        cvVersion: defaultCv.name,
+      }));
     }
   }, [defaultCv, draft.cvVersion]);
 
-  const byId = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const companiesById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
+  const rolesById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const detailApplication = detailId ? applications.find((application) => application.id === detailId) ?? null : null;
 
-  function toggle(id: string): void {
+  useEffect(() => {
+    if (!detailApplication) {
+      setDetailDraft(null);
+      return;
+    }
+
+    setDetailDraft({
+      status: detailApplication.status,
+      nextAction: detailApplication.nextAction,
+      notes: detailApplication.notes,
+    });
+  }, [detailApplication]);
+
+  const groupStatuses = APPLICATION_STAGE_GROUPS[stageGroup].statuses;
+  const filteredApplications = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    return applications.filter((application) => {
+      if (!groupStatuses.includes(application.status)) return false;
+      if (!query) return true;
+
+      const companyName = companiesById.get(application.companyId)?.name ?? "";
+      const roleTitle = rolesById.get(application.roleId)?.title ?? "";
+      const haystack = [
+        companyName,
+        roleTitle,
+        application.channel,
+        application.nextAction,
+        application.notes,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [applications, companiesById, groupStatuses, rolesById, searchTerm]);
+
+  function resetDraft(): void {
+    setDraft(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
+  }
+
+  function toggleSelection(id: string): void {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
   }
 
@@ -70,146 +153,403 @@ export default function JobOsApplicationsPage() {
   }
 
   async function bulkFollowUp(): Promise<void> {
-    await Promise.all(
-      selectedIds.map((id) =>
-        updateApplication(id, {
-          nextAction: "Follow up",
-        })
-      )
-    );
+    await Promise.all(selectedIds.map((id) => updateApplication(id, { nextAction: "Follow up" })));
     setSelectedIds([]);
+  }
+
+  async function handleCreateApplication(): Promise<void> {
+    if (!draft.companyId || !draft.roleId) return;
+    await addApplication(draft);
+    resetDraft();
+    setCreateOpen(false);
+  }
+
+  async function handleSaveDetails(): Promise<void> {
+    if (!detailApplication || !detailDraft) return;
+    await updateApplication(detailApplication.id, detailDraft);
+    setDetailId(null);
   }
 
   return (
     <JobOsLayout
       title="Applications"
-      subtitle="Master tracking sheet for all submitted applications"
+      subtitle="Pipeline control surface for submitted applications"
       notice={syncNotice}
       settingsFooter={
         <JobOsTransferControls getExportState={exportState} onImportState={replaceState} />
       }
     >
       <Card>
-        <CardHeader><CardTitle className="text-sm">Log Application</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-4 gap-3">
-          <Input type="date" value={draft.dateApplied} onChange={(event) => setDraft((current) => ({ ...current, dateApplied: event.target.value }))} />
-          <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value }))}>
-            <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
-            <SelectContent>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={draft.roleId} onValueChange={(value) => setDraft((current) => ({ ...current, roleId: value }))}>
-            <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
-            <SelectContent>{roles.filter((role) => !draft.companyId || role.companyId === draft.companyId).map((role) => <SelectItem key={role.id} value={role.id}>{role.title}</SelectItem>)}</SelectContent>
-          </Select>
-          <Input value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} placeholder="Channel" />
-          <Select
-            value={draft.cvAssetId ?? ""}
-            onValueChange={(value) => {
-              const selectedCv = assets.cvs.find((cv) => cv.id === value);
-              setDraft((current) => ({
-                ...current,
-                cvAssetId: selectedCv?.id,
-                cvVersion: selectedCv?.name ?? "",
-              }));
-            }}
-          >
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{assets.cvs.map((cv) => <SelectItem key={cv.id} value={cv.id}>{cv.name}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as ApplicationStatus }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{STATUS_VALUES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
-          </Select>
-          <Input value={draft.nextAction} onChange={(event) => setDraft((current) => ({ ...current, nextAction: event.target.value }))} placeholder="Next action" />
-          <Button
-            onClick={() => {
-              if (!draft.companyId) return;
-              void addApplication(draft);
-              setDraft((current) => ({ ...current, nextAction: "", notes: "" }));
-            }}
-          >
-            Save
-          </Button>
-          <div className="md:col-span-4">
-            <Textarea value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} rows={2} placeholder="Notes" />
+        <CardHeader className="gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-base">Pipeline</CardTitle>
+              <CardDescription>
+                The active applications route now prioritizes a grouped workflow view instead of a permanent spreadsheet.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-background/70 p-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={viewMode === "board" ? "default" : "ghost"}
+                  className="rounded-lg"
+                  onClick={() => setViewMode("board")}
+                >
+                  <KanbanSquare className="h-4 w-4" />
+                  Board
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  className="rounded-lg"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-4 w-4" />
+                  List
+                </Button>
+              </div>
+              <Button onClick={() => setCreateOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Application
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Bulk Actions</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" disabled={selectedIds.length === 0} onClick={() => void bulkFollowUp()}>
-              Set Follow-up
-            </Button>
-            <Button size="sm" variant="outline" disabled={selectedIds.length === 0} onClick={() => void applyBulkStatus("rejected")}>
-              Mark Rejected
-            </Button>
-            <Button size="sm" variant="outline" disabled={selectedIds.length === 0} onClick={() => void applyBulkStatus("screen")}>
-              Update Status
-            </Button>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <Tabs value={stageGroup} onValueChange={(value) => setStageGroup(value as ApplicationStageGroup)} className="gap-3">
+              <TabsList className="h-auto w-full flex-wrap justify-start rounded-2xl bg-muted/70 p-1 sm:w-fit">
+                {(Object.keys(APPLICATION_STAGE_GROUPS) as ApplicationStageGroup[]).map((group) => (
+                  <TabsTrigger key={group} value={group} className="rounded-xl px-3 py-2 text-sm">
+                    {APPLICATION_STAGE_GROUPS[group].label}
+                    <Badge variant="outline" className="ml-1 rounded-full bg-background/70 px-1.5 py-0 text-[10px]">
+                      {applications.filter((application) => APPLICATION_STAGE_GROUPS[group].statuses.includes(application.status)).length}
+                    </Badge>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+
+            <div className="relative w-full xl:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search company, role, next action, notes"
+                className="pl-9"
+              />
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead />
-                <TableHead>Date Applied</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>CV Version</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tailored CV</TableHead>
-                <TableHead>Next Action</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {applications.map((application) => (
-                <TableRow key={application.id}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={byId.has(application.id)}
-                      onChange={() => toggle(application.id)}
-                    />
-                  </TableCell>
-                  <TableCell>{application.dateApplied}</TableCell>
-                  <TableCell>{companies.find((company) => company.id === application.companyId)?.name ?? "-"}</TableCell>
-                  <TableCell>{roles.find((role) => role.id === application.roleId)?.title ?? "-"}</TableCell>
-                  <TableCell>{application.channel}</TableCell>
-                  <TableCell>{getApplicationCvLabel(application, assets.cvs)}</TableCell>
-                  <TableCell>
-                    <Select value={application.status} onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}>
-                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                      <SelectContent>{STATUS_VALUES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    {application.tailoredCvUpdatedAt ? new Date(application.tailoredCvUpdatedAt).toLocaleDateString() : "Not saved"}
-                  </TableCell>
-                  <TableCell>{application.nextAction || "-"}</TableCell>
-                  <TableCell className="max-w-[260px] truncate">{application.notes || "-"}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link to={`/cv-optimizer?applicationId=${application.id}`}>Tailor CV</Link>
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeApplication(application.id)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
       </Card>
+
+      {selectedIds.length > 0 ? (
+        <Card>
+          <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground">
+              {selectedIds.length} application{selectedIds.length === 1 ? "" : "s"} selected.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => void bulkFollowUp()}>
+                Set Follow-up
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("screen")}>
+                Move to Screen
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("rejected")}>
+                Mark Rejected
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
+                Clear
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {viewMode === "board" ? (
+        <Card>
+          <CardContent className="pt-6">
+            <JobOsPipelineBoard
+              applications={filteredApplications}
+              companiesById={companiesById as Map<string, JobOsCompany>}
+              rolesById={rolesById as Map<string, JobOsRole>}
+              group={stageGroup}
+              onSelectApplication={(application) => setDetailId(application.id)}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead />
+                  <TableHead>Company</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Applied</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>CV</TableHead>
+                  <TableHead>Next Action</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredApplications.map((application) => (
+                  <TableRow key={application.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedSet.has(application.id)}
+                        onChange={() => toggleSelection(application.id)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {companiesById.get(application.companyId)?.name ?? "-"}
+                    </TableCell>
+                    <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
+                    <TableCell>{application.dateApplied}</TableCell>
+                    <TableCell>
+                      <Select value={application.status} onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}>
+                        <SelectTrigger className="w-36">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_VALUES.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {APPLICATION_STATUS_LABELS[status]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>{getApplicationCvLabel(application, assets.cvs)}</TableCell>
+                    <TableCell className="max-w-[220px] truncate">{application.nextAction || "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setDetailId(application.id)}>
+                          View
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                          <Link to={`/cv-optimizer?applicationId=${application.id}`}>Tailor CV</Link>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500"
+                          onClick={() => void removeApplication(application.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredApplications.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                      No applications match this stage group and search.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Application</DialogTitle>
+            <DialogDescription>
+              Capture a new application without leaving the pipeline surface.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input
+              type="date"
+              value={draft.dateApplied}
+              onChange={(event) => setDraft((current) => ({ ...current, dateApplied: event.target.value }))}
+            />
+            <Input
+              value={draft.channel}
+              onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))}
+              placeholder="Channel"
+            />
+            <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value, roleId: "" }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Company" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={draft.roleId} onValueChange={(value) => setDraft((current) => ({ ...current, roleId: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roles
+                  .filter((role) => !draft.companyId || role.companyId === draft.companyId)
+                  .map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.title}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={draft.cvAssetId ?? ""}
+              onValueChange={(value) => {
+                const selectedCv = assets.cvs.find((cv) => cv.id === value);
+                setDraft((current) => ({
+                  ...current,
+                  cvAssetId: selectedCv?.id,
+                  cvVersion: selectedCv?.name ?? "",
+                }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="CV asset" />
+              </SelectTrigger>
+              <SelectContent>
+                {assets.cvs.map((cv) => (
+                  <SelectItem key={cv.id} value={cv.id}>
+                    {cv.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as ApplicationStatus }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_VALUES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {APPLICATION_STATUS_LABELS[status]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="md:col-span-2">
+              <Input
+                value={draft.nextAction}
+                onChange={(event) => setDraft((current) => ({ ...current, nextAction: event.target.value }))}
+                placeholder="Next action"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Textarea
+                value={draft.notes}
+                onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+                rows={4}
+                placeholder="Notes"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleCreateApplication()} disabled={!draft.companyId || !draft.roleId}>
+              Save Application
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(detailApplication)} onOpenChange={(open) => !open && setDetailId(null)}>
+        <DialogContent className="max-w-2xl">
+          {detailApplication && detailDraft ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {companiesById.get(detailApplication.companyId)?.name ?? "Unknown company"}
+                </DialogTitle>
+                <DialogDescription>
+                  {rolesById.get(detailApplication.roleId)?.title ?? "Unknown role"}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Applied
+                  </div>
+                  <div className="text-sm text-foreground">{detailApplication.dateApplied}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Channel
+                  </div>
+                  <div className="text-sm text-foreground">{detailApplication.channel}</div>
+                </div>
+                <div className="md:col-span-2">
+                  <Select value={detailDraft.status} onValueChange={(value) => setDetailDraft((current) => current ? { ...current, status: value as ApplicationStatus } : current)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_VALUES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {APPLICATION_STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Input
+                    value={detailDraft.nextAction}
+                    onChange={(event) => setDetailDraft((current) => current ? { ...current, nextAction: event.target.value } : current)}
+                    placeholder="Next action"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Textarea
+                    value={detailDraft.notes}
+                    onChange={(event) => setDetailDraft((current) => current ? { ...current, notes: event.target.value } : current)}
+                    rows={5}
+                    placeholder="Notes"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap justify-between gap-2">
+                <div className="flex gap-2">
+                  <Button asChild variant="outline">
+                    <Link to={`/cv-optimizer?applicationId=${detailApplication.id}`}>Tailor CV</Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-red-500"
+                    onClick={() => {
+                      void removeApplication(detailApplication.id);
+                      setDetailId(null);
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+                <Button onClick={() => void handleSaveDetails()}>
+                  Save Changes
+                </Button>
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </JobOsLayout>
   );
 }

@@ -165,9 +165,29 @@ function mergePendingLocalItems<T extends { id: string; clientRequestId?: string
 }
 
 function stripUndefinedFields<T extends Record<string, unknown>>(value: T): T {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
-  ) as T;
+  return stripUndefinedValue(value) as T;
+}
+
+function stripUndefinedValue(value: unknown): unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stripUndefinedValue(item))
+      .filter((item) => item !== undefined);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, entryValue]) => [key, stripUndefinedValue(entryValue)] as const)
+        .filter(([, entryValue]) => entryValue !== undefined)
+    );
+  }
+
+  return value;
 }
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {

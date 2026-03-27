@@ -89,6 +89,15 @@ export const ashbyAdapter: SourceAdapter = {
       sourcePlatform: "ashby",
       sourceType: jobId ? "job" : "company",
       confidence,
+      jobSource: {
+        sourceUrl: input.url,
+        sourcePlatform: "ashby",
+        sourceType: jobId ? "job" : "company",
+        companyName: extracted.companyName,
+        rawJobTitle: extracted.roleTitle,
+        rawLocation: extracted.locationHint,
+        rawJobDescription: extracted.jobDescription,
+      },
       raw: { html: html || undefined, text: rawText || undefined },
       extracted,
     };

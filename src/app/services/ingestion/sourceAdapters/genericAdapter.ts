@@ -105,6 +105,15 @@ export const genericAdapter: SourceAdapter = {
       sourcePlatform: "generic",
       sourceType: isJobPath ? "job" : "unknown",
       confidence,
+      jobSource: {
+        sourceUrl: input.url,
+        sourcePlatform: "generic",
+        sourceType: isJobPath ? "job" : "unknown",
+        companyName: extracted.companyName,
+        rawJobTitle: extracted.roleTitle,
+        rawLocation: extracted.locationHint,
+        rawJobDescription: extracted.jobDescription,
+      },
       raw: { html: html || undefined, text: rawText || undefined },
       extracted,
     };

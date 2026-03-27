@@ -1,5 +1,165 @@
 export type JobTrack = "TPM" | "Product Engineer" | "Systems PM";
 export type CvTargetTrack = "TPM" | "PO" | "Implementation";
+export type AiImportSchemaVersion = "ai_import_v1";
+export type AiImportConfidenceLevel = "low" | "medium" | "high";
+export type AiImportReviewSeverity = "info" | "review" | "warning";
+export type AiImportRoleTrack = JobTrack | "Unknown";
+export type AiImportSeniority =
+  | "Junior"
+  | "Middle"
+  | "Senior"
+  | "Lead"
+  | "Staff"
+  | "Principal"
+  | "Director"
+  | "VP"
+  | "Executive"
+  | "Unknown";
+export type AiImportIndustry =
+  | "AI / Data"
+  | "Cybersecurity"
+  | "Developer Tools"
+  | "E-Commerce / Marketplace"
+  | "EdTech"
+  | "Fintech / Finance"
+  | "Healthcare"
+  | "HR / Talent"
+  | "Logistics"
+  | "Media / Content"
+  | "PropTech"
+  | "SaaS / Software"
+  | "Unknown";
+export type AiImportCompanySizeBand =
+  | "1-10"
+  | "11-50"
+  | "51-200"
+  | "201-500"
+  | "501-1000"
+  | "1001-5000"
+  | "5000+"
+  | "Unknown";
+export type AiImportCompanyStage =
+  | "Pre-seed"
+  | "Seed"
+  | "Series A"
+  | "Series B"
+  | "Series C+"
+  | "Private Growth"
+  | "Bootstrapped"
+  | "Public"
+  | "Enterprise"
+  | "Unknown";
+export type AiImportWorkplaceMode = "Remote" | "Hybrid" | "On-site" | "Unknown";
+export type AiImportPriorityBand = CompanyPriority | "Unknown";
+export type AiImportNextBestAction =
+  | "Research"
+  | "Tailor CV"
+  | "Apply"
+  | "Follow up"
+  | "Network"
+  | "Archive";
+export type AiImportReviewFlagCode =
+  | "missing_company_name"
+  | "missing_role_title"
+  | "missing_job_description"
+  | "unclear_location"
+  | "unclear_seniority"
+  | "unclear_track"
+  | "unclear_industry"
+  | "unclear_company_size"
+  | "unclear_company_stage"
+  | "duplicate_company_match"
+  | "low_confidence_parse"
+  | "manual_review_recommended";
+
+export interface AiImportFieldConfidence {
+  score: number;
+  level: AiImportConfidenceLevel;
+  evidence?: string[];
+  source?: "rules" | "model" | "human";
+}
+
+export interface AiImportReviewFlag {
+  code: AiImportReviewFlagCode;
+  severity: AiImportReviewSeverity;
+  message: string;
+  fieldPath?: string;
+}
+
+export interface AiImportRawExtractedFields {
+  companyName?: string;
+  website?: string;
+  careersUrl?: string;
+  industryHint?: string;
+  sizeHint?: string;
+  locationHint?: string;
+  remotePolicyHint?: string;
+  englishFirstHint?: string;
+  roleTitle?: string;
+  roleUrl?: string;
+  roleLocation?: string;
+  seniorityHint?: string;
+  employmentTypeHint?: string;
+  postedDateHint?: string;
+  jobDescription?: string;
+  notes?: string;
+}
+
+export interface AiImportNormalizedCompanyFields {
+  name?: string;
+  industry?: string;
+  size?: string;
+  remotePolicy?: string;
+  location?: string;
+  englishFirst?: "Yes" | "Mostly" | "Unknown";
+}
+
+export interface AiImportNormalizedRoleFields {
+  title?: string;
+  url?: string;
+  location?: string;
+  seniority?: string;
+  track?: JobTrack;
+  fitScore?: 1 | 2 | 3 | 4 | 5;
+  status?: RoleStatus;
+  nextAction?: string;
+}
+
+export interface AiImportCompanyEnrichment {
+  industry?: AiImportIndustry;
+  sizeBand?: AiImportCompanySizeBand;
+  companyStage?: AiImportCompanyStage;
+  hiringSignal?: string;
+  operatingRegion?: string;
+}
+
+export interface AiImportRoleEnrichment {
+  track?: AiImportRoleTrack;
+  seniority?: AiImportSeniority;
+  nextBestAction?: AiImportNextBestAction;
+  applicationReadiness?: "ready_to_apply" | "needs_tailoring" | "needs_research";
+  keyRequirements?: string[];
+}
+
+export interface AiImportEnrichmentV1 {
+  schemaVersion: AiImportSchemaVersion;
+  rawExtracted?: AiImportRawExtractedFields;
+  normalized?: {
+    company?: AiImportNormalizedCompanyFields;
+    role?: AiImportNormalizedRoleFields;
+  };
+  enriched?: {
+    company?: AiImportCompanyEnrichment;
+    role?: AiImportRoleEnrichment;
+  };
+  confidence?: {
+    overall?: AiImportFieldConfidence;
+    fields?: Record<string, AiImportFieldConfidence>;
+  };
+  reviewFlags?: AiImportReviewFlag[];
+  model?: string;
+  generatedAt?: string;
+}
 
 export type CompanyPriority = "A" | "B" | "C";
 export type CompanyStatus =
@@ -87,6 +247,7 @@ export interface JobOsCompany {
   sourceUrl?: string;
   sourcePlatform?: string;
   importConfidence?: number;
+  aiEnrichment?: AiImportEnrichmentV1;
   // Execution engine metadata
   lastInteractionAt?: string;
   createdAt: string;
@@ -112,6 +273,7 @@ export interface JobOsRole {
   sourceType?: "manual" | "csv" | "link" | "generated";
   sourcePlatform?: string;
   importConfidence?: number;
+  aiEnrichment?: AiImportEnrichmentV1;
   // Execution engine metadata
   lastInteractionAt?: string;
   hasApplication?: boolean;
@@ -137,6 +299,7 @@ export interface JobOsApplication {
   tailoredCvSummary?: string;
   tailoredCvText?: string;
   tailoredCvUpdatedAt?: string;
+  aiEnrichment?: AiImportEnrichmentV1;
   // Execution engine metadata
   lastResponseAt?: string;
   createdAt: string;

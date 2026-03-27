@@ -14,8 +14,10 @@ import {
 } from "./PasteLinkNextActionStep";
 import {
   parseFromInput,
+  mergeImportEnrichment,
   normalizeImportResult,
 } from "../../services/ingestion/companyIngestionService";
+import { requestRemoteJobImportEnrichment } from "../../services/ingestion/jobImportEnrichmentGateway";
 import type {
   ImportMode,
   NormalizedImportResult,
@@ -27,6 +29,7 @@ import type { JobOsApplication, JobOsCompany, JobOsRole } from "../../types/jobO
 type DialogStep =
   | "input"
   | "analyzing"
+  | "enriching"
   | "reviewing"
   | "next_action"
   | "saving"
@@ -102,7 +105,17 @@ export function PasteLinkImportDialog({
         pastedText: pastedText || undefined,
       });
       const normalized = normalizeImportResult(parsed, url, existingCompanies);
-      setResult(normalized);
+      setStep("enriching");
+
+      const enrichment = await requestRemoteJobImportEnrichment({
+        parsed,
+        normalized,
+        sourceUrl: url,
+      });
+
+      setResult(
+        enrichment ? mergeImportEnrichment(normalized, enrichment) : normalized
+      );
       setStep("reviewing");
     } catch {
       setParseError(
@@ -182,11 +195,32 @@ export function PasteLinkImportDialog({
           ...coreRole
         } = pending.roleDraft;
 
+        const roleAiEnrichment = coreRole.aiEnrichment
+          ? {
+              ...coreRole.aiEnrichment,
+              normalized: {
+                ...coreRole.aiEnrichment.normalized,
+                role: {
+                  ...coreRole.aiEnrichment.normalized?.role,
+                  nextAction: action,
+                },
+              },
+              enriched: {
+                ...coreRole.aiEnrichment.enriched,
+                role: {
+                  ...coreRole.aiEnrichment.enriched?.role,
+                  nextBestAction: action as typeof coreRole.aiEnrichment.enriched.role.nextBestAction,
+                },
+              },
+            }
+          : undefined;
+
         const rolePayload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> = {
           ...coreRole,
           companyId,
           status: stage === "applied" ? "applied" : "to_apply",
           nextAction: action,
+          aiEnrichment: roleAiEnrichment,
           sourceType: (roleSourceType as JobOsRole["sourceType"]) ?? undefined,
         };
 
@@ -210,6 +244,7 @@ export function PasteLinkImportDialog({
             tailoredCvSummary: "",
             tailoredCvText: "",
             tailoredCvUpdatedAt: undefined,
+            aiEnrichment: roleAiEnrichment,
           });
           parts.push("Application created.");
         } else {
@@ -244,6 +279,19 @@ export function PasteLinkImportDialog({
             onAnalyze={handleAnalyze}
             onCancel={resetAndClose}
           />
+        )}
+
+        {step === "enriching" && (
+          <div className="py-12 text-center space-y-3">
+            <div className="text-sm font-medium text-foreground">
+              Enriching import with AI
+            </div>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Deterministic parsing is complete. JobSprint is adding structured
+              hints for title, track, seniority, and next best action before
+              review.
+            </p>
+          </div>
         )}
 
         {step === "reviewing" && result && (

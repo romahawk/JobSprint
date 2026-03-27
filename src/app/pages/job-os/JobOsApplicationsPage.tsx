@@ -1,8 +1,8 @@
 import { Link } from "react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -93,33 +93,10 @@ export default function JobOsApplicationsPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
 
-  useEffect(() => {
-    if (!draft.cvVersion && defaultCv?.name) {
-      setDraft((current) => ({
-        ...current,
-        cvAssetId: defaultCv.id,
-        cvVersion: defaultCv.name,
-      }));
-    }
-  }, [defaultCv, draft.cvVersion]);
-
   const companiesById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
   const rolesById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const detailApplication = detailId ? applications.find((application) => application.id === detailId) ?? null : null;
-
-  useEffect(() => {
-    if (!detailApplication) {
-      setDetailDraft(null);
-      return;
-    }
-
-    setDetailDraft({
-      status: detailApplication.status,
-      nextAction: detailApplication.nextAction,
-      notes: detailApplication.notes,
-    });
-  }, [detailApplication]);
 
   const groupStatuses = APPLICATION_STAGE_GROUPS[stageGroup].statuses;
   const filteredApplications = useMemo(() => {
@@ -178,6 +155,25 @@ export default function JobOsApplicationsPage() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
   }
 
+  function openCreateDialog(): void {
+    resetDraft();
+    setCreateOpen(true);
+  }
+
+  function openDetails(application: JobOsApplication): void {
+    setDetailId(application.id);
+    setDetailDraft({
+      status: application.status,
+      nextAction: application.nextAction,
+      notes: application.notes,
+    });
+  }
+
+  function closeDetails(): void {
+    setDetailId(null);
+    setDetailDraft(null);
+  }
+
   function toggleSort(field: SortField): void {
     if (sortField === field) {
       setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
@@ -188,7 +184,7 @@ export default function JobOsApplicationsPage() {
     setSortDirection(field === "date" ? "desc" : "asc");
   }
 
-  function SortHeader({ label, field }: { label: string; field: SortField }) {
+  function renderSortHeader(label: string, field: SortField): React.ReactNode {
     const active = sortField === field;
     return (
       <button
@@ -224,7 +220,7 @@ export default function JobOsApplicationsPage() {
   async function handleSaveDetails(): Promise<void> {
     if (!detailApplication || !detailDraft) return;
     await updateApplication(detailApplication.id, detailDraft);
-    setDetailId(null);
+    closeDetails();
   }
 
   function handleCreateDialogKeyDown(
@@ -277,7 +273,7 @@ export default function JobOsApplicationsPage() {
           List
         </Button>
       </div>
-      <Button onClick={() => setCreateOpen(true)} className="gap-2">
+      <Button onClick={openCreateDialog} className="gap-2">
         <Plus className="h-4 w-4" />
         Add Application
       </Button>
@@ -370,7 +366,7 @@ export default function JobOsApplicationsPage() {
                   companiesById={companiesById as Map<string, JobOsCompany>}
                   rolesById={rolesById as Map<string, JobOsRole>}
                   group={stageGroup}
-                  onSelectApplication={(application) => setDetailId(application.id)}
+                  onSelectApplication={openDetails}
                 />
               </CardContent>
             </Card>
@@ -381,11 +377,11 @@ export default function JobOsApplicationsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead />
-                      <TableHead><SortHeader label="Company" field="company" /></TableHead>
-                      <TableHead><SortHeader label="Role" field="role" /></TableHead>
-                      <TableHead><SortHeader label="Status" field="status" /></TableHead>
-                      <TableHead><SortHeader label="Date" field="date" /></TableHead>
-                      <TableHead><SortHeader label="Next Action" field="nextAction" /></TableHead>
+                      <TableHead>{renderSortHeader("Company", "company")}</TableHead>
+                      <TableHead>{renderSortHeader("Role", "role")}</TableHead>
+                      <TableHead>{renderSortHeader("Status", "status")}</TableHead>
+                      <TableHead>{renderSortHeader("Date", "date")}</TableHead>
+                      <TableHead>{renderSortHeader("Next Action", "nextAction")}</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -394,7 +390,7 @@ export default function JobOsApplicationsPage() {
                       <TableRow
                         key={application.id}
                         className="cursor-pointer"
-                        onClick={() => setDetailId(application.id)}
+                        onClick={() => openDetails(application)}
                       >
                         <TableCell>
                           <input
@@ -439,7 +435,7 @@ export default function JobOsApplicationsPage() {
                             variant="ghost"
                             onClick={(event) => {
                               event.stopPropagation();
-                              setDetailId(application.id);
+                              openDetails(application);
                             }}
                           >
                             Open
@@ -464,7 +460,7 @@ export default function JobOsApplicationsPage() {
                               <Button size="sm" variant="outline" onClick={() => setStageGroup("active")}>
                                 Switch to Active
                               </Button>
-                              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                              <Button size="sm" onClick={openCreateDialog}>
                                 Add application
                               </Button>
                             </div>
@@ -605,7 +601,7 @@ export default function JobOsApplicationsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(detailApplication)} onOpenChange={(open) => !open && setDetailId(null)}>
+      <Dialog open={Boolean(detailApplication)} onOpenChange={(open) => !open && closeDetails()}>
         <DialogContent className="max-w-2xl">
           {detailApplication && detailDraft ? (
             <>
@@ -682,7 +678,7 @@ export default function JobOsApplicationsPage() {
                     className="text-red-500"
                     onClick={() => {
                       void removeApplication(detailApplication.id);
-                      setDetailId(null);
+                      closeDetails();
                     }}
                   >
                     Delete

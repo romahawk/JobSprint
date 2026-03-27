@@ -210,7 +210,7 @@ export default function JobOsRolesPage() {
     setSortDir("asc");
   }
 
-  function SortHeader({ label, column }: { label: string; column: RoleSortKey }) {
+  function renderSortHeader(label: string, column: RoleSortKey): React.ReactNode {
     const active = sortKey === column;
     return (
       <button
@@ -466,13 +466,13 @@ export default function JobOsRolesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead><SortHeader label="Company" column="company" /></TableHead>
-                <TableHead><SortHeader label="Title" column="title" /></TableHead>
-                <TableHead><SortHeader label="Location" column="location" /></TableHead>
-                <TableHead><SortHeader label="Seniority" column="seniority" /></TableHead>
-                <TableHead><SortHeader label="Track" column="track" /></TableHead>
-                <TableHead><SortHeader label="Fit" column="fitScore" /></TableHead>
-                <TableHead><SortHeader label="Status" column="status" /></TableHead>
+                <TableHead>{renderSortHeader("Company", "company")}</TableHead>
+                <TableHead>{renderSortHeader("Title", "title")}</TableHead>
+                <TableHead>{renderSortHeader("Location", "location")}</TableHead>
+                <TableHead>{renderSortHeader("Seniority", "seniority")}</TableHead>
+                <TableHead>{renderSortHeader("Track", "track")}</TableHead>
+                <TableHead>{renderSortHeader("Fit", "fitScore")}</TableHead>
+                <TableHead>{renderSortHeader("Status", "status")}</TableHead>
                 <TableHead>JD</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>

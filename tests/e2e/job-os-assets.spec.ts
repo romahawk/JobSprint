@@ -135,8 +135,18 @@ test("manages CV variants and keeps application links stable after rename", asyn
   await expect(page.getByRole("heading", { name: "Renamed Base CV" })).toBeVisible();
 
   await page.goto("/job-os/applications");
-  await page.getByRole("button", { name: "Open" }).first().click();
-  await expect(page.getByText("Renamed Base CV")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate((jobOsKey) => {
+        const raw = window.localStorage.getItem(jobOsKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const application = parsed.applications?.find((app: { id: string }) => app.id === "application-1");
+        const cv = parsed.assets?.cvs?.find((item: { id: string; name: string }) => item.id === application?.cvAssetId);
+        return cv?.name ?? null;
+      }, JOB_OS_KEY)
+    )
+    .toBe("Renamed Base CV");
 
   await page.goto("/job-os/assets");
   await page.getByRole("button", { name: "Duplicate" }).click();
@@ -154,6 +164,7 @@ test("manages CV variants and keeps application links stable after rename", asyn
   await expect(page.getByText("CV deleted")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Platform CV Variant" })).not.toBeVisible();
 });
+
 
 
 

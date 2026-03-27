@@ -88,7 +88,10 @@ test("logs one application from Roles, prevents duplicates, and persists after r
   await page.goto("/job-os/applications");
   await expect(page.getByText("Apheris")).toBeVisible();
   await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
+  await page.getByRole("button", { name: "Open" }).first().click();
+  await expect(page.getByText("Channel")).toBeVisible();
   await expect(page.getByText("Company Site")).toBeVisible();
 });
+
 
 

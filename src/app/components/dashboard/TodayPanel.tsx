@@ -41,7 +41,7 @@ export function TodayPanel({ actions, isLoading }: TodayPanelProps) {
       {!isLoading && queuedActions.length === 0 && (
         <div className="rounded-lg border border-dashed border-neutral-200 dark:border-neutral-800 p-4 text-center">
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            No additional actions are queued after the current top priority.
+            The hero action is your only priority right now. Finish it, or add more pipeline data if you want the queue to refill.
           </p>
         </div>
       )}

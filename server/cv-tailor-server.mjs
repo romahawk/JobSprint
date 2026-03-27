@@ -1,10 +1,51 @@
-﻿import { createServer } from "node:http";
+import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const DEFAULT_PORT = 8787;
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const JOB_IMPORT_SCHEMA_VERSION = "ai_import_v1";
+const JOB_IMPORT_ENUMS = {
+  roleTrack: ["TPM", "Product Engineer", "Systems PM", "Unknown"],
+  seniority: ["Junior", "Middle", "Senior", "Lead", "Staff", "Principal", "Director", "VP", "Executive", "Unknown"],
+  industry: [
+    "AI / Data",
+    "Cybersecurity",
+    "Developer Tools",
+    "E-Commerce / Marketplace",
+    "EdTech",
+    "Fintech / Finance",
+    "Healthcare",
+    "HR / Talent",
+    "Logistics",
+    "Media / Content",
+    "PropTech",
+    "SaaS / Software",
+    "Unknown"
+  ],
+  companyStage: ["Pre-seed", "Seed", "Series A", "Series B", "Series C+", "Private Growth", "Bootstrapped", "Public", "Enterprise", "Unknown"],
+  companySizeBand: ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5000+", "Unknown"],
+  workplaceMode: ["Remote", "Hybrid", "On-site", "Unknown"],
+  priorityBand: ["A", "B", "C", "Unknown"],
+  nextBestAction: ["Research", "Tailor CV", "Apply", "Follow up", "Network", "Archive"],
+  confidenceLevel: ["low", "medium", "high"],
+  reviewFlagCode: [
+    "missing_company_name",
+    "missing_role_title",
+    "missing_job_description",
+    "unclear_location",
+    "unclear_seniority",
+    "unclear_track",
+    "unclear_industry",
+    "unclear_company_size",
+    "unclear_company_stage",
+    "duplicate_company_match",
+    "low_confidence_parse",
+    "manual_review_recommended"
+  ],
+  reviewSeverity: ["info", "review", "warning"]
+};
 
 loadEnvFiles();
 
@@ -44,6 +85,21 @@ const server = createServer(async (request, response) => {
       const body = await readJsonBody(request);
       validateTailoringRequest(body);
       const result = await tailorCvWithOpenAi(body, { apiKey: openAiApiKey, model });
+      writeJson(response, 200, result);
+      return;
+    }
+
+    if (request.method === "POST" && request.url === "/job-import-enrich") {
+      if (!openAiApiKey) {
+        writeJson(response, 500, {
+          error: "OPENAI_API_KEY is missing on the server. Configure it in .env.server or your runtime environment.",
+        });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      validateJobImportEnrichmentRequest(body);
+      const result = await enrichJobImportWithOpenAi(body, { apiKey: openAiApiKey, model });
       writeJson(response, 200, result);
       return;
     }
@@ -116,6 +172,37 @@ function validateTailoringRequest(body) {
   }
 }
 
+function validateJobImportEnrichmentRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("Job import enrichment request must be a JSON object.");
+  }
+
+  if (!body.rawExtracted || typeof body.rawExtracted !== "object" || Array.isArray(body.rawExtracted)) {
+    throw new Error("Job import enrichment request is missing rawExtracted.");
+  }
+
+  const hasCompanySignal = typeof body.rawExtracted.companyName === "string" && body.rawExtracted.companyName.trim();
+  const hasRoleSignal = typeof body.rawExtracted.roleTitle === "string" && body.rawExtracted.roleTitle.trim();
+  const hasJobDescription = typeof body.rawExtracted.jobDescription === "string" && body.rawExtracted.jobDescription.trim();
+
+  if (!hasCompanySignal && !hasRoleSignal && !hasJobDescription) {
+    throw new Error(
+      "Job import enrichment requires at least one of rawExtracted.companyName, rawExtracted.roleTitle, or rawExtracted.jobDescription."
+    );
+  }
+
+  if (
+    body.importConfidence != null &&
+    (typeof body.importConfidence !== "number" || Number.isNaN(body.importConfidence) || body.importConfidence < 0 || body.importConfidence > 1)
+  ) {
+    throw new Error("Job import enrichment importConfidence must be a number between 0 and 1.");
+  }
+
+  if (body.normalized != null && (typeof body.normalized !== "object" || Array.isArray(body.normalized))) {
+    throw new Error("Job import enrichment normalized must be an object when provided.");
+  }
+}
+
 async function tailorCvWithOpenAi(payload, config) {
   const schema = {
     type: "object",
@@ -170,6 +257,82 @@ async function tailorCvWithOpenAi(payload, config) {
     2
   );
 
+  const parsed = await callOpenAiWithJsonSchema(
+    {
+      apiKey: config.apiKey,
+      model: config.model,
+      schemaName: "cv_tailoring_response",
+      schema,
+      systemPrompt,
+      userPrompt,
+    }
+  );
+  const changedLineIndices = getChangedLineIndices(payload.cvSourceText, parsed.fullCvText);
+  const changedWordSpans = getChangedWordSpans(payload.cvSourceText, parsed.fullCvText, changedLineIndices);
+
+  return {
+    headline: parsed.headline,
+    summary: parsed.summary,
+    rewrittenBullets: Array.isArray(parsed.rewrittenBullets) ? parsed.rewrittenBullets : [],
+    portfolioRecommendations: Array.isArray(parsed.portfolioRecommendations) ? parsed.portfolioRecommendations : [],
+    fullCvText: parsed.fullCvText,
+    changedLineIndices,
+    changedWordSpans,
+    model: config.model,
+  };
+}
+
+async function enrichJobImportWithOpenAi(payload, config) {
+  const schema = createJobImportEnrichmentSchema();
+  const systemPrompt = [
+    "You are a job import enrichment assistant for JobSprint.",
+    "Your job is to classify and normalize only from the supplied import payload.",
+    "Never invent unsupported facts about the company, role, funding stage, size, work mode, or hiring process.",
+    "If the evidence is weak, ambiguous, or absent, return the enum value Unknown instead of guessing.",
+    "Use the supplied rawExtracted fields as the primary evidence.",
+    "Use normalized fields only as secondary context, not as license to hallucinate.",
+    "canonicalTitle must be concise and grounded in the supplied role title or job description. If no reliable title exists, return Unknown.",
+    "fitScore must be 1 through 5 and should represent import usefulness and workflow readiness, not candidate-job match quality.",
+    "priorityBand must be conservative. Use Unknown when the signal is weak.",
+    "nextBestAction must recommend the safest immediate workflow step based on the supplied evidence.",
+    "reviewFlags should explain what a human should verify before trusting the enrichment.",
+    "confidence must reflect the certainty of each field, and low-confidence fields should usually pair with Unknown values or review flags.",
+    "When a review flag is not tied to a single field, use an empty string for fieldPath.",
+    "Return valid JSON only matching the provided schema.",
+  ].join(" ");
+
+  const userPrompt = JSON.stringify(
+    {
+      task: "job_import_enrichment_v1",
+      schemaVersion: JOB_IMPORT_SCHEMA_VERSION,
+      payload,
+      outputRules: {
+        unknownWhenUnclear: true,
+        doNotInventUnsupportedFacts: true,
+        allowOnlyEnumeratedValues: true,
+        keepReviewFlagsActionable: true,
+      },
+    },
+    null,
+    2
+  );
+
+  const parsed = await callOpenAiWithJsonSchema({
+    apiKey: config.apiKey,
+    model: config.model,
+    schemaName: "job_import_enrichment_response",
+    schema,
+    systemPrompt,
+    userPrompt,
+  });
+
+  return {
+    ...parsed,
+    model: config.model,
+  };
+}
+
+async function callOpenAiWithJsonSchema(config) {
   const apiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -181,18 +344,18 @@ async function tailorCvWithOpenAi(payload, config) {
       input: [
         {
           role: "system",
-          content: [{ type: "input_text", text: systemPrompt }],
+          content: [{ type: "input_text", text: config.systemPrompt }],
         },
         {
           role: "user",
-          content: [{ type: "input_text", text: userPrompt }],
+          content: [{ type: "input_text", text: config.userPrompt }],
         },
       ],
       text: {
         format: {
           type: "json_schema",
-          name: "cv_tailoring_response",
-          schema,
+          name: config.schemaName,
+          schema: config.schema,
           strict: true,
         },
       },
@@ -206,19 +369,106 @@ async function tailorCvWithOpenAi(payload, config) {
 
   const responseJson = await apiResponse.json();
   const outputText = extractOutputText(responseJson);
-  const parsed = parseModelJson(outputText);
-  const changedLineIndices = getChangedLineIndices(payload.cvSourceText, parsed.fullCvText);
-  const changedWordSpans = getChangedWordSpans(payload.cvSourceText, parsed.fullCvText, changedLineIndices);
+  return parseModelJson(outputText);
+}
+
+function createJobImportEnrichmentSchema() {
+  const confidenceField = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      score: { type: "number", minimum: 0, maximum: 1 },
+      level: { type: "string", enum: JOB_IMPORT_ENUMS.confidenceLevel },
+      evidence: {
+        type: "array",
+        items: { type: "string" },
+      },
+      source: { type: "string", enum: ["model"] },
+    },
+    required: ["score", "level", "evidence", "source"],
+  };
 
   return {
-    headline: parsed.headline,
-    summary: parsed.summary,
-    rewrittenBullets: Array.isArray(parsed.rewrittenBullets) ? parsed.rewrittenBullets : [],
-    portfolioRecommendations: Array.isArray(parsed.portfolioRecommendations) ? parsed.portfolioRecommendations : [],
-    fullCvText: parsed.fullCvText,
-    changedLineIndices,
-    changedWordSpans,
-    model: config.model,
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      schemaVersion: { type: "string", const: JOB_IMPORT_SCHEMA_VERSION },
+      canonicalTitle: { type: "string" },
+      roleTrack: { type: "string", enum: JOB_IMPORT_ENUMS.roleTrack },
+      seniority: { type: "string", enum: JOB_IMPORT_ENUMS.seniority },
+      industry: { type: "string", enum: JOB_IMPORT_ENUMS.industry },
+      companyStage: { type: "string", enum: JOB_IMPORT_ENUMS.companyStage },
+      companySizeBand: { type: "string", enum: JOB_IMPORT_ENUMS.companySizeBand },
+      workplaceMode: { type: "string", enum: JOB_IMPORT_ENUMS.workplaceMode },
+      fitScore: { type: "integer", enum: [1, 2, 3, 4, 5] },
+      priorityBand: { type: "string", enum: JOB_IMPORT_ENUMS.priorityBand },
+      nextBestAction: { type: "string", enum: JOB_IMPORT_ENUMS.nextBestAction },
+      confidence: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          overall: confidenceField,
+          fields: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              canonicalTitle: confidenceField,
+              roleTrack: confidenceField,
+              seniority: confidenceField,
+              industry: confidenceField,
+              companyStage: confidenceField,
+              companySizeBand: confidenceField,
+              workplaceMode: confidenceField,
+              fitScore: confidenceField,
+              priorityBand: confidenceField,
+              nextBestAction: confidenceField,
+            },
+            required: [
+              "canonicalTitle",
+              "roleTrack",
+              "seniority",
+              "industry",
+              "companyStage",
+              "companySizeBand",
+              "workplaceMode",
+              "fitScore",
+              "priorityBand",
+              "nextBestAction",
+            ],
+          },
+        },
+        required: ["overall", "fields"],
+      },
+      reviewFlags: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            code: { type: "string", enum: JOB_IMPORT_ENUMS.reviewFlagCode },
+            severity: { type: "string", enum: JOB_IMPORT_ENUMS.reviewSeverity },
+            message: { type: "string" },
+            fieldPath: { type: "string" },
+          },
+          required: ["code", "severity", "message", "fieldPath"],
+        },
+      },
+    },
+    required: [
+      "schemaVersion",
+      "canonicalTitle",
+      "roleTrack",
+      "seniority",
+      "industry",
+      "companyStage",
+      "companySizeBand",
+      "workplaceMode",
+      "fitScore",
+      "priorityBand",
+      "nextBestAction",
+      "confidence",
+      "reviewFlags",
+    ],
   };
 }
 

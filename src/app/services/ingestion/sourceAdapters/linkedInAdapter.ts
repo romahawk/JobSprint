@@ -1,5 +1,15 @@
 import type { SourceAdapter, ParseInput, ParsedImportResult } from "../types";
-import { inferIndustry, inferRemotePolicy, inferSeniority } from "../utils";
+import {
+  cleanCompanyCandidate,
+  cleanLocationCandidate,
+  cleanTitleCandidate,
+  inferIndustry,
+  inferRemotePolicy,
+  inferSeniority,
+  isLikelyCompanyName,
+  isLikelyJobTitle,
+  isLikelyLocation,
+} from "../utils";
 
 const LINKEDIN_RE = /https?:\/\/(?:www\.)?linkedin\.com\//i;
 
@@ -34,11 +44,21 @@ export const linkedInAdapter: SourceAdapter = {
         .map((l) => l.trim())
         .filter(Boolean);
 
-      if (!extracted.roleTitle && lines[0]) {
-        extracted.roleTitle = lines[0];
+      if (!extracted.roleTitle) {
+        const titleLine = lines.find((line) => isLikelyJobTitle(cleanTitleCandidate(line)));
+        if (titleLine) {
+          extracted.roleTitle = cleanTitleCandidate(titleLine);
+        }
       }
-      if (!extracted.companyName && lines[1] && lines[1].length < 80) {
-        extracted.companyName = lines[1];
+      if (!extracted.companyName) {
+        const companyLine = lines.find((line) => isLikelyCompanyName(cleanCompanyCandidate(line)));
+        if (companyLine && companyLine !== extracted.roleTitle) {
+          extracted.companyName = cleanCompanyCandidate(companyLine);
+        }
+      }
+      const locationLine = lines.find((line) => isLikelyLocation(cleanLocationCandidate(line)));
+      if (locationLine) {
+        extracted.roleLocation = cleanLocationCandidate(locationLine);
       }
 
       extracted.jobDescription = text.slice(0, 3000);
@@ -53,6 +73,15 @@ export const linkedInAdapter: SourceAdapter = {
       sourcePlatform: "linkedin",
       sourceType: "job",
       confidence,
+      jobSource: {
+        sourceUrl: input.url,
+        sourcePlatform: "linkedin",
+        sourceType: "job",
+        companyName: extracted.companyName,
+        rawJobTitle: extracted.roleTitle,
+        rawLocation: extracted.roleLocation,
+        rawJobDescription: extracted.jobDescription,
+      },
       raw: { text: input.pastedText },
       extracted,
     };

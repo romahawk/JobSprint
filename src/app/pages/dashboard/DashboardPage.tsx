@@ -21,6 +21,7 @@ import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
 import { QuickActions } from "../../components/dashboard/QuickActions";
 import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
+import { AppPageShell } from "../../components/layout/AppPageShell";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 
 export function DashboardPage() {
@@ -36,6 +37,7 @@ export function DashboardPage() {
     addCompany,
     updateCompany,
     addRole,
+    addApplication,
   } = useJobOs(session?.userId ?? null);
 
   const lastSyncedLabel = jobOsSync.lastSyncedAt
@@ -124,6 +126,7 @@ export function DashboardPage() {
             addCompany={addCompany}
             updateCompany={updateCompany}
             addRole={addRole}
+            addApplication={addApplication}
             onDismiss={() => {
               updateOnboardingStatus("dismissed");
               void navigate("/job-os/companies");
@@ -132,55 +135,61 @@ export function DashboardPage() {
           />
         ) : null}
 
-        <div className={`grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_360px] xl:grid-cols-[minmax(0,1.8fr)_380px]${showFirstRun || holdDashboard ? " hidden" : ""}`}>
-          <div className="min-w-0 space-y-4">
-            <FocusedNextAction
-              action={primaryAction}
-              isLoading={loading}
-              queueSize={Math.max(actions.length - 1, 0)}
-            />
-            <TodayPanel actions={actions} isLoading={loading} />
-          </div>
+        <AppPageShell
+          title="Command Center"
+          subtitle="Act on the strongest next move first, then use the side rail for supporting context."
+          className={showFirstRun || holdDashboard ? "hidden" : ""}
+        >
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_360px] xl:grid-cols-[minmax(0,1.8fr)_380px]">
+            <div className="min-w-0 space-y-4">
+              <FocusedNextAction
+                action={primaryAction}
+                isLoading={loading}
+                queueSize={Math.max(actions.length - 1, 0)}
+              />
+              <TodayPanel actions={actions} isLoading={loading} />
+            </div>
 
-          <div className="min-w-0 lg:self-start">
-            <div className="space-y-4 lg:sticky lg:top-24">
-              <QuickActions />
-              <PipelineStats stats={stats} isLoading={loading} />
-              <ProbabilityPanel stats={stats} isLoading={loading} />
-              <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>
-                <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                  <CollapsibleTrigger className="w-full text-left">
-                    <div className="flex items-center gap-2 px-4 py-3">
-                      <Layers3 className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                      <div>
-                        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-400">
-                          Supporting Signals
-                        </h2>
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                          Use these when you want more context, not before.
-                        </p>
+            <div className="min-w-0 lg:self-start">
+              <div className="space-y-4 lg:sticky lg:top-24">
+                <QuickActions />
+                <PipelineStats stats={stats} isLoading={loading} />
+                <ProbabilityPanel stats={stats} isLoading={loading} />
+                <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>
+                  <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                    <CollapsibleTrigger className="w-full text-left">
+                      <div className="flex items-center gap-2 px-4 py-3">
+                        <Layers3 className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                        <div>
+                          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-400">
+                            Supporting Signals
+                          </h2>
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                            Use these when you want more context, not before.
+                          </p>
+                        </div>
+                        <span className="ml-auto text-neutral-400">
+                          {supportOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </span>
                       </div>
-                      <span className="ml-auto text-neutral-400">
-                        {supportOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </span>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="border-t border-neutral-200 px-4 py-4 dark:border-neutral-800">
-                      {(loading || hotOpportunities.length > 0) ? (
-                        <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
-                      ) : (
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                          No additional hot opportunities to surface right now.
-                        </p>
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </section>
-              </Collapsible>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="border-t border-neutral-200 px-4 py-4 dark:border-neutral-800">
+                        {(loading || hotOpportunities.length > 0) ? (
+                          <HotOpportunities opportunities={hotOpportunities} isLoading={loading} />
+                        ) : (
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                            No additional hot opportunities to surface right now.
+                          </p>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </section>
+                </Collapsible>
+              </div>
             </div>
           </div>
-        </div>
+        </AppPageShell>
       </main>
     </div>
   );

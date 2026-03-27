@@ -6,7 +6,9 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Eye,
   Link,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -35,6 +37,12 @@ import {
 } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
 import { Checkbox } from "../../components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../../components/ui/tooltip";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
@@ -132,7 +140,7 @@ export default function JobOsCompaniesPage() {
   } = useJobOs(session?.userId ?? null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [addFormOpen, setAddFormOpen] = useState(true);
+  const [addFormOpen, setAddFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [bulkText, setBulkText] = useState("");
@@ -656,6 +664,7 @@ export default function JobOsCompaniesPage() {
           </div>
         </CardHeader>
         <CardContent>
+          <TooltipProvider delayDuration={150}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -681,7 +690,7 @@ export default function JobOsCompaniesPage() {
                 <TableHead>
                   <SortHeader label="Notes" column="notes" />
                 </TableHead>
-                <TableHead />
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -699,28 +708,47 @@ export default function JobOsCompaniesPage() {
                   <TableCell className="max-w-[260px] truncate">
                     {company.notes || "-"}
                   </TableCell>
-                  <TableCell className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedCompanyId(company.id)}
-                    >
-                      View
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-500"
-                      disabled={companyListLocked}
-                      onClick={() => void removeCompany(company.id)}
-                    >
-                      Delete
-                    </Button>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() => setSelectedCompanyId(company.id)}
+                              aria-label="View company"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">View</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                              disabled={companyListLocked}
+                              onClick={() => void removeCompany(company.id)}
+                              aria-label="Delete company"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Delete</TooltipContent>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </TooltipProvider>
         </CardContent>
       </Card>
 
@@ -1029,6 +1057,7 @@ export default function JobOsCompaniesPage() {
         addCompany={addCompany}
         updateCompany={updateCompany}
         addRole={addRole}
+        addApplication={addApplication}
       />
     </JobOsLayout>
   );

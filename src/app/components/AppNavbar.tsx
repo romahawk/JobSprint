@@ -37,8 +37,6 @@ const NAV_ITEMS = [
     icon: BriefcaseBusiness,
     matches: (pathname: string) =>
       pathname === "/job-os" ||
-      pathname === "/job-os/companies" ||
-      pathname === "/job-os/roles" ||
       pathname === "/job-os/applications" ||
       pathname === "/job-os/outreach",
   },
@@ -48,6 +46,8 @@ const NAV_ITEMS = [
     icon: FolderOpen,
     matches: (pathname: string) =>
       pathname === "/job-os/assets" ||
+      pathname === "/job-os/companies" ||
+      pathname === "/job-os/roles" ||
       pathname === "/job-os/settings" ||
       pathname === "/cv-optimizer" ||
       pathname === "/compliance/afa",

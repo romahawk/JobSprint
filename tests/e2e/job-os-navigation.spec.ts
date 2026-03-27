@@ -22,9 +22,10 @@ test.describe("Job OS navigation", () => {
   });
 
   test("AppNavbar contains all top-level navigation links", async ({ page }) => {
-    await expect(page.getByRole("link", { name: /Action/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Pipeline/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /System/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Action", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Pipeline", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "System", exact: true })).toBeVisible();
   });
 });
+
 

@@ -190,6 +190,36 @@ function stripUndefinedValue(value: unknown): unknown {
   return value;
 }
 
+function syncApplicationCvLabels(
+  applications: JobOsApplication[],
+  previousCvs: JobOsCvAsset[],
+  nextCvs: JobOsCvAsset[],
+  updatedCvId: string
+): JobOsApplication[] {
+  const nextCv = nextCvs.find((cv) => cv.id === updatedCvId);
+  if (!nextCv) return applications;
+
+  const previousCv = previousCvs.find((cv) => cv.id === updatedCvId);
+  const previousName = previousCv?.name ?? "";
+
+  return applications.map((application) => {
+    const resolvedCvAssetId = getApplicationCvAssetId(application, previousCvs);
+    if (resolvedCvAssetId !== updatedCvId) {
+      return application;
+    }
+
+    return {
+      ...application,
+      cvAssetId: updatedCvId,
+      cvVersion:
+        application.cvVersion === previousName || !application.cvVersion.trim()
+          ? nextCv.name
+          : application.cvVersion,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+}
+
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -537,6 +567,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
               ...prev.assets,
               cvs: nextCvs,
             },
+            applications: syncApplicationCvLabels(
+              prev.applications,
+              prev.assets.cvs,
+              nextCvs,
+              id
+            ),
           };
           return next;
         },

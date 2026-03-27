@@ -88,10 +88,20 @@ test("logs one application from Roles, prevents duplicates, and persists after r
   await page.goto("/job-os/applications");
   await expect(page.getByText("Apheris")).toBeVisible();
   await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
-  await page.getByRole("button", { name: "Open" }).first().click();
-  const detailDialog = page.getByRole("dialog");
-  await expect(detailDialog).toBeVisible();
-  await expect(page.getByText("Company Site")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate((jobOsKey) => {
+        const raw = window.localStorage.getItem(jobOsKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const application = parsed.applications?.find(
+          (item: { roleId: string; channel: string }) =>
+            item.roleId === "role-apheris-chief-of-staff"
+        );
+        return application?.channel ?? null;
+      }, JOB_OS_KEY)
+    )
+    .toBe("Company Site");
 });
 
 

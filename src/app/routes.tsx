@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -7,7 +7,6 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 const DashboardPage = lazy(() =>
   import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage }))
 );
-const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const JobOsAssetsPage = lazy(() => import("./pages/job-os/JobOsAssetsPage"));
 const JobOsCompaniesPage = lazy(() => import("./pages/job-os/JobOsCompaniesPage"));
@@ -44,7 +43,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/overview",
-        element: lazyElement(<Dashboard />),
+        element: <Navigate to="/" replace />,
       },
       {
         path: "/analytics",

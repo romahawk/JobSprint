@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -22,6 +23,7 @@ import {
   JobOsPipelineBoard,
 } from "../../components/job-os/JobOsPipelineBoard";
 import { getApplicationCvLabel, getDefaultCvAsset } from "../../services/cvAssets";
+import { ApplicationQualityBadge } from "../../components/job-os/ApplicationQualityBadge";
 import type { ApplicationStatus, JobOsApplication, JobOsCompany, JobOsRole } from "../../types/jobOs";
 
 const STATUS_VALUES: ApplicationStatus[] = [
@@ -73,13 +75,35 @@ export default function JobOsApplicationsPage() {
     companies,
     roles,
     assets,
+    cvTailoringRuns,
+    outreach,
     addApplication,
     updateApplication,
+    updateOutreach,
     removeApplication,
     syncNotice,
     exportState,
     replaceState,
   } = useJobOs(session?.userId ?? null);
+
+  async function handleApplicationStatusChange(
+    applicationId: string,
+    roleId: string,
+    newStatus: ApplicationStatus
+  ): Promise<void> {
+    await updateApplication(applicationId, { status: newStatus });
+
+    const closingStatuses: ApplicationStatus[] = ["interview", "final", "offer", "rejected", "ghosted"];
+    if (closingStatuses.includes(newStatus)) {
+      const linked = outreach.filter(
+        (o) => o.roleId === roleId && o.status !== "closed"
+      );
+      await Promise.all(linked.map((o) => updateOutreach(o.id, { status: "closed" })));
+      if (linked.length > 0) {
+        toast(`${linked.length} linked outreach record${linked.length > 1 ? "s" : ""} closed`);
+      }
+    }
+  }
 
   const defaultCv = getDefaultCvAsset(assets.cvs);
   const [viewMode, setViewMode] = useState<PipelineViewMode>("list");
@@ -379,6 +403,7 @@ export default function JobOsApplicationsPage() {
                       <TableHead />
                       <TableHead>{renderSortHeader("Company", "company")}</TableHead>
                       <TableHead>{renderSortHeader("Role", "role")}</TableHead>
+                      <TableHead>Quality</TableHead>
                       <TableHead>{renderSortHeader("Status", "status")}</TableHead>
                       <TableHead>{renderSortHeader("Date", "date")}</TableHead>
                       <TableHead>{renderSortHeader("Next Action", "nextAction")}</TableHead>
@@ -405,12 +430,22 @@ export default function JobOsApplicationsPage() {
                         </TableCell>
                         <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
                         <TableCell>
+                          {!["rejected", "ghosted"].includes(application.status) && (
+                            <ApplicationQualityBadge
+                              application={application}
+                              cvTailoringRuns={cvTailoringRuns}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <Select
                             value={application.status}
                             onValueChange={(value) =>
-                              void updateApplication(application.id, {
-                                status: value as ApplicationStatus,
-                              })
+                              void handleApplicationStatusChange(
+                                application.id,
+                                application.roleId,
+                                value as ApplicationStatus
+                              )
                             }
                           >
                             <SelectTrigger className="w-36">
@@ -446,7 +481,7 @@ export default function JobOsApplicationsPage() {
                     {filteredApplications.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="py-10 text-center text-sm text-muted-foreground"
                         >
                           <div className="mx-auto flex max-w-md flex-col items-center gap-3">

@@ -1,6 +1,8 @@
 import { Link } from "react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { usePagination } from "../../hooks/usePagination";
+import { PaginationControls } from "../../components/ui/PaginationControls";
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -12,8 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Textarea } from "../../components/ui/textarea";
 import { Badge } from "../../components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
-import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { AppPageShell } from "../../components/layout/AppPageShell";
@@ -69,7 +70,6 @@ function createDraft(defaultCv?: { id: string; name: string }): Omit<JobOsApplic
 }
 
 export default function JobOsApplicationsPage() {
-  const { session } = useApp();
   const {
     applications,
     companies,
@@ -84,7 +84,7 @@ export default function JobOsApplicationsPage() {
     syncNotice,
     exportState,
     replaceState,
-  } = useJobOs(session?.userId ?? null);
+  } = useJobOsContext();
 
   async function handleApplicationStatusChange(
     applicationId: string,
@@ -170,6 +170,18 @@ export default function JobOsApplicationsPage() {
       return sortDirection === "asc" ? comparison : -comparison;
     });
   }, [applications, companiesById, groupStatuses, rolesById, searchTerm, sortDirection, sortField]);
+
+  const PAGE_SIZE = 10;
+  const {
+    page: appPage,
+    totalPages: appTotalPages,
+    pageItems: pagedApplications,
+    setPage: setAppPage,
+    resetPage: resetAppPage,
+  } = usePagination(filteredApplications, PAGE_SIZE);
+
+  // Reset to page 1 whenever filters or sort changes
+  useMemo(() => { resetAppPage(); }, [searchTerm, stageGroup, sortField, sortDirection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function resetDraft(): void {
     setDraft(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
@@ -411,7 +423,7 @@ export default function JobOsApplicationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredApplications.map((application) => (
+                    {pagedApplications.map((application) => (
                       <TableRow
                         key={application.id}
                         className="cursor-pointer"
@@ -505,6 +517,13 @@ export default function JobOsApplicationsPage() {
                     ) : null}
                   </TableBody>
                 </Table>
+                <PaginationControls
+                  page={appPage}
+                  totalPages={appTotalPages}
+                  totalItems={filteredApplications.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setAppPage}
+                />
               </CardContent>
             </Card>
           )}

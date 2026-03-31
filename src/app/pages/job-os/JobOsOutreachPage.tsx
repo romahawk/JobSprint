@@ -6,8 +6,7 @@ import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
-import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import type { ApplicationStatus, JobOsOutreach, OutreachStatus } from "../../types/jobOs";
@@ -15,10 +14,7 @@ import type { ApplicationStatus, JobOsOutreach, OutreachStatus } from "../../typ
 const OUTREACH_STATUSES: OutreachStatus[] = ["sent", "replied", "meeting", "no_reply", "closed"];
 
 export default function JobOsOutreachPage() {
-  const { session } = useApp();
-  const { outreach, applications, companies, roles, assets, addOutreach, updateOutreach, updateApplication, removeOutreach, syncNotice, exportState, replaceState } = useJobOs(
-    session?.userId ?? null
-  );
+  const { outreach, applications, companies, roles, assets, addOutreach, updateOutreach, updateApplication, removeOutreach, syncNotice, exportState, replaceState } = useJobOsContext();
 
   async function handleOutreachStatusChange(item: JobOsOutreach, newStatus: OutreachStatus): Promise<void> {
     await updateOutreach(item.id, { status: newStatus });

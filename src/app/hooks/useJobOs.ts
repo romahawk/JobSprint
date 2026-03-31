@@ -269,7 +269,7 @@ function collectionDoc<T extends { id: string }>(
   } as JobOsState;
 }
 
-interface UseJobOsReturn extends JobOsState {
+export interface UseJobOsReturn extends JobOsState {
   loading: boolean;
   syncNotice: string | null;
   pendingWrites: number;

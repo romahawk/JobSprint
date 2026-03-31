@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, Zap } from "lucide-react";
-import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
 import { getNextActions } from "../../services/execution/nextActionEngine";
 import type { NextAction, ActionPriority } from "../../services/execution/nextActionEngine";
 
@@ -55,10 +54,7 @@ function ActionItem({
 }
 
 export function CommandCenter() {
-  const { session } = useApp();
-  const { companies, roles, applications, outreach, loading } = useJobOs(
-    session?.userId ?? null
-  );
+  const { companies, roles, applications, outreach, loading } = useJobOsContext();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const allActions = useMemo(

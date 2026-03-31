@@ -560,14 +560,29 @@ export function getNextActions(
     ...generateArchiveActions(applications, companies),
   ];
 
-  // Deduplicate by id, sort by score desc, take top N
+  // Deduplicate by id
   const seen = new Set<string>();
-  return all
-    .filter((a) => {
-      if (seen.has(a.id)) return false;
-      seen.add(a.id);
-      return true;
-    })
+  const deduped = all.filter((a) => {
+    if (seen.has(a.id)) return false;
+    seen.add(a.id);
+    return true;
+  });
+
+  // For the same application, keep only the highest-scored action
+  const byAppId = new Map<string, NextAction>();
+  const noApp: NextAction[] = [];
+  for (const action of deduped) {
+    if (!action.applicationId) {
+      noApp.push(action);
+      continue;
+    }
+    const existing = byAppId.get(action.applicationId);
+    if (!existing || action.score > existing.score) {
+      byAppId.set(action.applicationId, action);
+    }
+  }
+
+  return [...byAppId.values(), ...noApp]
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }

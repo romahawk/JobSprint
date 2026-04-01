@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -23,8 +23,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
-import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
+import { usePagination } from "../../hooks/usePagination";
+import { PaginationControls } from "../../components/ui/PaginationControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { getRecommendedCvForTrack } from "../../services/cvAssets";
@@ -65,7 +66,6 @@ function normalizeSeniority(value: string): string {
 }
 
 export default function JobOsRolesPage() {
-  const { session } = useApp();
   const {
     roles,
     companies,
@@ -79,7 +79,7 @@ export default function JobOsRolesPage() {
     syncNotice,
     exportState,
     replaceState,
-  } = useJobOs(session?.userId ?? null);
+  } = useJobOsContext();
 
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
@@ -191,6 +191,19 @@ export default function JobOsRolesPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [companiesById, filtered, sortDir, sortKey]);
+
+  const ROLES_PAGE_SIZE = 10;
+  const {
+    page: rolesPage,
+    totalPages: rolesTotalPages,
+    pageItems: pagedRoles,
+    setPage: setRolesPage,
+    resetPage: resetRolesPage,
+  } = usePagination(sortedRoles, ROLES_PAGE_SIZE);
+
+  useEffect(() => {
+    resetRolesPage();
+  }, [resetRolesPage, sortDir, sortKey, tableFilters]);
 
   const applicationRoleIds = useMemo(
     () => new Set(applications.map((application) => application.roleId).filter(Boolean)),
@@ -576,7 +589,7 @@ export default function JobOsRolesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedRoles.map((role) => (
+              {pagedRoles.map((role) => (
                 <TableRow key={role.id}>
                   <TableCell>
                     {editingRoleId === role.id && editDraft ? (
@@ -860,6 +873,13 @@ export default function JobOsRolesPage() {
             </TableBody>
           </Table>
           </TooltipProvider>
+          <PaginationControls
+            page={rolesPage}
+            totalPages={rolesTotalPages}
+            totalItems={sortedRoles.length}
+            pageSize={ROLES_PAGE_SIZE}
+            onPageChange={setRolesPage}
+          />
         </CardContent>
       </Card>
 

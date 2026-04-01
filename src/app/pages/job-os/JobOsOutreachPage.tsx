@@ -1,23 +1,43 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
-import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
-import type { JobOsOutreach, OutreachStatus } from "../../types/jobOs";
+import type { ApplicationStatus, JobOsOutreach, OutreachStatus } from "../../types/jobOs";
 
 const OUTREACH_STATUSES: OutreachStatus[] = ["sent", "replied", "meeting", "no_reply", "closed"];
 
 export default function JobOsOutreachPage() {
-  const { session } = useApp();
-  const { outreach, companies, roles, assets, addOutreach, updateOutreach, removeOutreach, syncNotice, exportState, replaceState } = useJobOs(
-    session?.userId ?? null
-  );
+  const { outreach, applications, companies, roles, assets, addOutreach, updateOutreach, updateApplication, removeOutreach, syncNotice, exportState, replaceState } = useJobOsContext();
+
+  async function handleOutreachStatusChange(item: JobOsOutreach, newStatus: OutreachStatus): Promise<void> {
+    await updateOutreach(item.id, { status: newStatus });
+
+    if ((newStatus === "replied" || newStatus === "meeting") && item.roleId) {
+      const targetAppStatus: ApplicationStatus = newStatus === "meeting" ? "interview" : "screen";
+      const linkedApp = applications.find(
+        (a) => a.roleId === item.roleId && a.status !== "rejected" && a.status !== "ghosted" && a.status !== "offer"
+      );
+
+      if (linkedApp) {
+        const companyName = companies.find((c) => c.id === item.companyId)?.name ?? "this company";
+        toast(`Advance application at ${companyName}?`, {
+          description: `Outreach marked "${newStatus}" — move application to ${targetAppStatus === "interview" ? "Interview" : "Screen"}?`,
+          action: {
+            label: "Yes, advance",
+            onClick: () => void updateApplication(linkedApp.id, { status: targetAppStatus }),
+          },
+          duration: 8000,
+        });
+      }
+    }
+  }
   const [draft, setDraft] = useState<Omit<JobOsOutreach, "id" | "createdAt" | "updatedAt">>({
     companyId: "",
     roleId: null,
@@ -123,7 +143,7 @@ export default function JobOsOutreachPage() {
                   <TableCell className="max-w-[220px] truncate">{item.scriptUsed}</TableCell>
                   <TableCell>{item.sentDate}</TableCell>
                   <TableCell>
-                    <Select value={item.status} onValueChange={(v) => void updateOutreach(item.id, { status: v as OutreachStatus })}>
+                    <Select value={item.status} onValueChange={(v) => void handleOutreachStatusChange(item, v as OutreachStatus)}>
                       <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                       <SelectContent>{OUTREACH_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                     </Select>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
+import { JobOsRouteProvider } from "./components/job-os/JobOsRouteProvider";
 import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -7,7 +8,6 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 const DashboardPage = lazy(() =>
   import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage }))
 );
-const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const JobOsAssetsPage = lazy(() => import("./pages/job-os/JobOsAssetsPage"));
 const JobOsCompaniesPage = lazy(() => import("./pages/job-os/JobOsCompaniesPage"));
@@ -44,7 +44,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/overview",
-        element: lazyElement(<Dashboard />),
+        element: <Navigate to="/" replace />,
       },
       {
         path: "/analytics",
@@ -55,36 +55,41 @@ export const router = createBrowserRouter([
         element: lazyElement(<AfaCompliancePage />),
       },
       {
-        path: "/job-os",
-        element: lazyElement(<JobOsApplicationsPage />),
-      },
-      {
-        path: "/job-os/assets",
-        element: lazyElement(<JobOsAssetsPage />),
-      },
-      {
-        path: "/job-os/companies",
-        element: lazyElement(<JobOsCompaniesPage />),
-      },
-      {
-        path: "/job-os/roles",
-        element: lazyElement(<JobOsRolesPage />),
-      },
-      {
-        path: "/job-os/applications",
-        element: lazyElement(<JobOsApplicationsPage />),
-      },
-      {
-        path: "/job-os/outreach",
-        element: lazyElement(<JobOsOutreachPage />),
+        Component: JobOsRouteProvider,
+        children: [
+          {
+            path: "/job-os",
+            element: lazyElement(<JobOsApplicationsPage />),
+          },
+          {
+            path: "/job-os/assets",
+            element: lazyElement(<JobOsAssetsPage />),
+          },
+          {
+            path: "/job-os/companies",
+            element: lazyElement(<JobOsCompaniesPage />),
+          },
+          {
+            path: "/job-os/roles",
+            element: lazyElement(<JobOsRolesPage />),
+          },
+          {
+            path: "/job-os/applications",
+            element: lazyElement(<JobOsApplicationsPage />),
+          },
+          {
+            path: "/job-os/outreach",
+            element: lazyElement(<JobOsOutreachPage />),
+          },
+          {
+            path: "/job-os/settings",
+            element: lazyElement(<JobOsSettingsPage />),
+          },
+        ],
       },
       {
         path: "/cv-optimizer",
         element: lazyElement(<CvOptimizerPage />),
-      },
-      {
-        path: "/job-os/settings",
-        Component: JobOsSettingsPage,
       },
     ],
   },

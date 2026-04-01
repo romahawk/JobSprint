@@ -44,7 +44,9 @@ import {
   TooltipTrigger,
 } from "../../components/ui/tooltip";
 import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
+import { usePagination } from "../../hooks/usePagination";
+import { PaginationControls } from "../../components/ui/PaginationControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { PasteLinkImportDialog } from "../../components/job-os/PasteLinkImportDialog";
@@ -121,7 +123,6 @@ type CompanySortKey =
   | "notes";
 
 export default function JobOsCompaniesPage() {
-  const { session } = useApp();
   const {
     companies,
     roles,
@@ -137,8 +138,9 @@ export default function JobOsCompaniesPage() {
     syncNotice,
     exportState,
     replaceState,
-  } = useJobOs(session?.userId ?? null);
+  } = useJobOsContext();
 
+  const { session } = useApp();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -202,6 +204,15 @@ export default function JobOsCompaniesPage() {
     return rows;
   }, [filtered, sortDir, sortKey]);
 
+  const COMPANIES_PAGE_SIZE = 10;
+  const {
+    page: companiesPage,
+    totalPages: companiesTotalPages,
+    pageItems: pagedCompanies,
+    setPage: setCompaniesPage,
+    resetPage: resetCompaniesPage,
+  } = usePagination(sortedCompanies, COMPANIES_PAGE_SIZE);
+
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) ?? null;
   const lockStorageKey = `job_os_companies_lock_${session?.userId ?? "anon"}`;
 
@@ -219,6 +230,10 @@ export default function JobOsCompaniesPage() {
     if (!session?.userId) return;
     localStorage.setItem(lockStorageKey, companyListLocked ? "true" : "false");
   }, [companyListLocked, lockStorageKey, session?.userId]);
+
+  useEffect(() => {
+    resetCompaniesPage();
+  }, [resetCompaniesPage, search, sortDir, sortKey]);
 
   function toggleSort(nextKey: CompanySortKey): void {
     if (sortKey === nextKey) {
@@ -694,10 +709,10 @@ export default function JobOsCompaniesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedCompanies.map((company, index) => (
+              {pagedCompanies.map((company, index) => (
                 <TableRow key={company.id}>
                   <TableCell className="text-center text-xs text-neutral-500">
-                    {index + 1}
+                    {(companiesPage - 1) * COMPANIES_PAGE_SIZE + index + 1}
                   </TableCell>
                   <TableCell className="font-medium">{company.name}</TableCell>
                   <TableCell>{company.industry}</TableCell>
@@ -748,6 +763,13 @@ export default function JobOsCompaniesPage() {
               ))}
             </TableBody>
           </Table>
+          <PaginationControls
+            page={companiesPage}
+            totalPages={companiesTotalPages}
+            totalItems={sortedCompanies.length}
+            pageSize={COMPANIES_PAGE_SIZE}
+            onPageChange={setCompaniesPage}
+          />
           </TooltipProvider>
         </CardContent>
       </Card>

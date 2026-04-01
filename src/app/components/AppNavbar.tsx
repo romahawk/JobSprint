@@ -29,7 +29,7 @@ const NAV_ITEMS = [
     to: "/",
     label: "Action",
     icon: LayoutDashboard,
-    matches: (pathname: string) => pathname === "/" || pathname === "/overview" || pathname === "/analytics",
+    matches: (pathname: string) => pathname === "/" || pathname === "/analytics",
   },
   {
     to: "/job-os/applications",

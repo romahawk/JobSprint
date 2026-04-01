@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from "react-router";
+import { CommandCenter } from "./CommandCenter";
 import {
   Building2,
   FileSpreadsheet,
@@ -111,6 +112,7 @@ export function JobOsLayout({
           ) : null}
         </div>
       </div>
+      <CommandCenter />
       <main className="max-w-[1800px] mx-auto px-6 py-6 space-y-4">
         {notice && (
           <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">

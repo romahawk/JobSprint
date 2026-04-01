@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -198,7 +198,12 @@ export default function JobOsRolesPage() {
     totalPages: rolesTotalPages,
     pageItems: pagedRoles,
     setPage: setRolesPage,
+    resetPage: resetRolesPage,
   } = usePagination(sortedRoles, ROLES_PAGE_SIZE);
+
+  useEffect(() => {
+    resetRolesPage();
+  }, [resetRolesPage, sortDir, sortKey, tableFilters]);
 
   const applicationRoleIds = useMemo(
     () => new Set(applications.map((application) => application.roleId).filter(Boolean)),

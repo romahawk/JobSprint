@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export interface UsePaginationReturn<T> {
   page: number;
@@ -24,13 +24,16 @@ export function usePagination<T>(
     [items, safePage, pageSize]
   );
 
-  function setPage(next: number) {
-    setPageRaw(Math.max(1, Math.min(next, totalPages)));
-  }
+  const setPage = useCallback(
+    (next: number) => {
+      setPageRaw(Math.max(1, Math.min(next, totalPages)));
+    },
+    [totalPages]
+  );
 
-  function resetPage() {
+  const resetPage = useCallback(() => {
     setPageRaw(1);
-  }
+  }, []);
 
   return { page: safePage, totalPages, pageItems, setPage, resetPage };
 }

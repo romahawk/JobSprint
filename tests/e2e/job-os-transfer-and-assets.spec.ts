@@ -169,3 +169,4 @@ test("edits scripts/templates and round-trips import export from settings", asyn
   await page.getByRole("tab", { name: "Templates" }).click();
   await expect(page.locator('input[value="Imported Template"]').first()).toBeVisible();
 });
+

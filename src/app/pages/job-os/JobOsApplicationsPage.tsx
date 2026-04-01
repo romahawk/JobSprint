@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { usePagination } from "../../hooks/usePagination";
 import { PaginationControls } from "../../components/ui/PaginationControls";
@@ -180,8 +180,9 @@ export default function JobOsApplicationsPage() {
     resetPage: resetAppPage,
   } = usePagination(filteredApplications, PAGE_SIZE);
 
-  // Reset to page 1 whenever filters or sort changes
-  useMemo(() => { resetAppPage(); }, [searchTerm, stageGroup, sortField, sortDirection]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    resetAppPage();
+  }, [resetAppPage, searchTerm, stageGroup, sortField, sortDirection]);
 
   function resetDraft(): void {
     setDraft(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));

@@ -107,3 +107,43 @@ test("logs one application from Roles, prevents duplicates, and persists after r
 
 
 
+
+test("syncs role status changes into Applications and dashboard metrics", async ({
+  page,
+}) => {
+  await page.goto("/job-os/roles");
+
+  await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
+  await page.getByRole("button", { name: "Add application" }).click();
+  await expect(
+    page.getByText("Application created for Technical Chief of Staff (to the CTO).")
+  ).toBeVisible();
+
+  await page
+    .locator("tr", { has: page.getByText("Technical Chief of Staff (to the CTO)") })
+    .getByRole("combobox")
+    .first()
+    .click();
+  await page.getByRole("option", { name: "interview" }).click({ force: true });
+
+  await page.goto("/job-os/applications");
+  await page.getByRole("tab", { name: /Interviewing/i }).click();
+  await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
+  await expect(
+    page
+      .locator("tr", { has: page.getByText("Technical Chief of Staff (to the CTO)") })
+      .getByRole("combobox")
+  ).toContainText("Interview");
+
+  await page.goto("/");
+  await expect(page.getByText("Pipeline Snapshot")).toBeVisible();
+  await expect(
+    page
+      .locator("section")
+      .filter({ has: page.getByText("Pipeline Snapshot") })
+      .getByText("1")
+      .first()
+  ).toBeVisible();
+});
+
+

@@ -210,6 +210,7 @@ export default function JobOsCompaniesPage() {
     totalPages: companiesTotalPages,
     pageItems: pagedCompanies,
     setPage: setCompaniesPage,
+    resetPage: resetCompaniesPage,
   } = usePagination(sortedCompanies, COMPANIES_PAGE_SIZE);
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) ?? null;
@@ -229,6 +230,10 @@ export default function JobOsCompaniesPage() {
     if (!session?.userId) return;
     localStorage.setItem(lockStorageKey, companyListLocked ? "true" : "false");
   }, [companyListLocked, lockStorageKey, session?.userId]);
+
+  useEffect(() => {
+    resetCompaniesPage();
+  }, [resetCompaniesPage, search, sortDir, sortKey]);
 
   function toggleSort(nextKey: CompanySortKey): void {
     if (sortKey === nextKey) {
@@ -707,7 +712,7 @@ export default function JobOsCompaniesPage() {
               {pagedCompanies.map((company, index) => (
                 <TableRow key={company.id}>
                   <TableCell className="text-center text-xs text-neutral-500">
-                    {index + 1}
+                    {(companiesPage - 1) * COMPANIES_PAGE_SIZE + index + 1}
                   </TableCell>
                   <TableCell className="font-medium">{company.name}</TableCell>
                   <TableCell>{company.industry}</TableCell>

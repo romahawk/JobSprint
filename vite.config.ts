@@ -32,7 +32,21 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/@radix-ui')) {
+          // mammoth (868 KB Word-doc parser) is only ever reached via a
+          // dynamic import in cvFileImportService – give it its own lazy
+          // chunk so it never lands in the eagerly-preloaded vendor bundle.
+          if (id.includes('node_modules/mammoth')) {
+            return 'mammoth';
+          }
+          // cmdk and vaul both depend on @radix-ui internals.  Keeping them
+          // in the vendor chunk creates a radix→vendor→radix circular chunk
+          // dependency that can cause modules to see partially-initialised
+          // exports in headless Chromium (CI), silently breaking React.
+          if (
+            id.includes('node_modules/@radix-ui') ||
+            id.includes('node_modules/cmdk') ||
+            id.includes('node_modules/vaul')
+          ) {
             return 'radix';
           }
           if (id.includes('node_modules/motion')) {

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { Download, Upload } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -24,10 +25,9 @@ export default function JobOsSettingsPage() {
   function handleExport(): void {
     const json = serializeJobOs({ companies, roles, applications, outreach });
     downloadJsonFile("jobsprint-export.json", json);
-    setNotice({
-      type: "ok",
-      text: `Exported ${companies.length} companies, ${roles.length} roles, ${applications.length} applications, ${outreach.length} outreach records.`,
-    });
+    const text = `Exported ${companies.length} companies, ${roles.length} roles, ${applications.length} applications, ${outreach.length} outreach records.`;
+    setNotice({ type: "ok", text });
+    toast.success("Export downloaded", { description: text });
   }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): Promise<void> {
@@ -40,7 +40,9 @@ export default function JobOsSettingsPage() {
     try {
       parsed = parseJobOsExport(text);
     } catch (err) {
-      setNotice({ type: "error", text: err instanceof Error ? err.message : "Import failed." });
+      const msg = err instanceof Error ? err.message : "Import failed.";
+      setNotice({ type: "error", text: msg });
+      toast.error("Import failed", { description: msg });
       return;
     }
 
@@ -53,12 +55,13 @@ export default function JobOsSettingsPage() {
         applications: parsed.applications,
         outreach: parsed.outreach,
       });
-      setNotice({
-        type: "ok",
-        text: `Imported ${parsed.companies.length} companies, ${parsed.roles.length} roles, ${parsed.applications.length} applications, ${parsed.outreach.length} outreach records.`,
-      });
+      const successText = `Imported ${parsed.companies.length} companies, ${parsed.roles.length} roles, ${parsed.applications.length} applications, ${parsed.outreach.length} outreach records.`;
+      setNotice({ type: "ok", text: successText });
+      toast.success("Import complete", { description: successText });
     } catch (err) {
-      setNotice({ type: "error", text: err instanceof Error ? err.message : "Import failed." });
+      const msg = err instanceof Error ? err.message : "Import failed.";
+      setNotice({ type: "error", text: msg });
+      toast.error("Import failed", { description: msg });
     } finally {
       setImporting(false);
     }

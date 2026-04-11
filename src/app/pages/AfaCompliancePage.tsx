@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { AppNavbar } from "../components/AppNavbar";
@@ -45,13 +46,16 @@ export default function AfaCompliancePage() {
   async function handleSave(data: AfaVorschlagFormData): Promise<void> {
     if (selectedCase) {
       await updateCase(selectedCase.id, data);
+      toast.success("Case updated");
       return;
     }
     await addCase(data);
+    toast.success("Case created");
   }
 
   async function handleDelete(id: string): Promise<void> {
     await deleteCase(id);
+    toast.success("Case deleted");
   }
 
   return (

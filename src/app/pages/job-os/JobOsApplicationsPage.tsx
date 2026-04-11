@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -124,7 +125,7 @@ export default function JobOsApplicationsPage() {
           <Button
             onClick={() => {
               if (!draft.companyId) return;
-              void addApplication(draft);
+              void addApplication(draft).then(() => toast.success("Application logged"));
               setDraft((current) => ({ ...current, nextAction: "", notes: "" }));
             }}
           >
@@ -199,7 +200,7 @@ export default function JobOsApplicationsPage() {
                       <Button asChild size="sm" variant="outline">
                         <Link to={`/cv-optimizer?applicationId=${application.id}`}>Tailor CV</Link>
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeApplication(application.id)}>
+                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeApplication(application.id).then(() => toast.success("Application deleted"))}>
                         Delete
                       </Button>
                     </div>

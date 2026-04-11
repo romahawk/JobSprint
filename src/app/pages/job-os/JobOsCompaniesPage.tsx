@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   ArrowDown,
   ArrowUp,
@@ -343,15 +344,15 @@ export default function JobOsCompaniesPage() {
 
     const actionLabel = sourceLabel === "CSV" ? "Imported" : "Extended";
     if (errors.length === 0) {
-      setImportNotice(
-        `${actionLabel} ${created} companies and updated ${updated}. Existing roles stay linked to their company IDs.`
-      );
+      const msg = `${actionLabel} ${created} companies and updated ${updated}.`;
+      setImportNotice(msg);
+      toast.success(msg);
     } else {
-      setImportNotice(
-        `${actionLabel} ${created} companies, updated ${updated}. ${errors.length} row(s) failed: ${errors
-          .slice(0, 3)
-          .join(" | ")}${errors.length > 3 ? " ..." : ""}`
-      );
+      const msg = `${actionLabel} ${created} companies, updated ${updated}. ${errors.length} row(s) failed.`;
+      setImportNotice(msg);
+      toast.error(msg, {
+        description: errors.slice(0, 3).join(" | ") + (errors.length > 3 ? " ..." : ""),
+      });
     }
 
     if (created > 0 && lockAfterImport) {
@@ -400,6 +401,7 @@ export default function JobOsCompaniesPage() {
     try {
       await updateCompany(selectedCompanyId, editDraft);
       setDetailMode("view");
+      toast.success("Company updated");
     } finally {
       setIsSavingEdit(false);
     }
@@ -418,9 +420,11 @@ export default function JobOsCompaniesPage() {
       `Delete all ${companies.length} companies? This action cannot be undone.`
     );
     if (!confirmed) return;
+    const count = companies.length;
     await Promise.all(companies.map((company) => removeCompany(company.id)));
     setSelectedCompanyId(null);
-    setImportNotice(`Deleted ${companies.length} companies.`);
+    setImportNotice(`Deleted ${count} companies.`);
+    toast.success(`Deleted ${count} companies`);
   }
 
   return (
@@ -563,7 +567,7 @@ export default function JobOsCompaniesPage() {
                 disabled={companyListLocked}
                 onClick={() => {
                   if (!draft.name) return;
-                  void addCompany(draft);
+                  void addCompany(draft).then(() => toast.success("Company added"));
                   setDraft({
                     name: "",
                     industry: "",
@@ -712,7 +716,7 @@ export default function JobOsCompaniesPage() {
                       variant="ghost"
                       className="text-red-500"
                       disabled={companyListLocked}
-                      onClick={() => void removeCompany(company.id)}
+                      onClick={() => void removeCompany(company.id).then(() => toast.success("Company deleted"))}
                     >
                       Delete
                     </Button>

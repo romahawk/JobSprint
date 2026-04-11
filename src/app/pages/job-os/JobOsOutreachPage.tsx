@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -77,7 +78,7 @@ export default function JobOsOutreachPage() {
           <Button
             onClick={() => {
               if (!draft.companyId) return;
-              void addOutreach(draft);
+              void addOutreach(draft).then(() => toast.success("Outreach logged"));
               setDraft((p) => ({
                 ...p,
                 contactName: "",
@@ -149,7 +150,7 @@ export default function JobOsOutreachPage() {
                     >
                       Schedule follow-up
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeOutreach(item.id)}>
+                    <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeOutreach(item.id).then(() => toast.success("Outreach record deleted"))}>
                       Delete
                     </Button>
                   </TableCell>

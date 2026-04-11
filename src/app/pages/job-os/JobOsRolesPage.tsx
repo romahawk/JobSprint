@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -112,6 +113,7 @@ export default function JobOsRolesPage() {
       jobDescriptionUpdatedAt: editDraft.jobDescription?.trim() ? new Date().toISOString() : undefined,
     });
     cancelEdit();
+    toast.success("Role updated");
   }
 
   async function handleAddRole(): Promise<void> {
@@ -151,7 +153,8 @@ export default function JobOsRolesPage() {
         jobDescription: "",
         jobDescriptionUpdatedAt: undefined,
       });
-      setFormNotice("Role added.");
+      setFormNotice("");
+      toast.success("Role added");
     } catch (error) {
       setFormNotice(error instanceof Error ? error.message : "Role could not be created.");
     }
@@ -517,7 +520,7 @@ export default function JobOsRolesPage() {
                     >
                       Quick apply
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeRole(role.id)}>Delete</Button>
+                    <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeRole(role.id).then(() => toast.success("Role deleted"))}>Delete</Button>
                   </TableCell>
                 </TableRow>
               ))}

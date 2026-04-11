@@ -749,43 +749,6 @@ export default function JobOsCompaniesPage() {
                   <TableCell className="max-w-[260px] truncate">
                     {company.notes || "-"}
                   </TableCell>
-                  <TableCell className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedCompanyId(company.id)}
-                    >
-                      View
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-500"
-                          disabled={companyListLocked}
-                        >
-                          Delete
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete {company.name}?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This company and all its linked data will be permanently removed.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                            onClick={() => void removeCompany(company.id).then(() => toast.success("Company deleted"))}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Tooltip>
@@ -803,23 +766,38 @@ export default function JobOsCompaniesPage() {
                         </TooltipTrigger>
                         <TooltipContent side="top">View</TooltipContent>
                       </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
                           <span className="inline-flex">
                             <Button
                               size="icon"
                               variant="ghost"
                               className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                               disabled={companyListLocked}
-                              onClick={() => void removeCompany(company.id)}
                               aria-label="Delete company"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">Delete</TooltipContent>
-                      </Tooltip>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {company.name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This company and all its linked data will be permanently removed.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                              onClick={() => void removeCompany(company.id).then(() => toast.success("Company deleted"))}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>

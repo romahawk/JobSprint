@@ -10,7 +10,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "../../components/ui/alert-dialog";
 import { usePagination } from "../../hooks/usePagination";
 import { PaginationControls } from "../../components/ui/PaginationControls";
@@ -122,6 +121,7 @@ export default function JobOsApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "notes"> | null>(null);
   const [sortField, setSortField] = useState<SortField>("date");
@@ -261,6 +261,7 @@ export default function JobOsApplicationsPage() {
   async function handleCreateApplication(): Promise<void> {
     if (!draft.companyId || !draft.roleId) return;
     await addApplication(draft);
+    toast.success("Application added");
     resetDraft();
     setCreateOpen(false);
   }
@@ -375,49 +376,6 @@ export default function JobOsApplicationsPage() {
         <JobOsTransferControls getExportState={exportState} onImportState={replaceState} />
       }
     >
-      <Card>
-        <CardHeader><CardTitle className="text-sm">Log Application</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-4 gap-3">
-          <Input type="date" value={draft.dateApplied} onChange={(event) => setDraft((current) => ({ ...current, dateApplied: event.target.value }))} />
-          <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value }))}>
-            <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
-            <SelectContent>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={draft.roleId} onValueChange={(value) => setDraft((current) => ({ ...current, roleId: value }))}>
-            <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
-            <SelectContent>{roles.filter((role) => !draft.companyId || role.companyId === draft.companyId).map((role) => <SelectItem key={role.id} value={role.id}>{role.title}</SelectItem>)}</SelectContent>
-          </Select>
-          <Input value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} placeholder="Channel" />
-          <Select
-            value={draft.cvAssetId ?? ""}
-            onValueChange={(value) => {
-              const selectedCv = assets.cvs.find((cv) => cv.id === value);
-              setDraft((current) => ({
-                ...current,
-                cvAssetId: selectedCv?.id,
-                cvVersion: selectedCv?.name ?? "",
-              }));
-            }}
-          >
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{assets.cvs.map((cv) => <SelectItem key={cv.id} value={cv.id}>{cv.name}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as ApplicationStatus }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{STATUS_VALUES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
-          </Select>
-          <Input value={draft.nextAction} onChange={(event) => setDraft((current) => ({ ...current, nextAction: event.target.value }))} placeholder="Next action" />
-          <Button
-            onClick={() => {
-              if (!draft.companyId) return;
-              void addApplication(draft).then(() => toast.success("Application logged"));
-              setDraft((current) => ({ ...current, nextAction: "", notes: "" }));
-            }}
-          >
-            Save
-          </Button>
-          <div className="md:col-span-4">
-            <Textarea value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} rows={2} placeholder="Notes" />
       <AppPageShell
         title="Pipeline"
         subtitle="Start with the readable execution list, then switch to board view when you need stage-level triage."
@@ -707,85 +665,6 @@ export default function JobOsApplicationsPage() {
               Save Application
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead />
-                <TableHead>Date Applied</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>CV Version</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tailored CV</TableHead>
-                <TableHead>Next Action</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {applications.map((application) => (
-                <TableRow key={application.id}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={byId.has(application.id)}
-                      onChange={() => toggle(application.id)}
-                    />
-                  </TableCell>
-                  <TableCell>{application.dateApplied}</TableCell>
-                  <TableCell>{companies.find((company) => company.id === application.companyId)?.name ?? "-"}</TableCell>
-                  <TableCell>{roles.find((role) => role.id === application.roleId)?.title ?? "-"}</TableCell>
-                  <TableCell>{application.channel}</TableCell>
-                  <TableCell>{getApplicationCvLabel(application, assets.cvs)}</TableCell>
-                  <TableCell>
-                    <Select value={application.status} onValueChange={(value) => void updateApplication(application.id, { status: value as ApplicationStatus })}>
-                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                      <SelectContent>{STATUS_VALUES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    {application.tailoredCvUpdatedAt ? new Date(application.tailoredCvUpdatedAt).toLocaleDateString() : "Not saved"}
-                  </TableCell>
-                  <TableCell>{application.nextAction || "-"}</TableCell>
-                  <TableCell className="max-w-[260px] truncate">{application.notes || "-"}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link to={`/cv-optimizer?applicationId=${application.id}`}>Tailor CV</Link>
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost" className="text-red-500">Delete</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete this application?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This application will be permanently removed.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                              onClick={() => void removeApplication(application.id).then(() => toast.success("Application deleted"))}
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
         </DialogContent>
       </Dialog>
 
@@ -861,16 +740,37 @@ export default function JobOsApplicationsPage() {
                   <Button asChild variant="outline">
                     <Link to={`/cv-optimizer?applicationId=${detailApplication.id}`}>Tailor CV</Link>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    className="text-red-500"
-                    onClick={() => {
-                      void removeApplication(detailApplication.id);
-                      closeDetails();
-                    }}
-                  >
-                    Delete
-                  </Button>
+                  <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                    <Button
+                      variant="ghost"
+                      className="text-red-500"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      Delete
+                    </Button>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this application?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This record will be permanently removed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                          onClick={() => {
+                            void removeApplication(detailApplication.id).then(() =>
+                              toast.success("Application deleted")
+                            );
+                            closeDetails();
+                          }}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">Cmd/Ctrl + Enter saves</span>

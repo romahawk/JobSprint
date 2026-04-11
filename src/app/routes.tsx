@@ -1,7 +1,6 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { createBrowserRouter } from "react-router";
-import SignIn from "./pages/SignIn";
 import { createBrowserRouter, Navigate } from "react-router";
+import SignIn from "./pages/SignIn";
 import { JobOsRouteProvider } from "./components/job-os/JobOsRouteProvider";
 import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";

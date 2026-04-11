@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Check, ChevronsUpDown, Copy, Download, FileText, Plus, RefreshCw, Sparkles, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import {
@@ -76,7 +75,6 @@ function getReadiness(cv: JobOsCvAsset): {
 }
 
 export default function JobOsAssetsPage() {
-  const { session } = useApp();
   const {
     assets,
     applications,
@@ -96,7 +94,7 @@ export default function JobOsAssetsPage() {
     syncNotice,
     exportState,
     replaceState,
-  } = useJobOs(session?.userId ?? null);
+  } = useJobOsContext();
 
   const [scriptDraft, setScriptDraft] = useState<Omit<JobOsScriptAsset, "id" | "lastUpdated" | "createdAt" | "updatedAt">>({
     title: "",

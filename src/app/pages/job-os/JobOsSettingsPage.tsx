@@ -13,8 +13,7 @@ import {
 import { Download, Upload } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { useApp } from "../../context";
-import { useJobOs } from "../../hooks/useJobOs";
+import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import {
   downloadJsonFile,
@@ -23,10 +22,7 @@ import {
 } from "../../services/jobOsExport";
 
 export default function JobOsSettingsPage() {
-  const { session } = useApp();
-  const { companies, roles, applications, outreach, importAll, syncNotice } = useJobOs(
-    session?.userId ?? null
-  );
+  const { companies, roles, applications, outreach, importAll, syncNotice } = useJobOsContext();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);

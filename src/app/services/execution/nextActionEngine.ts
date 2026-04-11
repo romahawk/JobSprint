@@ -1,5 +1,6 @@
 import type {
   JobOsCompany,
+  JobOsOutreach,
   JobOsRole,
   JobOsApplication,
   CompanyPriority,
@@ -39,6 +40,7 @@ export interface EngineInput {
   companies: JobOsCompany[];
   roles: JobOsRole[];
   applications: JobOsApplication[];
+  outreach?: JobOsOutreach[];
 }
 
 // ─── Scoring Constants ────────────────────────────────────────────────────────
@@ -301,6 +303,133 @@ function generateArchiveActions(
     });
 }
 
+// ─── Follow-up Intelligence ───────────────────────────────────────────────────
+
+const STALLED_APPLIED_DAYS = 14;
+const STALLED_SCREEN_DAYS = 7;
+const FOLLOWUP_SCORE_BASE = 60;
+const FOLLOWUP_SCORE_PER_DAY = 5;
+const FOLLOWUP_SCORE_CAP = 90;
+
+function generateStalledApplicationActions(
+  applications: JobOsApplication[],
+  outreach: JobOsOutreach[],
+  companies: JobOsCompany[]
+): NextAction[] {
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+  const outreachByRole = new Map<string, JobOsOutreach[]>();
+  for (const o of outreach) {
+    if (o.roleId) {
+      const list = outreachByRole.get(o.roleId) ?? [];
+      list.push(o);
+      outreachByRole.set(o.roleId, list);
+    }
+  }
+
+  const actions: NextAction[] = [];
+
+  for (const app of applications) {
+    if (app.status === "rejected" || app.status === "ghosted" || app.status === "offer") continue;
+
+    const company = companyMap.get(app.companyId);
+    const priorityBonus = company ? PRIORITY_WEIGHT[company.priority] : 0;
+    const linkedOutreach = outreachByRole.get(app.roleId) ?? [];
+    const days = daysSince(app.dateApplied);
+
+    if (app.status === "sent" && days >= STALLED_APPLIED_DAYS) {
+      const hasActiveOutreach = linkedOutreach.some(
+        (o) => o.status !== "no_reply" && o.status !== "closed"
+      );
+      const overdueBonus = Math.min((days - STALLED_APPLIED_DAYS) * FOLLOWUP_SCORE_PER_DAY, 30);
+      const score = clamp(FOLLOWUP_SCORE_BASE + priorityBonus + overdueBonus, 0, FOLLOWUP_SCORE_CAP);
+
+      if (hasActiveOutreach) {
+        actions.push({
+          id: `re-engage-${app.id}`,
+          type: "follow_up",
+          priority: toPriority(score),
+          score,
+          companyId: app.companyId,
+          companyName: company?.name,
+          applicationId: app.id,
+          reason: `Re-engage — last message was ${days} days ago`,
+          actionLabel: "Re-engage",
+          href: "/job-os/outreach",
+        });
+      } else {
+        actions.push({
+          id: `stalled-${app.id}`,
+          type: "follow_up",
+          priority: toPriority(score),
+          score,
+          companyId: app.companyId,
+          companyName: company?.name,
+          applicationId: app.id,
+          reason: `Applied ${days} days ago — no outreach logged`,
+          actionLabel: "Log Outreach",
+          href: "/job-os/outreach",
+        });
+      }
+    }
+
+    if (app.status === "screen" && days >= STALLED_SCREEN_DAYS) {
+      const score = clamp(FOLLOWUP_SCORE_BASE + priorityBonus, 0, FOLLOWUP_SCORE_CAP);
+      actions.push({
+        id: `screen-stalled-${app.id}`,
+        type: "follow_up",
+        priority: toPriority(score),
+        score,
+        companyId: app.companyId,
+        companyName: company?.name,
+        applicationId: app.id,
+        reason: `Screener stage for ${days} days — check status`,
+        actionLabel: "Check Status",
+        href: "/job-os/applications",
+      });
+    }
+  }
+
+  return actions;
+}
+
+function generateOverdueOutreachActions(
+  outreach: JobOsOutreach[],
+  companies: JobOsCompany[]
+): NextAction[] {
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+  const today = new Date().toISOString().slice(0, 10);
+
+  return outreach
+    .filter(
+      (o) =>
+        o.status !== "closed" &&
+        o.nextFollowUpDate &&
+        o.nextFollowUpDate <= today
+    )
+    .map((o) => {
+      const company = companyMap.get(o.companyId);
+      const priorityBonus = company ? PRIORITY_WEIGHT[company.priority] : 0;
+      const overdueDays = daysSince(o.nextFollowUpDate ?? today);
+      const score = clamp(
+        FOLLOWUP_SCORE_BASE + priorityBonus + Math.min(overdueDays * FOLLOWUP_SCORE_PER_DAY, 30),
+        0,
+        FOLLOWUP_SCORE_CAP
+      );
+
+      return {
+        id: `overdue-outreach-${o.id}`,
+        type: "follow_up" as NextActionType,
+        priority: toPriority(score),
+        score,
+        companyId: o.companyId,
+        companyName: company?.name,
+        reason: `Follow-up with ${o.contactName || "contact"} at ${company?.name ?? "company"} is overdue`,
+        actionLabel: "Follow Up",
+        href: "/job-os/outreach",
+      };
+    });
+}
+
 // ─── Hot Opportunities ────────────────────────────────────────────────────────
 
 export interface HotOpportunity {
@@ -417,10 +546,12 @@ export function getNextActions(
   data: EngineInput,
   limit = 5
 ): NextAction[] {
-  const { companies, roles, applications } = data;
+  const { companies, roles, applications, outreach = [] } = data;
 
   const all: NextAction[] = [
     ...generateOptimizeCvActions(applications, companies),
+    ...generateOverdueOutreachActions(outreach, companies),
+    ...generateStalledApplicationActions(applications, outreach, companies),
     ...generateFollowUpActions(applications, companies),
     ...generateLogApplicationActions(roles, companies, applications),
     ...generateApplyActions(roles, companies, applications),
@@ -429,14 +560,29 @@ export function getNextActions(
     ...generateArchiveActions(applications, companies),
   ];
 
-  // Deduplicate by id, sort by score desc, take top N
+  // Deduplicate by id
   const seen = new Set<string>();
-  return all
-    .filter((a) => {
-      if (seen.has(a.id)) return false;
-      seen.add(a.id);
-      return true;
-    })
+  const deduped = all.filter((a) => {
+    if (seen.has(a.id)) return false;
+    seen.add(a.id);
+    return true;
+  });
+
+  // For the same application, keep only the highest-scored action
+  const byAppId = new Map<string, NextAction>();
+  const noApp: NextAction[] = [];
+  for (const action of deduped) {
+    if (!action.applicationId) {
+      noApp.push(action);
+      continue;
+    }
+    const existing = byAppId.get(action.applicationId);
+    if (!existing || action.score > existing.score) {
+      byAppId.set(action.applicationId, action);
+    }
+  }
+
+  return [...byAppId.values(), ...noApp]
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }

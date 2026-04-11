@@ -1,4 +1,5 @@
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
+import { CommandCenter } from "./CommandCenter";
 import {
   Building2,
   FileSpreadsheet,
@@ -12,13 +13,15 @@ import { AppNavbar } from "../AppNavbar";
 import { useApp } from "../../context";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
 
-const NAV_ITEMS = [
+const PIPELINE_NAV_ITEMS = [
+  { to: "/job-os/applications", label: "Applications", icon: FileSpreadsheet },
+  { to: "/job-os/outreach", label: "Outreach", icon: Megaphone },
+];
+
+const SYSTEM_NAV_ITEMS = [
   { to: "/job-os/assets", label: "Assets", icon: FolderOpen },
   { to: "/job-os/companies", label: "Companies", icon: Building2 },
   { to: "/job-os/roles", label: "Roles", icon: FileText },
-  { to: "/job-os/applications", label: "Applications", icon: FileSpreadsheet },
-  { to: "/job-os/outreach", label: "Outreach", icon: Megaphone },
-  { to: "/cv-optimizer", label: "CV Optimizer", icon: WandSparkles },
   { to: "/job-os/settings", label: "Settings", icon: Settings },
 ];
 
@@ -39,9 +42,15 @@ export function JobOsLayout({
 }) {
   const { session } = useApp();
   const jobOsSync = useJobOsSyncSnapshot();
+  const location = useLocation();
   const lastSyncedLabel = jobOsSync.lastSyncedAt
     ? new Date(jobOsSync.lastSyncedAt).toLocaleString()
     : "not yet synced";
+  const inPipelineContext =
+    location.pathname === "/job-os" ||
+    location.pathname.startsWith("/job-os/applications") ||
+    location.pathname.startsWith("/job-os/outreach");
+  const navItems = inPipelineContext ? PIPELINE_NAV_ITEMS : SYSTEM_NAV_ITEMS;
 
   const settingsContent = session ? (
     <div className="rounded-md bg-white p-4 text-sm dark:bg-neutral-950">
@@ -70,9 +79,9 @@ export function JobOsLayout({
         settingsContent={settingsContent}
       />
       <div className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-        <div className="max-w-[1800px] mx-auto px-6 py-3">
+        <div className="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-3 px-6 py-3">
           <nav className="flex flex-wrap gap-2">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
@@ -92,8 +101,18 @@ export function JobOsLayout({
               );
             })}
           </nav>
+          {!inPipelineContext ? (
+            <NavLink
+              to="/cv-optimizer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
+            >
+              <WandSparkles className="h-3.5 w-3.5" />
+              CV Optimizer
+            </NavLink>
+          ) : null}
         </div>
       </div>
+      <CommandCenter />
       <main className="max-w-[1800px] mx-auto px-6 py-6 space-y-4">
         {notice && (
           <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">

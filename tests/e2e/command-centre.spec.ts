@@ -6,8 +6,9 @@ test.describe("Command Centre", () => {
     await signIn(page);
   });
 
-  test("renders Today's Actions panel", async ({ page }) => {
-    await expect(page.getByText("Today's Actions")).toBeVisible();
+  test("renders Focused Next Action panel", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "E2E Seed Co" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Add Role" })).toBeVisible();
   });
 
   test("renders Pipeline Snapshot panel", async ({ page }) => {
@@ -38,3 +39,7 @@ test.describe("Command Centre", () => {
     await expect(body).toBeVisible();
   });
 });
+
+
+
+

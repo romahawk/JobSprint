@@ -18,9 +18,10 @@ export default defineConfig({
     navigationTimeout: 10_000,
   },
   webServer: {
-    // Serves the production build - run `npm run build` before `npm run test:e2e`.
-    // CI does this in a prior step.
-    command: "npm run preview",
+    // Run against a local dev server with Firebase env cleared so E2E auth
+    // consistently uses the local-storage auth path instead of machine-specific
+    // Firebase credentials baked into a prior build.
+    command: "npm run dev -- --host 127.0.0.1 --port 4173",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

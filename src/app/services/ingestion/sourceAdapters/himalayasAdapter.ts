@@ -97,6 +97,15 @@ export const himalayasAdapter: SourceAdapter = {
       sourcePlatform: "himalayas",
       sourceType: isJobUrl ? "job" : "company",
       confidence,
+      jobSource: {
+        sourceUrl: input.url,
+        sourcePlatform: "himalayas",
+        sourceType: isJobUrl ? "job" : "company",
+        companyName: extracted.companyName,
+        rawJobTitle: extracted.roleTitle,
+        rawLocation: extracted.locationHint,
+        rawJobDescription: extracted.jobDescription,
+      },
       raw: { html: html || undefined, text: rawText || undefined },
       extracted,
     };

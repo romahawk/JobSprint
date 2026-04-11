@@ -9,18 +9,38 @@ import { Button } from "../ui/button";
 import { PasteLinkInputStep } from "./PasteLinkInputStep";
 import { PasteLinkReviewStep } from "./PasteLinkReviewStep";
 import {
+  PasteLinkNextActionStep,
+  type InitialImportStage,
+} from "./PasteLinkNextActionStep";
+import {
   parseFromInput,
+  mergeImportEnrichment,
   normalizeImportResult,
 } from "../../services/ingestion/companyIngestionService";
+import { requestRemoteJobImportEnrichment } from "../../services/ingestion/jobImportEnrichmentGateway";
 import type {
   ImportMode,
   NormalizedImportResult,
   NormalizedCompanyDraft,
   NormalizedRoleDraft,
 } from "../../services/ingestion/types";
-import type { JobOsCompany, JobOsRole } from "../../types/jobOs";
+import type { JobOsApplication, JobOsCompany, JobOsRole } from "../../types/jobOs";
 
-type DialogStep = "input" | "analyzing" | "reviewing" | "saving" | "success";
+type DialogStep =
+  | "input"
+  | "analyzing"
+  | "enriching"
+  | "reviewing"
+  | "next_action"
+  | "saving"
+  | "success";
+
+interface PendingImportState {
+  companyDraft: NormalizedCompanyDraft;
+  roleDraft: NormalizedRoleDraft | undefined;
+  mode: ImportMode;
+  updateExistingId?: string;
+}
 
 interface PasteLinkImportDialogProps {
   open: boolean;
@@ -36,6 +56,9 @@ interface PasteLinkImportDialogProps {
   addRole: (
     payload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt">
   ) => Promise<string | null>;
+  addApplication: (
+    payload: Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">
+  ) => Promise<string | null>;
 }
 
 export function PasteLinkImportDialog({
@@ -45,18 +68,25 @@ export function PasteLinkImportDialog({
   addCompany,
   updateCompany,
   addRole,
+  addApplication,
 }: PasteLinkImportDialogProps) {
   const [step, setStep] = useState<DialogStep>("input");
   const [importMode, setImportMode] = useState<ImportMode>("company_and_role");
   const [parseError, setParseError] = useState<string | null>(null);
   const [result, setResult] = useState<NormalizedImportResult | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
+  const [initialStage, setInitialStage] = useState<InitialImportStage>("to_apply");
+  const [nextAction, setNextAction] = useState("Apply");
 
   function resetAndClose() {
     setStep("input");
     setResult(null);
     setParseError(null);
     setSuccessMessage(null);
+    setPendingImport(null);
+    setInitialStage("to_apply");
+    setNextAction("Apply");
     onClose();
   }
 
@@ -68,13 +98,24 @@ export function PasteLinkImportDialog({
     setImportMode(mode);
     setParseError(null);
     setStep("analyzing");
+
     try {
       const parsed = await parseFromInput({
         url,
         pastedText: pastedText || undefined,
       });
       const normalized = normalizeImportResult(parsed, url, existingCompanies);
-      setResult(normalized);
+      setStep("enriching");
+
+      const enrichment = await requestRemoteJobImportEnrichment({
+        parsed,
+        normalized,
+        sourceUrl: url,
+      });
+
+      setResult(
+        enrichment ? mergeImportEnrichment(normalized, enrichment) : normalized
+      );
       setStep("reviewing");
     } catch {
       setParseError(
@@ -84,73 +125,151 @@ export function PasteLinkImportDialog({
     }
   }
 
-  async function handleSave(
+  function handleReviewContinue(
     companyDraft: NormalizedCompanyDraft,
     roleDraft: NormalizedRoleDraft | undefined,
     mode: ImportMode,
     updateExistingId?: string
   ) {
+    setPendingImport({
+      companyDraft,
+      roleDraft,
+      mode,
+      updateExistingId,
+    });
+
+    if (mode === "company_and_role" && roleDraft) {
+      setInitialStage(roleDraft.status === "applied" ? "applied" : "to_apply");
+      setNextAction(roleDraft.nextAction?.trim() || "Apply");
+      setStep("next_action");
+      return;
+    }
+
+    setInitialStage("saved");
+    setNextAction("Research");
+    void handleSave({
+      companyDraft,
+      roleDraft,
+      mode,
+      updateExistingId,
+    }, "saved", "Research");
+  }
+
+  async function handleSave(
+    pending: PendingImportState,
+    stage: InitialImportStage,
+    action: string
+  ) {
     setStep("saving");
+
     try {
-      // Strip fields not in Omit<JobOsCompany, "id"|"createdAt"|"updatedAt">
       const {
         englishFirst,
-        sourceType: cSourceType,
+        sourceType: companySourceType,
         ...coreCompany
-      } = companyDraft;
+      } = pending.companyDraft;
 
       const companyPayload: Omit<JobOsCompany, "id" | "createdAt" | "updatedAt"> = {
         ...coreCompany,
         englishFirst: (englishFirst as JobOsCompany["englishFirst"]) ?? undefined,
-        sourceType: (cSourceType as JobOsCompany["sourceType"]) ?? undefined,
+        sourceType: (companySourceType as JobOsCompany["sourceType"]) ?? undefined,
       };
 
       let companyId: string | null;
-      if (updateExistingId) {
-        await updateCompany(updateExistingId, companyPayload);
-        companyId = updateExistingId;
+      if (pending.updateExistingId) {
+        await updateCompany(pending.updateExistingId, companyPayload);
+        companyId = pending.updateExistingId;
       } else {
         companyId = await addCompany(companyPayload);
       }
 
       const parts: string[] = [
-        updateExistingId
-          ? `Updated "${companyDraft.name}".`
-          : `Company "${companyDraft.name}" created.`,
+        pending.updateExistingId
+          ? `Updated "${pending.companyDraft.name}".`
+          : `Company "${pending.companyDraft.name}" created.`,
       ];
 
-      if (mode === "company_and_role" && roleDraft && companyId) {
+      if (pending.mode === "company_and_role" && pending.roleDraft && companyId) {
         const {
-          sourceType: rSourceType,
+          sourceType: roleSourceType,
           ...coreRole
-        } = roleDraft;
+        } = pending.roleDraft;
+
+        const roleAiEnrichment = coreRole.aiEnrichment
+          ? {
+              ...coreRole.aiEnrichment,
+              normalized: {
+                ...coreRole.aiEnrichment.normalized,
+                role: {
+                  ...coreRole.aiEnrichment.normalized?.role,
+                  nextAction: action,
+                },
+              },
+              enriched: {
+                ...coreRole.aiEnrichment.enriched,
+                role: {
+                  ...coreRole.aiEnrichment.enriched?.role,
+                  nextBestAction: action as typeof coreRole.aiEnrichment.enriched.role.nextBestAction,
+                },
+              },
+            }
+          : undefined;
+
         const rolePayload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> = {
           ...coreRole,
           companyId,
-          sourceType: (rSourceType as JobOsRole["sourceType"]) ?? undefined,
+          status: stage === "applied" ? "applied" : "to_apply",
+          nextAction: action,
+          aiEnrichment: roleAiEnrichment,
+          sourceType: (roleSourceType as JobOsRole["sourceType"]) ?? undefined,
         };
-        await addRole(rolePayload);
-        parts.push(`Role "${roleDraft.title}" added.`);
+
+        const roleId = await addRole(rolePayload);
+        parts.push(`Role "${pending.roleDraft.title}" added.`);
+
+        if (stage === "applied" && roleId) {
+          await addApplication({
+            companyId,
+            roleId,
+            dateApplied: new Date().toISOString().slice(0, 10),
+            channel: "Imported link",
+            cvAssetId: undefined,
+            cvVersion: "",
+            status: "sent",
+            nextAction: action,
+            notes: "",
+            latestJobDescriptionId: undefined,
+            latestCvTailoringRunId: undefined,
+            tailoredCvHeadline: "",
+            tailoredCvSummary: "",
+            tailoredCvText: "",
+            tailoredCvUpdatedAt: undefined,
+            aiEnrichment: roleAiEnrichment,
+          });
+          parts.push("Application created.");
+        } else {
+          parts.push(`Next action set to "${action}".`);
+        }
       }
 
       setSuccessMessage(parts.join(" "));
       setStep("success");
     } catch {
       setParseError("Failed to save. Please try again.");
-      setStep("reviewing");
+      setStep(pending.mode === "company_and_role" && pending.roleDraft ? "next_action" : "reviewing");
     }
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(v) => {
-        if (!v) resetAndClose();
+      onOpenChange={(value) => {
+        if (!value) resetAndClose();
       }}
     >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Paste Link — Target Ingestion</DialogTitle>
+          <DialogTitle>Paste Link - Target Ingestion</DialogTitle>
         </DialogHeader>
 
         {(step === "input" || step === "analyzing") && (
@@ -162,14 +281,40 @@ export function PasteLinkImportDialog({
           />
         )}
 
-        {(step === "reviewing" || step === "saving") && result && (
+        {step === "enriching" && (
+          <div className="py-12 text-center space-y-3">
+            <div className="text-sm font-medium text-foreground">
+              Enriching import with AI
+            </div>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Deterministic parsing is complete. JobSprint is adding structured
+              hints for title, track, seniority, and next best action before
+              review.
+            </p>
+          </div>
+        )}
+
+        {step === "reviewing" && result && (
           <PasteLinkReviewStep
             result={result}
             defaultMode={importMode}
-            isSaving={step === "saving"}
-            onSave={handleSave}
+            onContinue={handleReviewContinue}
             onBack={() => setStep("input")}
             onCancel={resetAndClose}
+          />
+        )}
+
+        {(step === "next_action" || step === "saving") && pendingImport && (
+          <PasteLinkNextActionStep
+            roleTitle={pendingImport.roleDraft?.title}
+            stage={initialStage}
+            nextAction={nextAction}
+            isSaving={step === "saving"}
+            onStageChange={setInitialStage}
+            onNextActionChange={setNextAction}
+            onBack={() => setStep("reviewing")}
+            onCancel={resetAndClose}
+            onSave={() => void handleSave(pendingImport, initialStage, nextAction.trim())}
           />
         )}
 
@@ -185,6 +330,9 @@ export function PasteLinkImportDialog({
                   setResult(null);
                   setSuccessMessage(null);
                   setParseError(null);
+                  setPendingImport(null);
+                  setInitialStage("to_apply");
+                  setNextAction("Apply");
                 }}
               >
                 Import Another

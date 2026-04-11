@@ -31,7 +31,7 @@ export function HotOpportunities({ opportunities, isLoading }: HotOpportunitiesP
       {!isLoading && opportunities.length === 0 && (
         <div className="rounded-lg border border-dashed border-neutral-200 dark:border-neutral-800 p-4 text-center">
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            No unapplied roles yet. Add roles via Companies.
+            No hot opportunities yet. Import a job link or add a role in System to start surfacing stronger bets here.
           </p>
         </div>
       )}

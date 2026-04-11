@@ -78,15 +78,72 @@ test("logs one application from Roles, prevents duplicates, and persists after r
   await expect(
     page.getByText("Application created for Technical Chief of Staff (to the CTO).")
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Application logged" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Application already logged" })).toBeVisible();
 
   await page.reload();
 
   await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Application logged" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Application already logged" })).toBeVisible();
 
   await page.goto("/job-os/applications");
   await expect(page.getByText("Apheris")).toBeVisible();
   await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
-  await expect(page.getByText("Company Site")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate((jobOsKey) => {
+        const raw = window.localStorage.getItem(jobOsKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const application = parsed.applications?.find(
+          (item: { roleId: string; channel: string }) =>
+            item.roleId === "role-apheris-chief-of-staff"
+        );
+        return application?.channel ?? null;
+      }, JOB_OS_KEY)
+    )
+    .toBe("Company Site");
 });
+
+
+
+
+
+test("syncs role status changes into Applications and dashboard metrics", async ({
+  page,
+}) => {
+  await page.goto("/job-os/roles");
+
+  await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
+  await page.getByRole("button", { name: "Add application" }).click();
+  await expect(
+    page.getByText("Application created for Technical Chief of Staff (to the CTO).")
+  ).toBeVisible();
+
+  await page
+    .locator("tr", { has: page.getByText("Technical Chief of Staff (to the CTO)") })
+    .getByRole("combobox")
+    .first()
+    .click();
+  await page.getByRole("option", { name: "interview" }).click({ force: true });
+
+  await page.goto("/job-os/applications");
+  await page.getByRole("tab", { name: /Interviewing/i }).click();
+  await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
+  await expect(
+    page
+      .locator("tr", { has: page.getByText("Technical Chief of Staff (to the CTO)") })
+      .getByRole("combobox")
+  ).toContainText("Interview");
+
+  await page.goto("/");
+  await expect(page.getByText("Pipeline Snapshot")).toBeVisible();
+  await expect(
+    page
+      .locator("section")
+      .filter({ has: page.getByText("Pipeline Snapshot") })
+      .getByText("1")
+      .first()
+  ).toBeVisible();
+});
+
+

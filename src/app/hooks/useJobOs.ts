@@ -17,6 +17,7 @@ import {
   updateJobOsSyncSnapshot,
 } from "../services/jobOsSync";
 import type {
+  ApplicationStatus,
   CvProfile,
   CvTailoringRun,
   JobDescription,
@@ -28,6 +29,7 @@ import type {
   JobOsScriptAsset,
   JobOsState,
   JobOsTemplateAsset,
+  RoleStatus,
 } from "../types/jobOs";
 import {
   EMPTY_JOB_OS_STATE,
@@ -165,9 +167,100 @@ function mergePendingLocalItems<T extends { id: string; clientRequestId?: string
 }
 
 function stripUndefinedFields<T extends Record<string, unknown>>(value: T): T {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
-  ) as T;
+  return stripUndefinedValue(value) as T;
+}
+
+function stripUndefinedValue(value: unknown): unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stripUndefinedValue(item))
+      .filter((item) => item !== undefined);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, entryValue]) => [key, stripUndefinedValue(entryValue)] as const)
+        .filter(([, entryValue]) => entryValue !== undefined)
+    );
+  }
+
+  return value;
+}
+
+function syncApplicationCvLabels(
+  applications: JobOsApplication[],
+  previousCvs: JobOsCvAsset[],
+  nextCvs: JobOsCvAsset[],
+  updatedCvId: string
+): JobOsApplication[] {
+  const nextCv = nextCvs.find((cv) => cv.id === updatedCvId);
+  if (!nextCv) return applications;
+
+  const previousCv = previousCvs.find((cv) => cv.id === updatedCvId);
+  const previousName = previousCv?.name ?? "";
+
+  return applications.map((application) => {
+    const resolvedCvAssetId = getApplicationCvAssetId(application, previousCvs);
+    if (resolvedCvAssetId !== updatedCvId) {
+      return application;
+    }
+
+    return {
+      ...application,
+      cvAssetId: updatedCvId,
+      cvVersion:
+        application.cvVersion === previousName || !application.cvVersion.trim()
+          ? nextCv.name
+          : application.cvVersion,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+}
+
+function mapRoleStatusToApplicationStatus(
+  status: RoleStatus
+): ApplicationStatus | null {
+  switch (status) {
+    case "applied":
+      return "sent";
+    case "interview":
+      return "interview";
+    case "rejected":
+      return "rejected";
+    case "offer":
+      return "offer";
+    case "to_apply":
+    case "closed":
+    default:
+      return null;
+  }
+}
+
+function mapApplicationStatusToRoleStatus(
+  status: ApplicationStatus
+): RoleStatus | null {
+  switch (status) {
+    case "sent":
+    case "screen":
+    case "case":
+      return "applied";
+    case "interview":
+    case "final":
+      return "interview";
+    case "offer":
+      return "offer";
+    case "rejected":
+      return "rejected";
+    case "ghosted":
+      return "closed";
+    default:
+      return null;
+  }
 }
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
@@ -219,7 +312,7 @@ function collectionDoc<T extends { id: string }>(
   } as JobOsState;
 }
 
-interface UseJobOsReturn extends JobOsState {
+export interface UseJobOsReturn extends JobOsState {
   loading: boolean;
   syncNotice: string | null;
   pendingWrites: number;
@@ -517,6 +610,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
               ...prev.assets,
               cvs: nextCvs,
             },
+            applications: syncApplicationCvLabels(
+              prev.applications,
+              prev.assets.cvs,
+              nextCvs,
+              id
+            ),
           };
           return next;
         },
@@ -1126,8 +1225,66 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           updateCollectionItem<JobOsCompany>("companies", id, updates, { hasUpdatedAt: true }),
         addRole: (payload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt">) =>
           addCollectionItem<JobOsRole>("roles", "role", payload, { hasUpdatedAt: true }),
-        updateRole: (id: string, updates: Partial<JobOsRole>) =>
-          updateCollectionItem<JobOsRole>("roles", id, updates, { hasUpdatedAt: true }),
+        updateRole: async (id: string, updates: Partial<JobOsRole>) => {
+          const now = new Date().toISOString();
+          const syncedApplicationStatus =
+            updates.status ? mapRoleStatusToApplicationStatus(updates.status) : null;
+          const linkedApplications = state.applications.filter(
+            (application) => application.roleId === id
+          );
+
+          await mutate(
+            "Update roles",
+            (prev) => ({
+              ...prev,
+              roles: prev.roles.map((role) =>
+                role.id === id ? { ...role, ...updates, updatedAt: now } : role
+              ),
+              applications:
+                syncedApplicationStatus == null
+                  ? prev.applications
+                  : prev.applications.map((application) =>
+                      application.roleId === id
+                        ? {
+                            ...application,
+                            status: syncedApplicationStatus,
+                            updatedAt: now,
+                          }
+                        : application
+                    ),
+            }),
+            firebase && userId && !localOnly
+              ? async () => {
+                  const roleRef = doc(firebase.db, "users", userId, "roles", id);
+                  await setDoc(
+                    roleRef,
+                    stripUndefinedFields({
+                      ...updates,
+                      updatedAt: serverTimestamp(),
+                    }),
+                    { merge: true }
+                  );
+
+                  if (syncedApplicationStatus == null) {
+                    return;
+                  }
+
+                  await Promise.all(
+                    linkedApplications.map((application) =>
+                      setDoc(
+                        doc(firebase.db, "users", userId, "applications", application.id),
+                        {
+                          status: syncedApplicationStatus,
+                          updatedAt: serverTimestamp(),
+                        },
+                        { merge: true }
+                      )
+                    )
+                  );
+                }
+              : null
+          );
+        },
         addApplication: async (
           payload: Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">
         ) => {
@@ -1141,8 +1298,61 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
 
           return addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true });
         },
-        updateApplication: (id: string, updates: Partial<JobOsApplication>) =>
-          updateCollectionItem<JobOsApplication>("applications", id, updates, { hasUpdatedAt: true }),
+        updateApplication: async (id: string, updates: Partial<JobOsApplication>) => {
+          const now = new Date().toISOString();
+          const targetApplication = state.applications.find((application) => application.id === id);
+          const linkedRoleId = targetApplication?.roleId ?? updates.roleId;
+          const syncedRoleStatus =
+            updates.status ? mapApplicationStatusToRoleStatus(updates.status) : null;
+
+          await mutate(
+            "Update applications",
+            (prev) => ({
+              ...prev,
+              applications: prev.applications.map((application) =>
+                application.id === id ? { ...application, ...updates, updatedAt: now } : application
+              ),
+              roles:
+                !linkedRoleId || syncedRoleStatus == null
+                  ? prev.roles
+                  : prev.roles.map((role) =>
+                      role.id === linkedRoleId
+                        ? {
+                            ...role,
+                            status: syncedRoleStatus,
+                            updatedAt: now,
+                          }
+                        : role
+                    ),
+            }),
+            firebase && userId && !localOnly
+              ? async () => {
+                  const applicationRef = doc(firebase.db, "users", userId, "applications", id);
+                  await setDoc(
+                    applicationRef,
+                    stripUndefinedFields({
+                      ...updates,
+                      updatedAt: serverTimestamp(),
+                    }),
+                    { merge: true }
+                  );
+
+                  if (!linkedRoleId || syncedRoleStatus == null) {
+                    return;
+                  }
+
+                  await setDoc(
+                    doc(firebase.db, "users", userId, "roles", linkedRoleId),
+                    {
+                      status: syncedRoleStatus,
+                      updatedAt: serverTimestamp(),
+                    },
+                    { merge: true }
+                  );
+                }
+              : null
+          );
+        },
         addOutreach: (payload: Omit<JobOsOutreach, "id" | "createdAt" | "updatedAt">) =>
           addCollectionItem<JobOsOutreach>("outreach", "outreach", payload, { hasUpdatedAt: true }),
         updateOutreach: (id: string, updates: Partial<JobOsOutreach>) =>
@@ -1174,6 +1384,9 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       addCv,
       addScript,
       addTemplate,
+      firebase,
+      localOnly,
+      mutate,
       removeCollectionItem,
       removeCv,
       removeScript,
@@ -1184,6 +1397,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       updateCv,
       updateScript,
       updateTemplate,
+      userId,
     ]
   );
 

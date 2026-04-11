@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import {
-  ArrowRight,
-  BriefcaseBusiness,
-  Link2,
-  Sparkles,
-  Workflow,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowRight, Link2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { PasteLinkReviewStep } from "../job-os/PasteLinkReviewStep";
+import {
+  PasteLinkNextActionStep,
+  type InitialImportStage,
+} from "../job-os/PasteLinkNextActionStep";
 import {
   normalizeImportResult,
   parseFromInput,
@@ -20,9 +19,20 @@ import type {
   NormalizedImportResult,
   NormalizedRoleDraft,
 } from "../../services/ingestion/types";
-import type { JobOsCompany, JobOsRole } from "../../types/jobOs";
+import type {
+  JobOsApplication,
+  JobOsCompany,
+  JobOsRole,
+} from "../../types/jobOs";
 
-type Step = "input" | "analyzing" | "reviewing" | "saving";
+type Step = "input" | "analyzing" | "reviewing" | "next_action" | "saving";
+
+interface PendingImportState {
+  companyDraft: NormalizedCompanyDraft;
+  roleDraft: NormalizedRoleDraft | undefined;
+  mode: ImportMode;
+  updateExistingId?: string;
+}
 
 interface FirstRunScreenProps {
   existingCompanies: JobOsCompany[];
@@ -33,36 +43,19 @@ interface FirstRunScreenProps {
   addRole: (
     payload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt">
   ) => Promise<string | null>;
+  addApplication: (
+    payload: Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">
+  ) => Promise<string | null>;
   onDismiss: () => void;
   onComplete: () => void;
 }
-
-const ONBOARDING_STEPS = [
-  {
-    title: "Capture the role into Job OS",
-    description:
-      "Paste one posting and JobSprint creates the company, role, and job description context for your pipeline.",
-    icon: BriefcaseBusiness,
-  },
-  {
-    title: "See fit before you apply",
-    description:
-      "Use the saved role in CV Fit to understand strengths, gaps, and the positioning that will matter most.",
-    icon: Workflow,
-  },
-  {
-    title: "Tailor with real context",
-    description:
-      "Move into CV Tailor when you are ready to adapt your best CV version to that exact opportunity.",
-    icon: Sparkles,
-  },
-] as const;
 
 export function FirstRunScreen({
   existingCompanies,
   addCompany,
   updateCompany,
   addRole,
+  addApplication,
   onDismiss,
   onComplete,
 }: FirstRunScreenProps) {
@@ -70,12 +63,18 @@ export function FirstRunScreen({
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<NormalizedImportResult | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImportState | null>(null);
+  const [initialStage, setInitialStage] = useState<InitialImportStage>("to_apply");
+  const [nextAction, setNextAction] = useState("Apply");
 
   async function handleAnalyze() {
     const trimmed = url.trim();
     if (!trimmed) return;
+
     setError(null);
     setStep("analyzing");
+
     try {
       const parsed = await parseFromInput({ url: trimmed });
       const normalized = normalizeImportResult(parsed, trimmed, existingCompanies);
@@ -83,227 +82,241 @@ export function FirstRunScreen({
       setStep("reviewing");
     } catch {
       setError(
-        "Could not read that URL. Try pasting the job description text in the full importer instead."
+        "Could not read that URL. Try entering the company and role manually if the posting is blocked."
       );
       setStep("input");
     }
   }
 
-  async function handleSave(
+  function handleReviewContinue(
     companyDraft: NormalizedCompanyDraft,
     roleDraft: NormalizedRoleDraft | undefined,
     mode: ImportMode,
     updateExistingId?: string
   ) {
+    setPendingImport({
+      companyDraft,
+      roleDraft,
+      mode,
+      updateExistingId,
+    });
+
+    if (mode === "company_and_role" && roleDraft) {
+      setInitialStage(roleDraft.status === "applied" ? "applied" : "to_apply");
+      setNextAction(roleDraft.nextAction?.trim() || "Apply");
+      setStep("next_action");
+      return;
+    }
+
+    setInitialStage("saved");
+    setNextAction("Research");
+    void handleSave(
+      {
+        companyDraft,
+        roleDraft,
+        mode,
+        updateExistingId,
+      },
+      "saved",
+      "Research"
+    );
+  }
+
+  async function handleSave(
+    pending: PendingImportState,
+    stage: InitialImportStage,
+    action: string
+  ) {
     setStep("saving");
+
     try {
       const {
         englishFirst,
-        sourceType: cSourceType,
+        sourceType: companySourceType,
         ...coreCompany
-      } = companyDraft;
+      } = pending.companyDraft;
 
       const companyPayload: Omit<JobOsCompany, "id" | "createdAt" | "updatedAt"> = {
         ...coreCompany,
         englishFirst: (englishFirst as JobOsCompany["englishFirst"]) ?? undefined,
-        sourceType: (cSourceType as JobOsCompany["sourceType"]) ?? undefined,
+        sourceType: (companySourceType as JobOsCompany["sourceType"]) ?? undefined,
       };
 
       let companyId: string | null;
-      if (updateExistingId) {
-        await updateCompany(updateExistingId, companyPayload);
-        companyId = updateExistingId;
+      if (pending.updateExistingId) {
+        await updateCompany(pending.updateExistingId, companyPayload);
+        companyId = pending.updateExistingId;
       } else {
         companyId = await addCompany(companyPayload);
       }
 
-      if (mode === "company_and_role" && roleDraft && companyId) {
-        const { sourceType: rSourceType, ...coreRole } = roleDraft;
-        await addRole({
+      if (pending.mode === "company_and_role" && pending.roleDraft && companyId) {
+        const {
+          sourceType: roleSourceType,
+          ...coreRole
+        } = pending.roleDraft;
+
+        const roleId = await addRole({
           ...coreRole,
           companyId,
-          sourceType: (rSourceType as JobOsRole["sourceType"]) ?? undefined,
+          status: stage === "applied" ? "applied" : "to_apply",
+          nextAction: action,
+          sourceType: (roleSourceType as JobOsRole["sourceType"]) ?? undefined,
         });
+
+        if (stage === "applied" && roleId) {
+          await addApplication({
+            companyId,
+            roleId,
+            dateApplied: new Date().toISOString().slice(0, 10),
+            channel: "Imported link",
+            cvAssetId: undefined,
+            cvVersion: "",
+            status: "sent",
+            nextAction: action,
+            notes: "",
+            latestJobDescriptionId: undefined,
+            latestCvTailoringRunId: undefined,
+            tailoredCvHeadline: "",
+            tailoredCvSummary: "",
+            tailoredCvText: "",
+            tailoredCvUpdatedAt: undefined,
+          });
+        }
       }
 
       onComplete();
     } catch {
       setError("Failed to save. Please try again.");
-      setStep("reviewing");
+      setStep(pending.mode === "company_and_role" && pending.roleDraft ? "next_action" : "reviewing");
     }
   }
 
   const isAnalyzing = step === "analyzing";
 
   return (
-    <div className="flex min-h-[calc(100vh-7rem)] flex-col justify-center px-4">
+    <div className="flex min-h-[calc(100vh-7.5rem)] items-center justify-center px-4 py-4">
       {step === "input" || step === "analyzing" ? (
-        <div className="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_36%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(241,245,249,0.96))] p-6 shadow-[0_30px_90px_-45px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.20),_transparent_32%),linear-gradient(135deg,_rgba(10,15,30,0.98),_rgba(5,8,18,0.96))]">
-            <div className="max-w-2xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-300/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                First Login Flow
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/12 shadow-inner shadow-primary/10">
-                  <Link2 className="h-5 w-5 text-primary" />
-                </div>
-                <h1 className="max-w-xl text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                  Start with one real job and let JobSprint build the system around it
-                </h1>
-                <p className="max-w-2xl text-sm leading-5 text-slate-600 dark:text-slate-300">
-                  Instead of dropping you into an empty workspace, this first-login flow
-                  uses your first opportunity to create context across the pipeline.
-                  Import one posting now, then move naturally into Job OS, CV fit, and CV tailoring.
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                {ONBOARDING_STEPS.map((item, index) => {
-                  const Icon = item.icon;
-                  return (
-                    <div
-                      key={item.title}
-                      className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/70 p-3 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/45"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-950">
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          <Icon className="h-4 w-4 text-primary" />
-                          {item.title}
-                        </div>
-                        <p className="mt-0.5 text-sm leading-5 text-slate-600 dark:text-slate-300">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Link
-                  to="/job-os/roles"
-                  className="rounded-full border border-slate-300/80 px-3 py-1.5 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
-                >
-                  Preview Job OS
-                </Link>
-                <Link
-                  to="/cv-optimizer"
-                  className="rounded-full border border-slate-300/80 px-3 py-1.5 text-slate-700 transition-colors hover:border-primary/40 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
-                >
-                  Explore CV Fit / Tailor
-                </Link>
-              </div>
+        <section className="w-full max-w-3xl rounded-[2rem] border border-slate-200 bg-white px-6 py-8 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-950 sm:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+              <Link2 className="h-5 w-5 text-primary" />
             </div>
-          </section>
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-[2rem]">
+              Paste your first job link
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Start with one real opportunity and JobSprint will build the first company and role context around it.
+            </p>
 
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-950">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-                  Guided Setup
-                </div>
-                <h2 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-                  Import your first opportunity
-                </h2>
-                <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">
-                  Paste a job URL and we will extract the role, attach the job description,
-                  and give you a useful first record to build from.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/50">
-                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  What this unlocks
-                </div>
-                <div className="mt-1.5 grid gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-                  <div>Job OS gets your first company and role.</div>
-                  <div>You can open CV Fit with the same role context.</div>
-                  <div>Your dashboard starts surfacing meaningful next actions.</div>
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                <Input
-                  placeholder="https://boards.greenhouse.io/... or https://jobs.ashbyhq.com/..."
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAnalyze();
-                  }}
-                  disabled={isAnalyzing}
-                  className="h-10 text-base"
-                  autoFocus
-                />
-                <Button
-                  size="lg"
-                  onClick={handleAnalyze}
-                  disabled={!url.trim() || isAnalyzing}
-                  className="h-10 w-full gap-2"
-                >
-                  {isAnalyzing ? (
-                    "Analyzing..."
-                  ) : (
-                    <>
-                      Import first role <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs leading-5 text-neutral-400">
-                  Supports Greenhouse, Lever, Ashby, Himalayas, and most ATS pages.
-                  For LinkedIn, paste the job description text after clicking import.
-                </p>
-              </div>
+            <div className="mt-8 space-y-3 text-left">
+              <Input
+                placeholder="https://boards.greenhouse.io/... or https://jobs.ashbyhq.com/..."
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleAnalyze();
+                }}
+                disabled={isAnalyzing}
+                className="h-12 rounded-xl px-4 text-base"
+                autoFocus
+              />
+              <Button
+                size="lg"
+                onClick={handleAnalyze}
+                disabled={!url.trim() || isAnalyzing}
+                className="h-12 w-full rounded-xl gap-2 text-sm font-semibold"
+              >
+                {isAnalyzing ? (
+                  "Analyzing..."
+                ) : (
+                  <>
+                    Import first job
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+              <p className="text-center text-xs leading-5 text-neutral-500">
+                Supports LinkedIn, Greenhouse, Lever, Ashby, Himalayas, and most career pages.
+              </p>
             </div>
 
             {error ? (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
                 {error}
               </div>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
-              <button
-                onClick={onDismiss}
-                className="text-sm text-neutral-400 underline-offset-2 hover:text-neutral-600 hover:underline dark:hover:text-neutral-300"
+            <div className="mt-5 flex items-center justify-center">
+              <Button
+                variant="ghost"
+                asChild
+                className="text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
               >
-                Skip for now and set up manually
-              </button>
-              <Link
-                to="/job-os/companies"
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Open manual setup
-              </Link>
+                <Link to="/job-os/companies" onClick={onDismiss}>
+                  Enter manually
+                </Link>
+              </Button>
             </div>
-          </section>
-        </div>
+
+            <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/80 text-left dark:border-slate-800 dark:bg-slate-900/40">
+                <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                  <span>How it works</span>
+                  <span className="ml-auto text-neutral-400">
+                    {detailsOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t border-slate-200 px-4 py-3 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                    We extract the company, role, and job description from the link, then guide you through review and the first pipeline action before anything is saved.
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          </div>
+        </section>
       ) : (
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <div className="mb-5 space-y-1">
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-              Review extracted details
+              {step === "reviewing" ? "Review extracted details" : "Set the first workflow move"}
             </h2>
             <p className="text-sm text-neutral-500">
-              Confirm what we found, then save to unlock Job OS, fit analysis, and CV tailoring from the same role context.
+              {step === "reviewing"
+                ? "Confirm what we found, then choose how the role should enter your pipeline."
+                : "Finish the import with a clear starting stage and next action."}
             </p>
           </div>
-          {result ? (
+
+          {step === "reviewing" && result ? (
             <PasteLinkReviewStep
               result={result}
               defaultMode="company_and_role"
-              isSaving={step === "saving"}
-              onSave={handleSave}
+              onContinue={handleReviewContinue}
               onBack={() => {
                 setStep("input");
                 setResult(null);
               }}
               onCancel={onDismiss}
+            />
+          ) : null}
+
+          {(step === "next_action" || step === "saving") && pendingImport ? (
+            <PasteLinkNextActionStep
+              roleTitle={pendingImport.roleDraft?.title}
+              stage={initialStage}
+              nextAction={nextAction}
+              isSaving={step === "saving"}
+              onStageChange={setInitialStage}
+              onNextActionChange={setNextAction}
+              onBack={() => setStep("reviewing")}
+              onCancel={onDismiss}
+              onSave={() => void handleSave(pendingImport, initialStage, nextAction.trim())}
             />
           ) : null}
         </div>

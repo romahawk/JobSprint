@@ -11,9 +11,12 @@ import {
   fetchWithTimeout,
 } from "../utils";
 
-// Matches both legacy and new Greenhouse board domains
+// Matches legacy and regionalized Greenhouse board domains like:
+// - boards.greenhouse.io/acme/jobs/123
+// - job-boards.greenhouse.io/acme/jobs/123
+// - job-boards.eu.greenhouse.io/acme/jobs/123
 const GREENHOUSE_RE =
-  /https?:\/\/(?:boards|job-boards)\.greenhouse\.io\/([^/?#]+)(?:\/jobs\/(\d+))?/i;
+  /https?:\/\/(?:boards|job-boards(?:\.[a-z0-9-]+)?)\.greenhouse\.io\/([^/?#]+)(?:\/jobs\/(\d+))?/i;
 
 export const greenhouseAdapter: SourceAdapter = {
   canHandle(url: string): boolean {
@@ -25,8 +28,9 @@ export const greenhouseAdapter: SourceAdapter = {
     const companySlug = match?.[1] ?? "";
     const jobId = match?.[2] ?? "";
     const companyName = humanizeSlug(companySlug);
+    const boardHost = input.url.match(/^https?:\/\/([^/]+)/i)?.[1] ?? "boards.greenhouse.io";
     const careersUrl = companySlug
-      ? `https://boards.greenhouse.io/${companySlug}`
+      ? `https://${boardHost}/${companySlug}`
       : undefined;
 
     const extracted: ParsedImportResult["extracted"] = {
@@ -91,6 +95,15 @@ export const greenhouseAdapter: SourceAdapter = {
       sourcePlatform: "greenhouse",
       sourceType: jobId ? "job" : "company",
       confidence,
+      jobSource: {
+        sourceUrl: input.url,
+        sourcePlatform: "greenhouse",
+        sourceType: jobId ? "job" : "company",
+        companyName: extracted.companyName,
+        rawJobTitle: extracted.roleTitle,
+        rawLocation: extracted.locationHint,
+        rawJobDescription: extracted.jobDescription,
+      },
       raw: { html: html || undefined, text: rawText || undefined },
       extracted,
     };

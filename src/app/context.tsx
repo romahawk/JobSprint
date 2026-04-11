@@ -147,7 +147,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoals>(
     DEFAULT_APP_DATA.weeklyGoals
   );
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(
+    () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true
+  );
   const [session, setSession] = useState<AppContextType["session"]>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [pendingDeletions, setPendingDeletions] = useState<PendingDeletion[]>(

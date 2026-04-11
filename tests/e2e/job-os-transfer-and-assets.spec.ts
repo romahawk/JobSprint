@@ -154,7 +154,7 @@ test("edits scripts/templates and round-trips import export from settings", asyn
   };
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('[role="menu"] input[type="file"]').setInputFiles({
     name: "jobsprint-import.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(importPayload, null, 2)),

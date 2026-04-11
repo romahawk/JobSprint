@@ -836,14 +836,6 @@ export default function JobOsRolesPage() {
                         <TooltipContent side="top">Add application</TooltipContent>
                       </Tooltip>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={applicationRoleIds.has(role.id)}
-                      onClick={() => void handleAddApplication(role)}
-                    >
-                      {applicationRoleIds.has(role.id) ? "Application already logged" : "Add application"}
-                    </Button>
                     <Button asChild size="sm" variant="secondary">
                       <Link to={`/cv-optimizer?roleId=${role.id}`}>Tailor CV</Link>
                     </Button>

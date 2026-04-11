@@ -1,4 +1,15 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import type { Application } from "../types";
 import { ExternalLink, Trash2 } from "lucide-react";
@@ -26,17 +37,35 @@ export function ApplicationDetailsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>{application.company}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onDelete(application.id);
-                onClose();
-              }}
-              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this application?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {application.company} — {application.role} will be removed.
+                    You will have 7 seconds to undo.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                    onClick={() => { onDelete(application.id); onClose(); }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </DialogTitle>
         </DialogHeader>
 

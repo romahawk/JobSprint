@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
+import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -407,19 +418,9 @@ export default function JobOsCompaniesPage() {
     }
   }
 
+  const [clearAllOpen, setClearAllOpen] = useState(false);
+
   async function clearAllCompanies(): Promise<void> {
-    if (companyListLocked) {
-      setImportNotice("Unlock the company list before clearing.");
-      return;
-    }
-    if (companies.length === 0) {
-      setImportNotice("There are no companies to clear.");
-      return;
-    }
-    const confirmed = window.confirm(
-      `Delete all ${companies.length} companies? This action cannot be undone.`
-    );
-    if (!confirmed) return;
     const count = companies.length;
     await Promise.all(companies.map((company) => removeCompany(company.id)));
     setSelectedCompanyId(null);
@@ -487,15 +488,36 @@ export default function JobOsCompaniesPage() {
               >
                 {companyListLocked ? "Unlock Companies" : "Lock Companies"}
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-red-500"
-                onClick={() => void clearAllCompanies()}
-                disabled={companyListLocked || companies.length === 0}
-              >
-                Clear All
-              </Button>
+              <AlertDialog open={clearAllOpen} onOpenChange={setClearAllOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-500"
+                    disabled={companyListLocked || companies.length === 0}
+                  >
+                    Clear All
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete all {companies.length} companies?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Every company and all linked roles, applications, and outreach records will
+                      be permanently removed. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                      onClick={() => void clearAllCompanies()}
+                    >
+                      Delete all
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -711,15 +733,35 @@ export default function JobOsCompaniesPage() {
                     >
                       View
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-500"
-                      disabled={companyListLocked}
-                      onClick={() => void removeCompany(company.id).then(() => toast.success("Company deleted"))}
-                    >
-                      Delete
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500"
+                          disabled={companyListLocked}
+                        >
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete {company.name}?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This company and all its linked data will be permanently removed.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                            onClick={() => void removeCompany(company.id).then(() => toast.success("Company deleted"))}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}

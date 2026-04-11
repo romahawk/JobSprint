@@ -1,5 +1,15 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { Plus } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { AppNavbar } from "../components/AppNavbar";
@@ -27,6 +37,7 @@ export default function AfaCompliancePage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<AfaVorschlag | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   function handleOpenNew() {
     setSelectedCase(null);
@@ -53,9 +64,21 @@ export default function AfaCompliancePage() {
     toast.success("Case created");
   }
 
-  async function handleDelete(id: string): Promise<void> {
-    await deleteCase(id);
+  function requestDelete(id: string): void {
+    setDeleteConfirmId(id);
+  }
+
+  async function confirmDelete(): Promise<void> {
+    if (!deleteConfirmId) return;
+    await deleteCase(deleteConfirmId);
     toast.success("Case deleted");
+    setDeleteConfirmId(null);
+    handleClose();
+  }
+
+  // Kept for AfaCaseModal's onDelete signature compatibility
+  async function handleDelete(id: string): Promise<void> {
+    requestDelete(id);
   }
 
   return (
@@ -101,9 +124,7 @@ export default function AfaCompliancePage() {
                 onMarkApplied={markApplied}
                 onMarkFeedback={markFeedbackSubmitted}
                 onCloseCase={closeCase}
-                onDeleteCase={(id) => {
-                  void handleDelete(id);
-                }}
+                onDeleteCase={requestDelete}
               />
             </div>
 
@@ -126,6 +147,26 @@ export default function AfaCompliancePage() {
         onSave={handleSave}
         onDelete={handleDelete}
       />
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this compliance case?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This case will be permanently removed and cannot be recovered.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              onClick={() => void confirmDelete()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

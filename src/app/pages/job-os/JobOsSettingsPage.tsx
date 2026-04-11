@@ -1,5 +1,15 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 import { Download, Upload } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -20,6 +30,7 @@ export default function JobOsSettingsPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [importConfirmOpen, setImportConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
   function handleExport(): void {
@@ -93,7 +104,7 @@ export default function JobOsSettingsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setImportConfirmOpen(true)}
               disabled={importing}
             >
               <Upload className="h-3.5 w-3.5 mr-1.5" />
@@ -121,6 +132,28 @@ export default function JobOsSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={importConfirmOpen} onOpenChange={setImportConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace pipeline with this file?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing will permanently overwrite all current companies, roles, applications,
+              and outreach records. Export a backup first if you want to preserve the current
+              state.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              onClick={() => { setImportConfirmOpen(false); fileInputRef.current?.click(); }}
+            >
+              Replace and import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </JobOsLayout>
   );
 }

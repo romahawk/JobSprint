@@ -9,3 +9,13 @@ test-results/
 playwright-report
 test-results
 .vite-dev.log
+
+# OS
+.DS_Store
+*.local
+
+# Coverage
+coverage/
+
+# Vercel
+.vercel

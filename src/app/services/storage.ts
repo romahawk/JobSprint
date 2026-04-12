@@ -119,7 +119,8 @@ function createLocalRepository(storage: StorageLike): AppRepository {
     },
     getDarkMode() {
       const raw = storage.getItem(LEGACY_DARKMODE_KEY);
-      return raw ? JSON.parse(raw) : true;
+      if (raw !== null) return JSON.parse(raw) as boolean;
+      return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
     },
     setDarkMode(darkMode: boolean) {
       storage.setItem(LEGACY_DARKMODE_KEY, JSON.stringify(darkMode));
@@ -151,7 +152,8 @@ function createRemoteRepository(storage: StorageLike, remoteBaseUrl: string): Ap
     },
     getDarkMode() {
       const raw = storage.getItem(LEGACY_DARKMODE_KEY);
-      return raw ? JSON.parse(raw) : true;
+      if (raw !== null) return JSON.parse(raw) as boolean;
+      return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
     },
     setDarkMode(darkMode: boolean) {
       storage.setItem(LEGACY_DARKMODE_KEY, JSON.stringify(darkMode));
@@ -238,7 +240,8 @@ function createFirebaseRepository(storage: StorageLike): AppRepository {
     },
     getDarkMode() {
       const raw = storage.getItem(LEGACY_DARKMODE_KEY);
-      return raw ? JSON.parse(raw) : true;
+      if (raw !== null) return JSON.parse(raw) as boolean;
+      return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
     },
     setDarkMode(darkMode: boolean) {
       storage.setItem(LEGACY_DARKMODE_KEY, JSON.stringify(darkMode));

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ChevronDown, ChevronUp, CircleHelp, Loader2, Sparkles } from "lucide-react";
 import { Button } from "../../app/components/ui/button";
@@ -164,9 +164,19 @@ export default function CvOptimizerPage() {
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<OptimizerTask>(null);
 
+  // Tracks whether the initial context-driven CV auto-selection has fired for
+  // the current application/role context. Prevents Firestore data refreshes
+  // (which update assets.cvs) from overriding a user's manual CV choice.
+  const autoSelectDoneRef = useRef(false);
+
   useEffect(() => {
     setDraft(seed);
   }, [seed]);
+
+  // Reset the auto-select guard whenever the URL context changes.
+  useEffect(() => {
+    autoSelectDoneRef.current = false;
+  }, [applicationId, roleIdFromQuery]);
 
   useEffect(() => {
     if (assets.cvs.length === 0) return;
@@ -180,21 +190,31 @@ export default function CvOptimizerPage() {
   const selectedProfile = findProfileForCv(selectedCvAsset?.id ?? null, assets.cvs, cvProfiles);
   const selectedCvText = selectedCvAsset?.sourceText?.trim() || undefined;
 
+  // Auto-select the most relevant CV based on the linked application or role
+  // track. Only runs once per context so data refreshes never override the
+  // user's manual CV choice.
   useEffect(() => {
     if (assets.cvs.length === 0) return;
+    if (autoSelectDoneRef.current) return;
+
     const applicationMatch = application
       ? assets.cvs.find((cv) => cv.id === getApplicationCvAssetId(application, assets.cvs))
       : null;
     if (applicationMatch) {
       setSelectedCvId(applicationMatch.id);
+      autoSelectDoneRef.current = true;
       return;
     }
-    if (!role) return;
+    if (!role) {
+      autoSelectDoneRef.current = true;
+      return;
+    }
     const preferredTrack = mapRoleTrackToProfile(role.track);
     const preferredCv = findCvForTrack(preferredTrack, assets.cvs, cvProfiles);
     if (preferredCv) {
       setSelectedCvId(preferredCv.id);
     }
+    autoSelectDoneRef.current = true;
   }, [application, assets.cvs, cvProfiles, role]);
 
   const historyRuns = useMemo(() => {

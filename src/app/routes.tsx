@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
+import SignIn from "./pages/SignIn";
 import { JobOsRouteProvider } from "./components/job-os/JobOsRouteProvider";
 import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
@@ -15,7 +16,6 @@ const JobOsRolesPage = lazy(() => import("./pages/job-os/JobOsRolesPage"));
 const JobOsApplicationsPage = lazy(() => import("./pages/job-os/JobOsApplicationsPage"));
 const JobOsOutreachPage = lazy(() => import("./pages/job-os/JobOsOutreachPage"));
 const CvOptimizerPage = lazy(() => import("../features/cvOptimizer/CvOptimizerPage"));
-const SignIn = lazy(() => import("./pages/SignIn"));
 const AfaCompliancePage = lazy(() => import("./pages/AfaCompliancePage"));
 
 function RouteFallback() {
@@ -33,7 +33,7 @@ function lazyElement(element: ReactNode) {
 export const router = createBrowserRouter([
   {
     path: "/signin",
-    element: lazyElement(<SignIn />),
+    element: <SignIn />,
   },
   {
     Component: ProtectedRoute,

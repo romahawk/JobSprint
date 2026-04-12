@@ -1,5 +1,16 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -97,7 +108,7 @@ export default function JobOsOutreachPage() {
           <Button
             onClick={() => {
               if (!draft.companyId) return;
-              void addOutreach(draft);
+              void addOutreach(draft).then(() => toast.success("Outreach logged"));
               setDraft((p) => ({
                 ...p,
                 contactName: "",
@@ -169,9 +180,28 @@ export default function JobOsOutreachPage() {
                     >
                       Schedule follow-up
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void removeOutreach(item.id)}>
-                      Delete
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" className="text-red-500">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete outreach record?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This record will be permanently removed.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                            onClick={() => void removeOutreach(item.id).then(() => toast.success("Outreach record deleted"))}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,5 +1,17 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
 import {
   ArrowDown,
   ArrowUp,
@@ -276,6 +288,7 @@ export default function JobOsRolesPage() {
       jobDescriptionUpdatedAt: editDraft.jobDescription?.trim() ? new Date().toISOString() : undefined,
     });
     cancelEdit();
+    toast.success("Role updated");
   }
 
   async function handleAddRole(): Promise<void> {
@@ -315,7 +328,8 @@ export default function JobOsRolesPage() {
         jobDescription: "",
         jobDescriptionUpdatedAt: undefined,
       });
-      setFormNotice("Role added.");
+      setFormNotice("");
+      toast.success("Role added");
     } catch (error) {
       setFormNotice(error instanceof Error ? error.message : "Role could not be created.");
     }
@@ -822,6 +836,39 @@ export default function JobOsRolesPage() {
                         <TooltipContent side="top">Add application</TooltipContent>
                       </Tooltip>
                     )}
+                    <Button asChild size="sm" variant="secondary">
+                      <Link to={`/cv-optimizer?roleId=${role.id}`}>Tailor CV</Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!role.url}
+                      onClick={() => window.open(role.url, "_blank", "noopener,noreferrer")}
+                    >
+                      Quick apply
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" className="text-red-500">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this role?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {role.title} will be permanently removed along with any linked data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                            onClick={() => void removeRole(role.id).then(() => toast.success("Role deleted"))}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="inline-flex">

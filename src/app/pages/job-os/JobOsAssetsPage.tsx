@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Copy, Download, FileText, Plus, RefreshCw, Sparkles, Trash2, Upload } from "lucide-react";
+import { Check, ChevronsUpDown, Copy, Download, FileText, Plus, RefreshCw, Sparkles, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
@@ -19,7 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/ta
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../../components/ui/command";
 import { Textarea } from "../../components/ui/textarea";
 import {
   getApplicationCvAssetId,
@@ -108,6 +109,7 @@ export default function JobOsAssetsPage() {
   const [cvStatus, setCvStatus] = useState<Record<string, string>>({});
   const [importingCvId, setImportingCvId] = useState<string | null>(null);
   const [selectedCvId, setSelectedCvId] = useState<string>("");
+  const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<
     | { kind: "cv"; item: JobOsCvAsset }
     | { kind: "script"; item: JobOsScriptAsset }
@@ -128,6 +130,10 @@ export default function JobOsAssetsPage() {
       setSelectedCvId(defaultCv?.id ?? assets.cvs[0].id);
     }
   }, [assets.cvs, defaultCv?.id, selectedCvId]);
+
+  useEffect(() => {
+    setProfilePopoverOpen(false);
+  }, [selectedCvId]);
 
   const selectedCv = assets.cvs.find((cv) => cv.id === selectedCvId) ?? defaultCv ?? null;
 
@@ -491,22 +497,55 @@ export default function JobOsAssetsPage() {
                         </div>
                         <div className="space-y-2 md:col-span-2">
                           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Linked Tailoring Profile</div>
-                          <Select
-                            value={selectedCv.linkedProfileId ?? "none"}
-                            onValueChange={(value) => void updateCv(selectedCv.id, { linkedProfileId: value === "none" ? undefined : value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a default profile" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No linked profile</SelectItem>
-                              {cvProfiles.map((profile) => (
-                                <SelectItem key={profile.id} value={profile.id}>
-                                  {profile.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover open={profilePopoverOpen} onOpenChange={setProfilePopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <button
+                                role="combobox"
+                                aria-expanded={profilePopoverOpen}
+                                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm text-foreground shadow-sm transition-colors hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-ring"
+                              >
+                                <span className={selectedCv.linkedProfileId ? "" : "text-muted-foreground"}>
+                                  {selectedCv.linkedProfileId
+                                    ? (cvProfiles.find((p) => p.id === selectedCv.linkedProfileId)?.name ?? "Unknown profile")
+                                    : "No linked profile"}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[280px] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Search profiles..." />
+                                <CommandList>
+                                  <CommandEmpty>No profiles found.</CommandEmpty>
+                                  <CommandGroup>
+                                    <CommandItem
+                                      value="none"
+                                      onSelect={() => {
+                                        void updateCv(selectedCv.id, { linkedProfileId: undefined });
+                                        setProfilePopoverOpen(false);
+                                      }}
+                                    >
+                                      <Check className={`mr-2 h-4 w-4 ${!selectedCv.linkedProfileId ? "opacity-100" : "opacity-0"}`} />
+                                      No linked profile
+                                    </CommandItem>
+                                    {cvProfiles.map((profile) => (
+                                      <CommandItem
+                                        key={profile.id}
+                                        value={profile.name}
+                                        onSelect={() => {
+                                          void updateCv(selectedCv.id, { linkedProfileId: profile.id });
+                                          setProfilePopoverOpen(false);
+                                        }}
+                                      >
+                                        <Check className={`mr-2 h-4 w-4 ${selectedCv.linkedProfileId === profile.id ? "opacity-100" : "opacity-0"}`} />
+                                        {profile.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
 

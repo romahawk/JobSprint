@@ -1,6 +1,16 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 import { usePagination } from "../../hooks/usePagination";
 import { PaginationControls } from "../../components/ui/PaginationControls";
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, Plus, Search } from "lucide-react";
@@ -111,6 +121,7 @@ export default function JobOsApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "notes"> | null>(null);
   const [sortField, setSortField] = useState<SortField>("date");
@@ -250,6 +261,7 @@ export default function JobOsApplicationsPage() {
   async function handleCreateApplication(): Promise<void> {
     if (!draft.companyId || !draft.roleId) return;
     await addApplication(draft);
+    toast.success("Application added");
     resetDraft();
     setCreateOpen(false);
   }
@@ -728,16 +740,37 @@ export default function JobOsApplicationsPage() {
                   <Button asChild variant="outline">
                     <Link to={`/cv-optimizer?applicationId=${detailApplication.id}`}>Tailor CV</Link>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    className="text-red-500"
-                    onClick={() => {
-                      void removeApplication(detailApplication.id);
-                      closeDetails();
-                    }}
-                  >
-                    Delete
-                  </Button>
+                  <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                    <Button
+                      variant="ghost"
+                      className="text-red-500"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      Delete
+                    </Button>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this application?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This record will be permanently removed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                          onClick={() => {
+                            void removeApplication(detailApplication.id).then(() =>
+                              toast.success("Application deleted")
+                            );
+                            closeDetails();
+                          }}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">Cmd/Ctrl + Enter saves</span>

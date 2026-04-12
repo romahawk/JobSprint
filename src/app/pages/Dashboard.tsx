@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useApp } from "../context";
 import { useJobOs } from "../hooks/useJobOs";
 import { KPICard } from "../components/KPICard";
@@ -75,9 +76,16 @@ export default function Dashboard() {
     if (editingApp) {
       updateApplication(editingApp.id, appData);
       setEditingApp(null);
+      toast.success("Application updated");
     } else {
       addApplication(appData);
+      toast.success("Application added");
     }
+  };
+
+  const handleDelete = (id: string) => {
+    scheduleDeleteApplication(id);
+    toast.success("Application removed", { description: "Use Undo within 7 seconds to restore it." });
   };
 
   const handleUpdateStatus = (id: string, status: PipelineStatus) => {
@@ -203,7 +211,7 @@ export default function Dashboard() {
         }}
         application={selectedApp}
         onEdit={handleEdit}
-        onDelete={scheduleDeleteApplication}
+        onDelete={handleDelete}
       />
     </div>
   );

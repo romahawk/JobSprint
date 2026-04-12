@@ -86,6 +86,63 @@ commit. Merge commits are exempt.
 
 ---
 
+## Pull Request Creation
+
+Every PR **must** be created with `gh pr create` and a fully-populated `--body`.
+Never leave placeholder text from the template unfilled.
+
+Use this exact structure, replacing every placeholder with real content derived
+from the actual changes in the branch:
+
+```bash
+gh pr create \
+  --title "type(scope): short description" \
+  --body "$(cat <<'EOF'
+## What
+
+<Concrete description of what changed — files, features, behaviours.>
+
+## Why
+
+<The problem this PR solves and why it is being solved now.>
+
+## How To Test
+
+1. <First step>
+2. <Second step>
+3. <Expected outcome>
+
+## Evidence
+
+- Issue: #N
+- Demo artifact (screenshot/Loom): <URL or "N/A — non-UI change">
+
+## Risk and Rollback
+
+- Risk level: low / medium / high  ← pick one and delete the others
+- Rollback plan: <revert commit SHA or feature-flag off>
+
+## Checklist
+
+- [x] Linked to an issue with clear acceptance criteria
+- [x] Scope is limited to the issue
+- [x] Local checks pass (`npm run build`)
+- [x] Docs updated if behavior or workflow changed
+- [x] `CHANGELOG.md` updated
+- [x] Demo artifact attached
+EOF
+)"
+```
+
+Rules:
+- **Every section must be filled.** No section may retain its template placeholder text.
+- `## Evidence — Issue:` must contain the real issue number, e.g. `#42`.
+- `## Risk and Rollback — Risk level:` must be exactly one of `low`, `medium`, or `high`.
+- Checklist items must be checked `[x]` or explicitly unchecked `[ ]` with a reason noted inline.
+- The `Closes #N` link belongs in the **commit body**, not the PR body (already enforced by policy-check CI).
+
+---
+
 ## Scope Rules
 
 - Work only on the issue explicitly assigned to the session.

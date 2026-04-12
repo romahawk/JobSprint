@@ -10,6 +10,15 @@ interface AppErrorBoundaryState {
   hasError: boolean;
 }
 
+function isChunkLoadError(error: Error): boolean {
+  return (
+    error.message.includes("Failed to fetch dynamically imported module") ||
+    error.message.includes("ChunkLoadError") ||
+    error.message.includes("Loading chunk") ||
+    error.name === "ChunkLoadError"
+  );
+}
+
 export class AppErrorBoundary extends Component<
   AppErrorBoundaryProps,
   AppErrorBoundaryState
@@ -19,12 +28,20 @@ export class AppErrorBoundary extends Component<
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError() {
+  static getDerivedStateFromError(error: Error) {
+    // Stale deployment: chunk filenames changed after redeploy.
+    // Reload the page to fetch fresh HTML + new asset URLs.
+    if (isChunkLoadError(error)) {
+      window.location.reload();
+      return { hasError: false };
+    }
     return { hasError: true };
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error("Unhandled app error:", error, info.componentStack);
+    if (!isChunkLoadError(error)) {
+      console.error("Unhandled app error:", error, info.componentStack);
+    }
   }
 
   render() {

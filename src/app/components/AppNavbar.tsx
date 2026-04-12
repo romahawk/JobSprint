@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import {
   BriefcaseBusiness,
@@ -6,6 +6,7 @@ import {
   Lock,
   LayoutDashboard,
   LogOut,
+  Menu,
   Moon,
   Settings,
   Sun,
@@ -15,6 +16,13 @@ import { useJobOsSyncSnapshot } from "../services/jobOsSync";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { trackPageView } from "../services/analytics";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+} from "./ui/sheet";
 
 interface AppNavbarProps {
   title: string;
@@ -66,6 +74,11 @@ export function AppNavbar({
   const location = useLocation();
   const logoutBlocked = jobOsSync.pendingWrites > 0;
   const hasSettingsMenu = Boolean(settingsContent);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close drawer on navigation
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   useEffect(() => {
     trackPageView(`${location.pathname}${location.search}`);
@@ -79,10 +92,21 @@ export function AppNavbar({
       <div className="max-w-[1800px] mx-auto px-6">
         <div className="flex items-center justify-between gap-4 h-14">
           <div className="flex items-center gap-8">
+            {/* Hamburger — mobile only */}
+            <button
+              type="button"
+              aria-label="Open navigation menu"
+              onClick={() => setMobileOpen(true)}
+              className="md:hidden w-8 h-8 flex items-center justify-center rounded-md text-white/65 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             <span className="text-base font-bold text-white tracking-tight">
               {title}
             </span>
 
+            {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-0.5">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -169,6 +193,71 @@ export function AppNavbar({
           </div>
         )}
       </div>
+
+      {/* Mobile nav drawer */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-72 p-0 flex flex-col">
+          <SheetHeader className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+            <SheetTitle className="text-base font-bold tracking-tight">
+              JobSprint
+            </SheetTitle>
+          </SheetHeader>
+
+          <nav className="flex-1 px-3 py-4 space-y-1">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = item.matches(location.pathname);
+              return (
+                <SheetClose asChild key={item.to}>
+                  <Link
+                    to={item.to}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-primary text-white"
+                        : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    {item.label}
+                  </Link>
+                </SheetClose>
+              );
+            })}
+
+            <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 mt-2">
+              <SheetClose asChild>
+                <Link
+                  to="/compliance/afa"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                >
+                  <Lock className="w-4 h-4 shrink-0 text-neutral-500" />
+                  AfA Compliance
+                </Link>
+              </SheetClose>
+            </div>
+          </nav>
+
+          <div className="px-3 py-4 border-t border-neutral-200 dark:border-neutral-800 space-y-1">
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            >
+              {darkMode ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
+              {darkMode ? "Light mode" : "Dark mode"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMobileOpen(false); void signOut(); }}
+              disabled={logoutBlocked}
+              className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              {logoutBlocked ? `Saving ${jobOsSync.pendingWrites}…` : "Sign Out"}
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </header>
   );
 }

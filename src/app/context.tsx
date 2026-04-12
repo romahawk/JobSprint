@@ -377,6 +377,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const addChecklistItem = useCallback((label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    setWeeklyGoals((prev) => ({
+      ...prev,
+      checklist: [
+        ...prev.checklist,
+        {
+          id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          label: trimmed,
+          completed: false,
+        },
+      ],
+    }));
+  }, []);
+
+  const removeChecklistItem = useCallback((id: string) => {
+    setWeeklyGoals((prev) => ({
+      ...prev,
+      checklist: prev.checklist.filter((item) => item.id !== id),
+    }));
+  }, []);
+
   const toggleDarkMode = useCallback(() => {
     setDarkMode((prev) => !prev);
   }, []);
@@ -397,6 +420,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         undoDeleteApplication,
         updateWeeklyGoals,
         toggleChecklistItem,
+        addChecklistItem,
+        removeChecklistItem,
+        resetPassword: auth.resetPassword.bind(auth),
         signIn,
         signInWithGoogle,
         supportsGoogleSignIn: auth.supportsGoogleSignIn,

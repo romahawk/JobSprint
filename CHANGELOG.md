@@ -14,6 +14,10 @@ The format follows Keep a Changelog principles and this project uses date-based 
 - `AfaCompliancePage`: Shield icon + "Add First Case" CTA when `cases.length === 0`.
 - `useUnsavedChanges(isDirty)` hook: returns `confirmDiscard()` — no-op when clean, `window.confirm` when dirty.
 - Discard-changes guard wired into `ApplicationModal`, `AfaCaseModal`, Job OS create/detail dialogs (`JobOsApplicationsPage`), and the add-role form toggle (`JobOsRolesPage`).
+- Wave 3 — Feature completion: editable weekly goals (inline target edit, add/remove checklist items); `WeeklyExecutionPanel` now surfaces on the main `DashboardPage`.
+- Wave 3 — Onboarding step indicator: `FirstRunScreen` gets a 3-step progress bar (Paste link → Review → Confirm) and a success confirmation screen before advancing to the Command Centre.
+- Wave 3 — Forgot password: "Forgot password?" link on `SignIn.tsx`; Firebase path calls `sendPasswordResetEmail`; local-auth path shows a clear unsupported message.
+- Wave 4 — Mobile navigation: `AppNavbar` hamburger button (below `md`) opens a left-side Sheet drawer with full nav links, AfA Compliance, dark-mode toggle, and Sign Out; closes automatically on route change.
 
 ### Changed
 

@@ -76,6 +76,9 @@ export interface AppContextType {
   undoDeleteApplication: (id: string) => void;
   updateWeeklyGoals: (goals: Partial<WeeklyGoals>) => void;
   toggleChecklistItem: (id: string) => void;
+  addChecklistItem: (label: string) => void;
+  removeChecklistItem: (id: string) => void;
+  resetPassword: (email: string) => Promise<void>;
   signIn: (
     email: string,
     password?: string,

@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -375,6 +376,20 @@ export default function JobOsRolesPage() {
     }
   }
 
+  const isAddFormDirty =
+    addFormOpen &&
+    (draft.companyId !== "" ||
+      draft.title.trim() !== "" ||
+      (draft.url ?? "").trim() !== "" ||
+      (draft.location ?? "").trim() !== "" ||
+      (draft.jobDescription ?? "").trim() !== "");
+  const { confirmDiscard: confirmAddFormDiscard } = useUnsavedChanges(isAddFormDirty);
+
+  function handleToggleAddForm() {
+    if (addFormOpen && !confirmAddFormDiscard()) return;
+    setAddFormOpen((value) => !value);
+  }
+
   return (
     <JobOsLayout
       title="Roles"
@@ -386,7 +401,7 @@ export default function JobOsRolesPage() {
         <CardHeader className="pb-0">
           <button
             type="button"
-            onClick={() => setAddFormOpen((value) => !value)}
+            onClick={handleToggleAddForm}
             className="flex items-center gap-1.5 group"
           >
             {addFormOpen ? (

@@ -6,6 +6,23 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ## [Unreleased]
 
+### Added
+
+- Wave 2 UX feedback loops: empty states, loading skeletons, unsaved-changes guard.
+- `Analytics`: "No data yet" empty state (BarChart2 icon + CTA) when both Job OS and legacy applications are empty.
+- `Analytics`: Tailwind pulse skeletons (funnel card + two chart cards) shown while data hydrates, replacing blank chart axes.
+- `AfaCompliancePage`: Shield icon + "Add First Case" CTA when `cases.length === 0`.
+- `useUnsavedChanges(isDirty)` hook: returns `confirmDiscard()` — no-op when clean, `window.confirm` when dirty.
+- Discard-changes guard wired into `ApplicationModal`, `AfaCaseModal`, Job OS create/detail dialogs (`JobOsApplicationsPage`), and the add-role form toggle (`JobOsRolesPage`).
+
+### Changed
+
+- Repo audit: removed 4 orphaned packages (`@popperjs/core`, `react-popper`, `react-slick`, `react-responsive-masonry`).
+- `.gitignore` extended with `.DS_Store`, `*.local`, `coverage/`, `.vercel`.
+- `docs/DEV_WORKFLOW.md` created: full day-to-day developer guide covering setup, dev loop, branch naming, commit format, CI, testing, env vars, and stack reference.
+- `README.md`: replaced TODO placeholder comments with prose; linked DEV_WORKFLOW.md in Documentation section.
+- `CLAUDE.md`: added PR Creation section mandating all template fields be populated with real content when using `gh pr create`.
+
 ## [2026-03-20]
 
 ### Added

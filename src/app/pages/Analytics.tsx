@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { BarChart2 } from "lucide-react";
 import { useApp } from "../context";
 import { useJobOs } from "../hooks/useJobOs";
 import { AppNavbar } from "../components/AppNavbar";
@@ -38,11 +39,74 @@ function rateLabel(actual: number, target: number): string {
   return "below target";
 }
 
+// ─── Skeletons ────────────────────────────────────────────────────────────────
+
+function FunnelSkeleton() {
+  return (
+    <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 animate-pulse">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="h-3.5 w-52 rounded bg-neutral-200 dark:bg-neutral-800" />
+        <div className="h-3 w-40 rounded bg-neutral-100 dark:bg-neutral-800/60" />
+      </div>
+      <div className="space-y-5">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="space-y-1.5">
+            <div className="flex justify-between">
+              <div className="h-3 w-36 rounded bg-neutral-200 dark:bg-neutral-800" />
+              <div className="h-3 w-20 rounded bg-neutral-200 dark:bg-neutral-800" />
+            </div>
+            <div className="h-3 w-full rounded-full bg-neutral-100 dark:bg-neutral-800" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChartSkeleton({ title }: { title: string }) {
+  return (
+    <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-6 bg-white dark:bg-neutral-950 animate-pulse">
+      <div className="h-3.5 w-40 rounded bg-neutral-200 dark:bg-neutral-800 mb-6" />
+      <div className="sr-only">{title}</div>
+      <div className="flex items-end gap-2 h-[260px]">
+        {[55, 80, 40, 90, 65, 75, 50, 85, 60, 70].map((h, i) => (
+          <div
+            key={i}
+            className="flex-1 rounded-t bg-neutral-100 dark:bg-neutral-800"
+            style={{ height: `${h}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmptyAnalytics() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
+      <BarChart2 className="w-10 h-10 text-neutral-300 dark:text-neutral-700" />
+      <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
+        No data yet
+      </p>
+      <p className="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs">
+        Add applications to your Job OS pipeline to start seeing conversion
+        analytics and funnel benchmarks.
+      </p>
+      <a
+        href="/job-os/applications"
+        className="text-xs text-blue-500 hover:underline mt-1"
+      >
+        Go to Applications →
+      </a>
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function Analytics() {
-  const { session, applications: legacyApps, darkMode } = useApp();
-  const { applications } = useJobOs(session?.userId ?? null);
+  const { session, applications: legacyApps, darkMode, authLoading } = useApp();
+  const { applications, loading } = useJobOs(session?.userId ?? null);
 
   const isDark = darkMode;
   const textColor = isDark ? "#a3a3a3" : "#525252";
@@ -127,11 +191,27 @@ export default function Analytics() {
     },
   ];
 
+  const isLoading = loading || authLoading;
+  const isEmpty =
+    !isLoading && applications.length === 0 && legacyApps.length === 0;
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100">
       <AppNavbar title="Analytics" subtitle="Track your performance trends" showSync />
 
       <main className="max-w-[1800px] mx-auto px-6 py-6 space-y-6">
+        {isLoading ? (
+          <>
+            <FunnelSkeleton />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ChartSkeleton title="Applications Per Week" />
+              <ChartSkeleton title="Response Rate Trend" />
+            </div>
+          </>
+        ) : isEmpty ? (
+          <EmptyAnalytics />
+        ) : (
+        <>
 
         {/* Conversion Funnel with Benchmarks */}
         <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6">
@@ -260,6 +340,8 @@ export default function Analytics() {
             </ResponsiveContainer>
           </div>
         </div>
+        </>
+        )}
       </main>
     </div>
   );

@@ -25,6 +25,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { Badge } from "../../components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { useJobOsContext } from "../../context/JobOsContext";
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { AppPageShell } from "../../components/layout/AppPageShell";
@@ -121,9 +122,11 @@ export default function JobOsApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createDraftSnapshot, setCreateDraftSnapshot] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "notes"> | null>(null);
+  const [detailDraftSnapshot, setDetailDraftSnapshot] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [draft, setDraft] = useState<Omit<JobOsApplication, "id" | "createdAt" | "updatedAt">>(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
@@ -204,22 +207,38 @@ export default function JobOsApplicationsPage() {
   }
 
   function openCreateDialog(): void {
-    resetDraft();
+    const freshDraft = createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined);
+    setDraft(freshDraft);
+    setCreateDraftSnapshot(JSON.stringify(freshDraft));
     setCreateOpen(true);
   }
 
   function openDetails(application: JobOsApplication): void {
-    setDetailId(application.id);
-    setDetailDraft({
+    const initial = {
       status: application.status,
       nextAction: application.nextAction,
       notes: application.notes,
-    });
+    };
+    setDetailId(application.id);
+    setDetailDraft(initial);
+    setDetailDraftSnapshot(JSON.stringify(initial));
   }
 
   function closeDetails(): void {
     setDetailId(null);
     setDetailDraft(null);
+  }
+
+  const isCreateDirty = JSON.stringify(draft) !== createDraftSnapshot;
+  const { confirmDiscard: confirmCreateDiscard } = useUnsavedChanges(isCreateDirty);
+  function handleCloseCreate() {
+    if (confirmCreateDiscard()) setCreateOpen(false);
+  }
+
+  const isDetailDirty = JSON.stringify(detailDraft) !== detailDraftSnapshot;
+  const { confirmDiscard: confirmDetailDiscard } = useUnsavedChanges(isDetailDirty);
+  function handleCloseDetails() {
+    if (confirmDetailDiscard()) closeDetails();
   }
 
   function toggleSort(field: SortField): void {
@@ -543,7 +562,7 @@ export default function JobOsApplicationsPage() {
         </div>
       </AppPageShell>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(isOpen) => { if (!isOpen) handleCloseCreate(); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Application</DialogTitle>
@@ -658,7 +677,7 @@ export default function JobOsApplicationsPage() {
               </Tooltip>
               Keyboard shortcut available
             </div>
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+            <Button variant="ghost" onClick={handleCloseCreate}>
               Cancel
             </Button>
             <Button onClick={() => void handleCreateApplication()} disabled={!draft.companyId || !draft.roleId}>
@@ -668,7 +687,7 @@ export default function JobOsApplicationsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(detailApplication)} onOpenChange={(open) => !open && closeDetails()}>
+      <Dialog open={Boolean(detailApplication)} onOpenChange={(isOpen) => { if (!isOpen) handleCloseDetails(); }}>
         <DialogContent className="max-w-2xl">
           {detailApplication && detailDraft ? (
             <>

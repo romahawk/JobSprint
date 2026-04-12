@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -106,16 +107,28 @@ export function ApplicationModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const [sourceMode, setSourceMode] = useState<SourceMode>("manual");
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    JSON.stringify(getInitialForm(existingApp))
+  );
 
   useEffect(() => {
     if (!open) return;
     // Intentional: reset form to latest existingApp data when modal opens.
+    const initial = getInitialForm(existingApp);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFormData(getInitialForm(existingApp));
+    setFormData(initial);
+    setSavedSnapshot(JSON.stringify(initial));
     setErrors({});
     setSourceMode("manual");
     setSelectedRoleId("");
   }, [existingApp, open]);
+
+  const isDirty = JSON.stringify(formData) !== savedSnapshot;
+  const { confirmDiscard } = useUnsavedChanges(isDirty);
+
+  function handleClose() {
+    if (confirmDiscard()) onClose();
+  }
 
   const handleRoleSelect = (roleId: string) => {
     setSelectedRoleId(roleId);
@@ -185,7 +198,7 @@ export function ApplicationModal({
   const showSourceToggle = !existingApp && roleOptions.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -421,7 +434,7 @@ export function ApplicationModal({
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={!isFormValid}>

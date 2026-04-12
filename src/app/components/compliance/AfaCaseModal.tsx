@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
 import { ExternalLink } from "lucide-react";
 import {
   Dialog,
@@ -188,14 +189,26 @@ export function AfaCaseModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    JSON.stringify(emptyForm())
+  );
 
   useEffect(() => {
     if (!open) return;
-    setForm(isEdit ? vorschlagToForm(vorschlag) : emptyForm());
+    const initial = isEdit ? vorschlagToForm(vorschlag) : emptyForm();
+    setForm(initial);
+    setSavedSnapshot(JSON.stringify(initial));
     setIsSaving(false);
     setIsDeleting(false);
     setSubmitError(null);
   }, [open, vorschlag, isEdit]);
+
+  const isDirty = JSON.stringify(form) !== savedSnapshot;
+  const { confirmDiscard } = useUnsavedChanges(isDirty);
+
+  function handleClose() {
+    if (confirmDiscard()) onClose();
+  }
 
   function update<K extends keyof AfaVorschlagFormData>(
     key: K,
@@ -251,7 +264,7 @@ export function AfaCaseModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -605,7 +618,7 @@ export function AfaCaseModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={isSaving || isDeleting}
               >
                 Cancel

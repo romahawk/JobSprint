@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
-import { Plus } from "lucide-react";
+import { Plus, Shield } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { AppNavbar } from "../components/AppNavbar";
 import { AfaDashboard } from "../components/compliance/AfaDashboard";
@@ -104,6 +104,21 @@ export default function AfaCompliancePage() {
         {authLoading || loading ? (
           <div className="flex items-center justify-center py-24 text-neutral-400 dark:text-neutral-600 text-sm">
             Loading compliance cases...
+          </div>
+        ) : cases.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
+            <Shield className="w-10 h-10 text-neutral-300 dark:text-neutral-700" />
+            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
+              No cases yet
+            </p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs">
+              Add your first Vermittlungsvorschlag to start tracking AfA
+              compliance deadlines and evidence.
+            </p>
+            <Button size="sm" onClick={handleOpenNew}>
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Add First Case
+            </Button>
           </div>
         ) : (
           <>

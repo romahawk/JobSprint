@@ -30,10 +30,7 @@ JobSprint replaces that patchwork with a software-grade production system. It ha
 
 **Live demo:** https://job-sprint-ten.vercel.app/
 
-**Walkthrough:** <!-- TODO: replace with Loom URL before merging -->
-
-![JobSprint Command Centre](./docs/assets/command-centre.png)
-<!-- TODO: capture and commit docs/assets/command-centre.png before merging -->
+**Walkthrough:** _(Loom walkthrough coming soon)_
 
 ## Current Status
 
@@ -110,5 +107,6 @@ This is the clearest current proof-of-work artifact for JobSprint's product dire
 - [Cross-Device Sync Checklist](./docs/CROSS_DEVICE_SYNC_CHECKLIST.md)
 - [Next Session Start](./docs/NEXT_SESSION_START.md)
 - [Contributing Guide](./CONTRIBUTING.md)
+- [Developer Workflow](./docs/DEV_WORKFLOW.md)
 - [Changelog](./CHANGELOG.md)
-  
+

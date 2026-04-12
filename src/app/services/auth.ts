@@ -6,6 +6,7 @@ import {
   GoogleAuthProvider,
   linkWithCredential,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -30,6 +31,7 @@ export interface AuthService {
   ) => Promise<UserSession>;
   signInWithGoogle: () => Promise<UserSession>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 function toUserId(email: string) {
@@ -166,6 +168,9 @@ export function createAuthService(storage: StorageLike): AuthService {
       async signOut() {
         await firebaseSignOut(firebase.auth);
       },
+      async resetPassword(email: string) {
+        await sendPasswordResetEmail(firebase.auth, email.trim().toLowerCase());
+      },
     };
   }
 
@@ -200,6 +205,11 @@ export function createAuthService(storage: StorageLike): AuthService {
     },
     async signOut() {
       storage.removeItem(SESSION_KEY);
+    },
+    async resetPassword() {
+      throw new Error(
+        "Password reset is not supported in offline mode. Enable Firebase to use this feature."
+      );
     },
   };
 }

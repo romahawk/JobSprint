@@ -6,12 +6,16 @@ import { Label } from "../components/ui/label";
 import { useApp } from "../context";
 
 export default function SignIn() {
-  const { session, signIn, signInWithGoogle, supportsGoogleSignIn, authLoading } = useApp();
+  const { session, signIn, signInWithGoogle, supportsGoogleSignIn, authLoading, resetPassword } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [createAccount, setCreateAccount] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState("");
 
   if (session) {
     return <Navigate to="/" replace />;
@@ -42,6 +46,78 @@ export default function SignIn() {
     }
   };
 
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError("");
+    setSubmitting(true);
+    try {
+      await resetPassword(resetEmail);
+      setResetSent(true);
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : "Failed to send reset email.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (forgotMode) {
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100 flex items-center justify-center p-6">
+        <div className="w-full max-w-md border border-neutral-200 dark:border-neutral-800 rounded-lg p-8 bg-white dark:bg-neutral-950">
+          <h1 className="text-2xl font-semibold mb-2">Reset password</h1>
+          {resetSent ? (
+            <>
+              <p className="text-sm text-green-600 dark:text-green-400 mb-6">
+                Reset link sent — check your inbox and follow the instructions.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
+              >
+                Back to Sign In
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
+                Enter your email and we'll send a reset link.
+              </p>
+              <form onSubmit={(e) => void handleResetPassword(e)} className="space-y-4">
+                <div>
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    autoComplete="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                {resetError && (
+                  <p className="text-xs text-red-600 dark:text-red-400">{resetError}</p>
+                )}
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? "Sending…" : "Send reset link"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setForgotMode(false)}
+                  className="w-full text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 text-center"
+                >
+                  Back to Sign In
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100 flex items-center justify-center p-6">
       <div className="w-full max-w-md border border-neutral-200 dark:border-neutral-800 rounded-lg p-8 bg-white dark:bg-neutral-950">
@@ -63,7 +139,16 @@ export default function SignIn() {
             />
           </div>
           <div>
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label htmlFor="password">Password</Label>
+              <button
+                type="button"
+                onClick={() => { setForgotMode(true); setResetEmail(email); }}
+                className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+              >
+                Forgot password?
+              </button>
+            </div>
             <Input
               id="password"
               type="password"

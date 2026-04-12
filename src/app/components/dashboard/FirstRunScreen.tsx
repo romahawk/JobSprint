@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { ChevronDown, ChevronUp, ArrowRight, Link2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, ArrowRight, Link2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
@@ -25,7 +25,53 @@ import type {
   JobOsRole,
 } from "../../types/jobOs";
 
-type Step = "input" | "analyzing" | "reviewing" | "next_action" | "saving";
+type Step = "input" | "analyzing" | "reviewing" | "next_action" | "saving" | "done";
+
+const STEP_LABELS = ["Paste link", "Review", "Confirm"] as const;
+function stepIndex(step: Step): number {
+  if (step === "input" || step === "analyzing") return 0;
+  if (step === "reviewing") return 1;
+  return 2; // next_action | saving | done
+}
+
+function StepBar({ step }: { step: Step }) {
+  const current = stepIndex(step);
+  return (
+    <div className="flex items-center justify-center gap-3 mb-6" aria-label="Onboarding progress">
+      {STEP_LABELS.map((label, i) => (
+        <div key={label} className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                i < current
+                  ? "bg-primary"
+                  : i === current
+                  ? "bg-primary ring-2 ring-primary/30"
+                  : "bg-neutral-300 dark:bg-neutral-700"
+              }`}
+            />
+            <span
+              className={`text-[10px] font-medium ${
+                i === current
+                  ? "text-primary"
+                  : "text-neutral-400 dark:text-neutral-600"
+              }`}
+            >
+              {label}
+            </span>
+          </div>
+          {i < STEP_LABELS.length - 1 && (
+            <div
+              className={`h-px w-8 -mt-3 transition-colors ${
+                i < current ? "bg-primary" : "bg-neutral-200 dark:bg-neutral-800"
+              }`}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface PendingImportState {
   companyDraft: NormalizedCompanyDraft;
@@ -185,7 +231,7 @@ export function FirstRunScreen({
         }
       }
 
-      onComplete();
+      setStep("done");
     } catch {
       setError("Failed to save. Please try again.");
       setStep(pending.mode === "company_and_role" && pending.roleDraft ? "next_action" : "reviewing");
@@ -196,8 +242,23 @@ export function FirstRunScreen({
 
   return (
     <div className="flex min-h-[calc(100vh-7.5rem)] items-center justify-center px-4 py-4">
-      {step === "input" || step === "analyzing" ? (
+      {step === "done" ? (
+        <div className="mx-auto w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 text-center space-y-4">
+          <CheckCircle2 className="mx-auto w-12 h-12 text-green-500" />
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+            First opportunity added
+          </h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            Your company and role are now in the pipeline. The Command Centre will surface your next move.
+          </p>
+          <Button className="w-full" onClick={onComplete}>
+            Go to Command Centre
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      ) : step === "input" || step === "analyzing" ? (
         <section className="w-full max-w-3xl rounded-[2rem] border border-slate-200 bg-white px-6 py-8 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-950 sm:px-8">
+          <StepBar step={step} />
           <div className="mx-auto max-w-2xl text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
               <Link2 className="h-5 w-5 text-primary" />
@@ -282,6 +343,7 @@ export function FirstRunScreen({
         </section>
       ) : (
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <StepBar step={step} />
           <div className="mb-5 space-y-1">
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
               {step === "reviewing" ? "Review extracted details" : "Set the first workflow move"}

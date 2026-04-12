@@ -23,6 +23,7 @@ import { QuickActions } from "../../components/dashboard/QuickActions";
 import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
 import { AppPageShell } from "../../components/layout/AppPageShell";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
+import { WeeklyExecutionPanel } from "../../components/WeeklyExecutionPanel";
 
 export function DashboardPage() {
   const { session } = useApp();
@@ -153,6 +154,7 @@ export function DashboardPage() {
             <div className="min-w-0 lg:self-start">
               <div className="space-y-4 lg:sticky lg:top-24">
                 <QuickActions />
+                <WeeklyExecutionPanel />
                 <PipelineStats stats={stats} isLoading={loading} />
                 <ProbabilityPanel stats={stats} isLoading={loading} />
                 <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>

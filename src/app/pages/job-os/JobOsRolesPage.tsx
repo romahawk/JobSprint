@@ -851,39 +851,6 @@ export default function JobOsRolesPage() {
                         <TooltipContent side="top">Add application</TooltipContent>
                       </Tooltip>
                     )}
-                    <Button asChild size="sm" variant="secondary">
-                      <Link to={`/cv-optimizer?roleId=${role.id}`}>Tailor CV</Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={!role.url}
-                      onClick={() => window.open(role.url, "_blank", "noopener,noreferrer")}
-                    >
-                      Quick apply
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="ghost" className="text-red-500">Delete</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete this role?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {role.title} will be permanently removed along with any linked data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                            onClick={() => void removeRole(role.id).then(() => toast.success("Role deleted"))}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="inline-flex">
@@ -912,22 +879,42 @@ export default function JobOsRolesPage() {
                       </TooltipTrigger>
                       <TooltipContent side="top">Quick apply</TooltipContent>
                     </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                            onClick={() => void removeRole(role.id)}
-                            aria-label="Delete role"
+                    <AlertDialog>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                aria-label="Delete role"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Delete</TooltipContent>
+                      </Tooltip>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this role?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {role.title} will be permanently removed along with any linked data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                            onClick={() => void removeRole(role.id).then(() => toast.success("Role deleted"))}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">Delete</TooltipContent>
-                    </Tooltip>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>

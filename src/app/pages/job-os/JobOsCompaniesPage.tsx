@@ -783,8 +783,23 @@ export default function JobOsCompaniesPage() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete {company.name}?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This company and all its linked data will be permanently removed.
+                            <AlertDialogDescription asChild>
+                              <div>
+                                <span>This will permanently remove the company record.</span>
+                                {(() => {
+                                  const linkedRoles = roles.filter((r) => r.companyId === company.id).length;
+                                  const linkedApps = applications.filter((a) => a.companyId === company.id).length;
+                                  if (linkedRoles === 0 && linkedApps === 0) return null;
+                                  return (
+                                    <span className="mt-2 block rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                                      Warning: {linkedRoles > 0 && `${linkedRoles} role${linkedRoles !== 1 ? "s" : ""}`}
+                                      {linkedRoles > 0 && linkedApps > 0 && " and "}
+                                      {linkedApps > 0 && `${linkedApps} application${linkedApps !== 1 ? "s" : ""}`}
+                                      {" "}linked to this company will also be deleted.
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

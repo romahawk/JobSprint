@@ -395,10 +395,20 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     }
 
     const unsubscribers: Array<() => void> = [];
-    let snapshotCount = 0;
-    const markLoaded = () => {
-      snapshotCount += 1;
-      if (snapshotCount >= 8) {
+    const SUBSCRIPTION_KEYS = [
+      "assets",
+      "companies",
+      "roles",
+      "applications",
+      "outreach",
+      "cvProfiles",
+      "jobDescriptions",
+      "cvTailoringRuns",
+    ] as const;
+    const loadedKeys = new Set<string>();
+    const markLoaded = (key: string) => {
+      loadedKeys.add(key);
+      if (loadedKeys.size >= SUBSCRIPTION_KEYS.length) {
         setLoading(false);
       }
     };
@@ -449,12 +459,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           setSyncNotice(null);
           setLocalOnly(false);
           setLastSyncedAt(new Date().toISOString());
-          markLoaded();
+          markLoaded(name);
         },
         () => {
           setSyncNotice("Cloud sync unavailable. Working in local mode.");
           setLocalOnly(true);
-          markLoaded();
+          markLoaded(name);
         }
       );
       unsubscribers.push(unsubscribe);
@@ -483,12 +493,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         });
         setSyncNotice(null);
         setLocalOnly(false);
-        markLoaded();
+        markLoaded("assets");
       },
       () => {
         setSyncNotice("Cloud sync unavailable. Working in local mode.");
         setLocalOnly(true);
-        markLoaded();
+        markLoaded("assets");
       }
     );
     unsubscribers.push(assetsUnsub);
@@ -1296,7 +1306,36 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
             throw new Error("An application for this role already exists.");
           }
 
-          return addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true });
+          const appId = await addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true });
+
+          // Propagate: mark the linked role as having an application and sync its status.
+          if (roleId) {
+            const syncedRoleStatus = mapApplicationStatusToRoleStatus(payload.status);
+            const roleUpdates: Partial<JobOsRole> = {
+              hasApplication: true,
+              ...(syncedRoleStatus != null ? { status: syncedRoleStatus } : {}),
+            };
+            await mutate(
+              "Sync role on addApplication",
+              (prev) => ({
+                ...prev,
+                roles: prev.roles.map((r) =>
+                  r.id === roleId ? { ...r, ...roleUpdates, updatedAt: new Date().toISOString() } : r
+                ),
+              }),
+              firebase && userId && !localOnly
+                ? async () => {
+                    await setDoc(
+                      doc(firebase.db, "users", userId, "roles", roleId),
+                      { ...roleUpdates, updatedAt: serverTimestamp() },
+                      { merge: true }
+                    );
+                  }
+                : null
+            );
+          }
+
+          return appId;
         },
         updateApplication: async (id: string, updates: Partial<JobOsApplication>) => {
           const now = new Date().toISOString();
@@ -1371,7 +1410,34 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           updateCollectionItem<CvTailoringRun>("cvTailoringRuns", id, updates),
         removeCompany: (id: string) => removeCollectionItem("companies", id),
         removeRole: (id: string) => removeCollectionItem("roles", id),
-        removeApplication: (id: string) => removeCollectionItem("applications", id),
+        removeApplication: async (id: string) => {
+          // Find the linked role before removing so we can reset its state.
+          const application = state.applications.find((a) => a.id === id);
+          const roleId = application?.roleId;
+          await removeCollectionItem("applications", id);
+          // Propagate: unmark the linked role's hasApplication and reset status to to_apply.
+          if (roleId) {
+            const roleUpdates: Partial<JobOsRole> = { hasApplication: false, status: "to_apply" };
+            await mutate(
+              "Sync role on removeApplication",
+              (prev) => ({
+                ...prev,
+                roles: prev.roles.map((r) =>
+                  r.id === roleId ? { ...r, ...roleUpdates, updatedAt: new Date().toISOString() } : r
+                ),
+              }),
+              firebase && userId && !localOnly
+                ? async () => {
+                    await setDoc(
+                      doc(firebase.db, "users", userId, "roles", roleId),
+                      { ...roleUpdates, updatedAt: serverTimestamp() },
+                      { merge: true }
+                    );
+                  }
+                : null
+            );
+          }
+        },
         removeOutreach: (id: string) => removeCollectionItem("outreach", id),
         removeCvProfile: (id: string) => removeCollectionItem("cvProfiles", id),
         removeJobDescription: (id: string) => removeCollectionItem("jobDescriptions", id),

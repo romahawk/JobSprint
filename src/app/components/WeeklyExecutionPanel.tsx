@@ -1,13 +1,17 @@
 import { useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useApp } from "../context";
+import { getJobOsThisWeekCount, getJobOsMetrics } from "../utils";
 import { Progress } from "./ui/progress";
 import { Checkbox } from "./ui/checkbox";
-import { getThisWeekApplications, calculateMetrics } from "../utils";
+import type { JobOsApplication } from "../types/jobOs";
 
-export function WeeklyExecutionPanel() {
+interface WeeklyExecutionPanelProps {
+  applications: JobOsApplication[];
+}
+
+export function WeeklyExecutionPanel({ applications }: WeeklyExecutionPanelProps) {
   const {
-    applications,
     weeklyGoals,
     toggleChecklistItem,
     updateWeeklyGoals,
@@ -20,10 +24,10 @@ export function WeeklyExecutionPanel() {
   const [newItemDraft, setNewItemDraft] = useState("");
   const newItemRef = useRef<HTMLInputElement>(null);
 
-  const thisWeekApps = getThisWeekApplications(applications);
-  const metrics = calculateMetrics(thisWeekApps);
+  const thisWeekCount = getJobOsThisWeekCount(applications);
+  const metrics = getJobOsMetrics(applications);
   const progressPercentage = Math.min(
-    (thisWeekApps.length / Math.max(weeklyGoals.target, 1)) * 100,
+    (thisWeekCount / Math.max(weeklyGoals.target, 1)) * 100,
     100
   );
 
@@ -59,7 +63,7 @@ export function WeeklyExecutionPanel() {
             </span>
             <div className="flex items-center gap-1.5">
               <span className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                {thisWeekApps.length} /
+                {thisWeekCount} /
               </span>
               {editingTarget ? (
                 <input

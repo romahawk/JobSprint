@@ -15,7 +15,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { getWeeklyStats, getResponseRateTrend } from "../utils";
+import { getJobOsWeeklyStats, getJobOsResponseRateTrend } from "../utils";
 
 // ─── Benchmarks ───────────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ function EmptyAnalytics() {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function Analytics() {
-  const { session, applications: legacyApps, darkMode, authLoading } = useApp();
+  const { session, darkMode, authLoading } = useApp();
   const { applications, loading } = useJobOs(session?.userId ?? null);
 
   const isDark = darkMode;
@@ -113,9 +113,8 @@ export default function Analytics() {
   const gridColor = isDark ? "#262626" : "#e5e5e5";
   const barColor = isDark ? "#3b82f6" : "#2563eb";
 
-  // Legacy charts still use the legacy Application model from context
-  const weeklyStats = getWeeklyStats(legacyApps);
-  const responseRateTrend = getResponseRateTrend(legacyApps);
+  const weeklyStats = getJobOsWeeklyStats(applications);
+  const responseRateTrend = getJobOsResponseRateTrend(applications);
 
   // Job OS funnel from the rich application model
   const funnel = useMemo(() => {
@@ -192,8 +191,7 @@ export default function Analytics() {
   ];
 
   const isLoading = loading || authLoading;
-  const isEmpty =
-    !isLoading && applications.length === 0 && legacyApps.length === 0;
+  const isEmpty = !isLoading && applications.length === 0;
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100">

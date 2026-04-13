@@ -395,10 +395,20 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     }
 
     const unsubscribers: Array<() => void> = [];
-    let snapshotCount = 0;
-    const markLoaded = () => {
-      snapshotCount += 1;
-      if (snapshotCount >= 8) {
+    const SUBSCRIPTION_KEYS = [
+      "assets",
+      "companies",
+      "roles",
+      "applications",
+      "outreach",
+      "cvProfiles",
+      "jobDescriptions",
+      "cvTailoringRuns",
+    ] as const;
+    const loadedKeys = new Set<string>();
+    const markLoaded = (key: string) => {
+      loadedKeys.add(key);
+      if (loadedKeys.size >= SUBSCRIPTION_KEYS.length) {
         setLoading(false);
       }
     };
@@ -449,12 +459,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           setSyncNotice(null);
           setLocalOnly(false);
           setLastSyncedAt(new Date().toISOString());
-          markLoaded();
+          markLoaded(name);
         },
         () => {
           setSyncNotice("Cloud sync unavailable. Working in local mode.");
           setLocalOnly(true);
-          markLoaded();
+          markLoaded(name);
         }
       );
       unsubscribers.push(unsubscribe);
@@ -483,12 +493,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         });
         setSyncNotice(null);
         setLocalOnly(false);
-        markLoaded();
+        markLoaded("assets");
       },
       () => {
         setSyncNotice("Cloud sync unavailable. Working in local mode.");
         setLocalOnly(true);
-        markLoaded();
+        markLoaded("assets");
       }
     );
     unsubscribers.push(assetsUnsub);

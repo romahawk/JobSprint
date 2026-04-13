@@ -16,6 +16,7 @@ const TYPE_COLORS: Record<NextAction["type"], string> = {
   optimize_cv: "border-l-green-500",
   add_role: "border-l-teal-500",
   research: "border-l-indigo-500",
+  add_jd: "border-l-amber-500",
   archive: "border-l-neutral-400",
 };
 

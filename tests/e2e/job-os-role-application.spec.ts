@@ -86,7 +86,7 @@ test("logs one application from Roles, prevents duplicates, and persists after r
   await expect(page.getByRole("button", { name: "Application already logged" })).toBeVisible();
 
   await page.goto("/job-os/applications");
-  await expect(page.getByText("Apheris")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Apheris" })).toBeVisible();
   await expect(page.getByText("Technical Chief of Staff (to the CTO)")).toBeVisible();
   await expect
     .poll(() =>

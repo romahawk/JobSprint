@@ -42,14 +42,12 @@ function userSyncKey(userId: string) {
 
 function normalizeData(raw: unknown): AppData | null {
   if (!raw || typeof raw !== "object") return null;
-  const maybe = raw as Partial<AppData>;
-
-  if (!Array.isArray(maybe.applications)) return null;
-
-  return {
-    applications: maybe.applications,
-    weeklyGoals: maybe.weeklyGoals || DEFAULT_WEEKLY_GOALS,
-  };
+  const maybe = raw as Record<string, unknown>;
+  // Accept both old format (with applications array) and new format (goals only).
+  // weeklyGoals must exist; if missing return null so caller falls back to defaults.
+  const goals = maybe.weeklyGoals as WeeklyGoals | undefined;
+  if (!goals) return null;
+  return { weeklyGoals: goals };
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -262,6 +260,5 @@ export function createRepository(storage: StorageLike): AppRepository {
 }
 
 export const DEFAULT_APP_DATA: AppData = {
-  applications: [],
   weeklyGoals: DEFAULT_WEEKLY_GOALS,
 };

@@ -154,7 +154,7 @@ export function DashboardPage() {
             <div className="min-w-0 lg:self-start">
               <div className="space-y-4 lg:sticky lg:top-24">
                 <QuickActions />
-                <WeeklyExecutionPanel />
+                <WeeklyExecutionPanel applications={applications} />
                 <PipelineStats stats={stats} isLoading={loading} />
                 <ProbabilityPanel stats={stats} isLoading={loading} />
                 <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>

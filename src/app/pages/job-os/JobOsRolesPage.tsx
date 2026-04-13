@@ -900,8 +900,19 @@ export default function JobOsRolesPage() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete this role?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {role.title} will be permanently removed along with any linked data.
+                          <AlertDialogDescription asChild>
+                            <div>
+                              <span>{role.title} will be permanently removed.</span>
+                              {(() => {
+                                const linkedApps = applications.filter((a) => a.roleId === role.id).length;
+                                if (linkedApps === 0) return null;
+                                return (
+                                  <span className="mt-2 block rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                                    Warning: {linkedApps} application{linkedApps !== 1 ? "s" : ""} linked to this role will also be deleted.
+                                  </span>
+                                );
+                              })()}
+                            </div>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

@@ -165,6 +165,7 @@ export function DashboardPage() {
                   />
                 )}
                 <WeeklyExecutionPanel />
+                <WeeklyExecutionPanel applications={applications} />
                 <PipelineStats stats={stats} isLoading={loading} />
                 <ProbabilityPanel stats={stats} isLoading={loading} />
                 <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>

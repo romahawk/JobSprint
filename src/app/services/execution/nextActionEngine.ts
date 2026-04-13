@@ -68,6 +68,25 @@ function daysSince(dateStr: string | undefined): number {
   return Math.max(0, Math.floor(ms / 86_400_000));
 }
 
+/**
+ * Returns a score bonus based on how soon the due date is.
+ * Overdue: +35 (forces urgent). Due today: +25. Due tomorrow: +15. Due in 2–3 days: +8.
+ * No due date: 0.
+ */
+function dueDateBonus(dueDateStr: string | undefined): number {
+  if (!dueDateStr) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDateStr);
+  due.setHours(0, 0, 0, 0);
+  const daysUntil = Math.floor((due.getTime() - today.getTime()) / 86_400_000);
+  if (daysUntil < 0) return 35; // overdue
+  if (daysUntil === 0) return 25; // due today
+  if (daysUntil === 1) return 15; // due tomorrow
+  if (daysUntil <= 3) return 8;  // due soon
+  return 0;
+}
+
 function toPriority(score: number): ActionPriority {
   if (score >= 80) return "urgent";
   if (score >= 55) return "high";
@@ -96,7 +115,11 @@ function generateApplyActions(
       const priorityBonus = company ? PRIORITY_WEIGHT[company.priority] : 0;
       const fitBonus = role.fitScore * FIT_WEIGHT;
       const stalePenalty = daysSince(role.createdAt) > STALE_ROLE_DAYS ? 10 : 0;
-      const score = clamp(APPLY_BASE + priorityBonus + fitBonus - stalePenalty, 0, 100);
+      const dueBonus = dueDateBonus(role.nextActionDueDate);
+      const score = clamp(APPLY_BASE + priorityBonus + fitBonus + dueBonus - stalePenalty, 0, 100);
+      const dueLabel = role.nextActionDueDate
+        ? ` · due ${role.nextActionDueDate}`
+        : "";
 
       return {
         id: `apply-${role.id}`,
@@ -107,7 +130,7 @@ function generateApplyActions(
         companyName: company?.name,
         roleId: role.id,
         roleTitle: role.title,
-        reason: `Fit score ${role.fitScore}/5${company ? ` · ${company.priority}-priority target` : ""}`,
+        reason: `Fit score ${role.fitScore}/5${company ? ` · ${company.priority}-priority target` : ""}${dueLabel}`,
         actionLabel: "Apply Now",
         href: "/job-os/roles",
       };
@@ -131,7 +154,9 @@ function generateFollowUpActions(
       const priorityBonus = company ? PRIORITY_WEIGHT[company.priority] : 0;
       const days = daysSince(app.lastResponseAt ?? app.dateApplied);
       const urgencyBonus = Math.min(days * 1.5, 20);
-      const score = clamp(FOLLOW_UP_BASE + priorityBonus + urgencyBonus, 0, 100);
+      const dueBonus = dueDateBonus(app.nextActionDueDate);
+      const score = clamp(FOLLOW_UP_BASE + priorityBonus + urgencyBonus + dueBonus, 0, 100);
+      const dueLabel = app.nextActionDueDate ? ` · due ${app.nextActionDueDate}` : "";
 
       return {
         id: `follow-up-${app.id}`,
@@ -141,7 +166,7 @@ function generateFollowUpActions(
         companyId: app.companyId,
         companyName: company?.name,
         applicationId: app.id,
-        reason: `Applied ${days} day${days !== 1 ? "s" : ""} ago — no response yet`,
+        reason: `Applied ${days} day${days !== 1 ? "s" : ""} ago — no response yet${dueLabel}`,
         actionLabel: "Follow Up",
         href: "/job-os/applications",
       };

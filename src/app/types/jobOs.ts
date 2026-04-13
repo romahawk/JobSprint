@@ -266,6 +266,7 @@ export interface JobOsRole {
   fitScore: 1 | 2 | 3 | 4 | 5;
   status: RoleStatus;
   nextAction?: string;
+  nextActionDueDate?: string; // ISO date (YYYY-MM-DD) for when the next action is due
   origin?: "self_sourced" | "recruiter"; // how the candidate discovered the role
   jobDescription?: string;
   jobDescriptionUpdatedAt?: string;
@@ -292,6 +293,7 @@ export interface JobOsApplication {
   cvVersion: string;
   status: ApplicationStatus;
   nextAction: string;
+  nextActionDueDate?: string; // ISO date (YYYY-MM-DD) for when the next action is due
   notes: string;
   latestJobDescriptionId?: string;
   latestCvTailoringRunId?: string;

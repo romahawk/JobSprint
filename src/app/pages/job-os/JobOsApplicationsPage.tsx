@@ -125,7 +125,7 @@ export default function JobOsApplicationsPage() {
   const [createDraftSnapshot, setCreateDraftSnapshot] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "notes"> | null>(null);
+  const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "nextActionDueDate" | "notes"> | null>(null);
   const [detailDraftSnapshot, setDetailDraftSnapshot] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -217,6 +217,7 @@ export default function JobOsApplicationsPage() {
     const initial = {
       status: application.status,
       nextAction: application.nextAction,
+      nextActionDueDate: application.nextActionDueDate,
       notes: application.notes,
     };
     setDetailId(application.id);
@@ -644,12 +645,20 @@ export default function JobOsApplicationsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="md:col-span-2">
+            <div>
               <Input
                 value={draft.nextAction}
                 onChange={(event) => setDraft((current) => ({ ...current, nextAction: event.target.value }))}
                 onKeyDown={handleCreateDialogKeyDown}
                 placeholder="e.g. Follow up next Tuesday"
+              />
+            </div>
+            <div>
+              <Input
+                type="date"
+                value={draft.nextActionDueDate ?? ""}
+                onChange={(event) => setDraft((current) => ({ ...current, nextActionDueDate: event.target.value || undefined }))}
+                title="Due date for this next action"
               />
             </div>
             <div className="md:col-span-2">
@@ -735,12 +744,20 @@ export default function JobOsApplicationsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <Input
                     value={detailDraft.nextAction}
                     onChange={(event) => setDetailDraft((current) => current ? { ...current, nextAction: event.target.value } : current)}
                     onKeyDown={handleDetailDialogKeyDown}
                     placeholder="What should happen next?"
+                  />
+                </div>
+                <div>
+                  <Input
+                    type="date"
+                    value={detailDraft.nextActionDueDate ?? ""}
+                    onChange={(event) => setDetailDraft((current) => current ? { ...current, nextActionDueDate: event.target.value || undefined } : current)}
+                    title="Due date for this next action"
                   />
                 </div>
                 <div className="md:col-span-2">

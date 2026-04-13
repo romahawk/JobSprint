@@ -24,12 +24,14 @@ import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
 import { AppPageShell } from "../../components/layout/AppPageShell";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 import { WeeklyExecutionPanel } from "../../components/WeeklyExecutionPanel";
+import { GettingStartedChecklist } from "../../components/dashboard/GettingStartedChecklist";
 
 export function DashboardPage() {
   const { session } = useApp();
   const navigate = useNavigate();
   const jobOsSync = useJobOsSyncSnapshot();
   const [supportOpen, setSupportOpen] = useState(false);
+  const [checklistDismissed, setChecklistDismissed] = useState(false);
   const {
     companies,
     roles,
@@ -154,6 +156,14 @@ export function DashboardPage() {
             <div className="min-w-0 lg:self-start">
               <div className="space-y-4 lg:sticky lg:top-24">
                 <QuickActions />
+                {!checklistDismissed && (
+                  <GettingStartedChecklist
+                    companies={companies}
+                    roles={roles}
+                    applications={applications}
+                    onDismiss={() => setChecklistDismissed(true)}
+                  />
+                )}
                 <WeeklyExecutionPanel />
                 <PipelineStats stats={stats} isLoading={loading} />
                 <ProbabilityPanel stats={stats} isLoading={loading} />

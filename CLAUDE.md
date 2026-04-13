@@ -39,16 +39,18 @@ If either gate fails, fix the failure before committing. Do not use
 
 ## Branch Naming
 
-All branches must match one of:
+All branches must match the pattern enforced by `policy-check.yml`:
 
 ```
-feature/issue-{N}-short-slug
-fix/issue-{N}-short-slug
-chore/issue-{N}-short-slug
-docs/issue-{N}-short-slug
-refactor/issue-{N}-short-slug
+feat/{N}-short-slug
+fix/{N}-short-slug
+chore/{N}-short-slug
+docs/{N}-short-slug
+refactor/{N}-short-slug
 claude/*    (automation branches created by Claude Code)
 ```
+
+Where `{N}` is the GitHub issue number. The `issue-` prefix is **not** allowed — the CI policy regex is `^(feat|fix|docs|chore|refactor)\/\d+-[a-z0-9-]+$`.
 
 ---
 
@@ -139,7 +141,7 @@ Rules:
 - `## Evidence — Issue:` must contain the real issue number, e.g. `#42`.
 - `## Risk and Rollback — Risk level:` must be exactly one of `low`, `medium`, or `high`.
 - Checklist items must be checked `[x]` or explicitly unchecked `[ ]` with a reason noted inline.
-- The `Closes #N` link belongs in the **commit body**, not the PR body (already enforced by policy-check CI).
+- `Closes #N` must appear **both** in the commit body **and** in the PR body. The CI `policy-check.yml` enforces it in the PR body via regex `/(closes|fixes|resolves)\s+#\d+/i`.
 
 ---
 

@@ -16,6 +16,7 @@ const TYPE_ACCENTS: Record<NextAction["type"], string> = {
   optimize_cv: "from-emerald-600/15 to-green-500/10 text-emerald-700 dark:text-emerald-300",
   add_role: "from-teal-600/15 to-emerald-500/10 text-teal-700 dark:text-teal-300",
   research: "from-indigo-600/15 to-blue-500/10 text-indigo-700 dark:text-indigo-300",
+  add_jd: "from-amber-600/15 to-yellow-500/10 text-amber-700 dark:text-amber-300",
   archive: "from-neutral-500/10 to-neutral-400/10 text-neutral-700 dark:text-neutral-300",
 };
 

@@ -79,6 +79,10 @@
         "vite": "6.3.5",
         "vitest": "^4.0.18"
     },
+    "overrides": {
+        "@xmldom/xmldom": "0.8.12",
+        "lodash": "4.18.1"
+    },
     "pnpm": {
         "overrides": {
             "vite": "6.3.5"

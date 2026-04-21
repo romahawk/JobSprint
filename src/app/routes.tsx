@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import SignIn from "./pages/SignIn";
 import { JobOsRouteProvider } from "./components/job-os/JobOsRouteProvider";
+import { PublicJobOsReportProvider } from "./components/job-os/PublicJobOsReportProvider";
 import JobOsSettingsPage from "./pages/job-os/JobOsSettingsPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -14,6 +15,7 @@ const JobOsAssetsPage = lazy(() => import("./pages/job-os/JobOsAssetsPage"));
 const JobOsCompaniesPage = lazy(() => import("./pages/job-os/JobOsCompaniesPage"));
 const JobOsRolesPage = lazy(() => import("./pages/job-os/JobOsRolesPage"));
 const JobOsApplicationsPage = lazy(() => import("./pages/job-os/JobOsApplicationsPage"));
+const JobOsAfaReportPage = lazy(() => import("./pages/job-os/JobOsAfaReportPage"));
 const JobOsOutreachPage = lazy(() => import("./pages/job-os/JobOsOutreachPage"));
 const CvOptimizerPage = lazy(() => import("../features/cvOptimizer/CvOptimizerPage"));
 const AfaCompliancePage = lazy(() => import("./pages/AfaCompliancePage"));
@@ -34,6 +36,15 @@ export const router = createBrowserRouter([
   {
     path: "/signin",
     element: <SignIn />,
+  },
+  {
+    Component: PublicJobOsReportProvider,
+    children: [
+      {
+        path: "/job-os/afa-report",
+        element: lazyElement(<JobOsAfaReportPage />),
+      },
+    ],
   },
   {
     Component: ProtectedRoute,

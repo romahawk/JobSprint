@@ -41,6 +41,7 @@ import {
   MAX_CV_ASSETS,
   normalizeCvDefaults,
 } from "../services/cvAssets";
+import { normalizeApplicationNextActionForStatus } from "../services/jobOsApplications";
 
 const LOCAL_KEY_PREFIX = "job_os_v1";
 const MUTATION_TIMEOUT_MS = 12000;
@@ -261,6 +262,10 @@ function mapApplicationStatusToRoleStatus(
     default:
       return null;
   }
+}
+
+function isInterviewStageStatus(status: ApplicationStatus): boolean {
+  return status === "interview" || status === "final" || status === "offer";
 }
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
@@ -1258,6 +1263,13 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                         ? {
                             ...application,
                             status: syncedApplicationStatus,
+                            nextAction: normalizeApplicationNextActionForStatus(
+                              application.nextAction,
+                              syncedApplicationStatus
+                            ),
+                            interviewStageReached:
+                              application.interviewStageReached ||
+                              isInterviewStageStatus(syncedApplicationStatus),
                             updatedAt: now,
                           }
                         : application
@@ -1285,6 +1297,14 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                         doc(firebase.db, "users", userId, "applications", application.id),
                         {
                           status: syncedApplicationStatus,
+                          nextAction: normalizeApplicationNextActionForStatus(
+                            application.nextAction,
+                            syncedApplicationStatus
+                          ),
+                          ...(application.interviewStageReached ||
+                          isInterviewStageStatus(syncedApplicationStatus)
+                            ? { interviewStageReached: true }
+                            : {}),
                           updatedAt: serverTimestamp(),
                         },
                         { merge: true }
@@ -1306,11 +1326,23 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
             throw new Error("An application for this role already exists.");
           }
 
-          const appId = await addCollectionItem<JobOsApplication>("applications", "app", payload, { hasUpdatedAt: true });
+          const normalizedPayload: Omit<JobOsApplication, "id" | "createdAt" | "updatedAt"> = {
+            ...payload,
+            nextAction: normalizeApplicationNextActionForStatus(
+              payload.nextAction,
+              payload.status
+            ),
+          };
+          const appId = await addCollectionItem<JobOsApplication>(
+            "applications",
+            "app",
+            normalizedPayload,
+            { hasUpdatedAt: true }
+          );
 
           // Propagate: mark the linked role as having an application and sync its status.
           if (roleId) {
-            const syncedRoleStatus = mapApplicationStatusToRoleStatus(payload.status);
+            const syncedRoleStatus = mapApplicationStatusToRoleStatus(normalizedPayload.status);
             const roleUpdates: Partial<JobOsRole> = {
               hasApplication: true,
               ...(syncedRoleStatus != null ? { status: syncedRoleStatus } : {}),
@@ -1343,13 +1375,38 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           const linkedRoleId = targetApplication?.roleId ?? updates.roleId;
           const syncedRoleStatus =
             updates.status ? mapApplicationStatusToRoleStatus(updates.status) : null;
+          const hasExplicitInterviewMarker = typeof updates.interviewStageReached === "boolean";
+          const shouldMarkInterviewReached =
+            !hasExplicitInterviewMarker &&
+            (Boolean(targetApplication?.interviewStageReached) ||
+              Boolean(updates.status && isInterviewStageStatus(updates.status)));
+          const normalizedUpdates: Partial<JobOsApplication> = {
+            ...updates,
+            ...(shouldMarkInterviewReached ? { interviewStageReached: true } : {}),
+          };
+          const nextStatus = updates.status ?? targetApplication?.status;
+          const nextAction = updates.nextAction ?? targetApplication?.nextAction;
+
+          if (nextStatus && typeof nextAction === "string") {
+            const normalizedNextAction = normalizeApplicationNextActionForStatus(
+              nextAction,
+              nextStatus
+            );
+
+            if (
+              updates.nextAction !== undefined ||
+              normalizedNextAction !== targetApplication?.nextAction
+            ) {
+              normalizedUpdates.nextAction = normalizedNextAction;
+            }
+          }
 
           await mutate(
             "Update applications",
             (prev) => ({
               ...prev,
               applications: prev.applications.map((application) =>
-                application.id === id ? { ...application, ...updates, updatedAt: now } : application
+                application.id === id ? { ...application, ...normalizedUpdates, updatedAt: now } : application
               ),
               roles:
                 !linkedRoleId || syncedRoleStatus == null
@@ -1371,6 +1428,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                     applicationRef,
                     stripUndefinedFields({
                       ...updates,
+                      ...normalizedUpdates,
                       updatedAt: serverTimestamp(),
                     }),
                     { merge: true }

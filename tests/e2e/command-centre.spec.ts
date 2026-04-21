@@ -19,8 +19,9 @@ test.describe("Command Centre", () => {
     await expect(page.getByText("Quick Actions")).toBeVisible();
   });
 
-  test("Quick Actions contains all four nav links", async ({ page }) => {
-    await expect(page.getByRole("link", { name: /Add Company/i })).toBeVisible();
+  test("Quick Actions contains the expected actions", async ({ page }) => {
+    // "Add Role" is now a modal-trigger button (not a nav link)
+    await expect(page.getByRole("button", { name: /Add Role/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Log Application/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Tailor CV/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Browse Roles/i })).toBeVisible();

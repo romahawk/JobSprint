@@ -20,8 +20,11 @@ import {
   Download,
   Eye,
   Link,
+  Pencil,
+  Plus,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -125,6 +128,10 @@ function normalizeCompanyKey(value: string): string {
     .toLowerCase();
 }
 
+function normalizeIndustryKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 type CompanySortKey =
   | "name"
   | "industry"
@@ -168,6 +175,11 @@ export default function JobOsCompaniesPage() {
   const [editDraft, setEditDraft] = useState<Partial<JobOsCompany>>({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [pasteLinkOpen, setPasteLinkOpen] = useState(false);
+  const [customIndustries, setCustomIndustries] = useState<string[]>([]);
+  const [industryDialogOpen, setIndustryDialogOpen] = useState(false);
+  const [newIndustry, setNewIndustry] = useState("");
+  const [editingIndustry, setEditingIndustry] = useState<string | null>(null);
+  const [editingIndustryDraft, setEditingIndustryDraft] = useState("");
   const [draft, setDraft] = useState<Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">>({
     name: "",
     industry: "",
@@ -227,6 +239,18 @@ export default function JobOsCompaniesPage() {
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) ?? null;
   const lockStorageKey = `job_os_companies_lock_${session?.userId ?? "anon"}`;
+  const industryStorageKey = `job_os_industries_${session?.userId ?? "anon"}`;
+  const industryOptions = useMemo(() => {
+    const byKey = new Map<string, string>();
+    [...companies.map((company) => company.industry), ...customIndustries].forEach((industry) => {
+      const cleaned = industry.trim().replace(/\s+/g, " ");
+      if (!cleaned) return;
+      byKey.set(normalizeIndustryKey(cleaned), cleaned);
+    });
+    return Array.from(byKey.values()).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
+  }, [companies, customIndustries]);
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -242,6 +266,22 @@ export default function JobOsCompaniesPage() {
     if (!session?.userId) return;
     localStorage.setItem(lockStorageKey, companyListLocked ? "true" : "false");
   }, [companyListLocked, lockStorageKey, session?.userId]);
+
+  useEffect(() => {
+    if (!session?.userId) return;
+    try {
+      const raw = localStorage.getItem(industryStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setCustomIndustries(Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : []);
+    } catch {
+      setCustomIndustries([]);
+    }
+  }, [industryStorageKey, session?.userId]);
+
+  useEffect(() => {
+    if (!session?.userId) return;
+    localStorage.setItem(industryStorageKey, JSON.stringify(customIndustries));
+  }, [customIndustries, industryStorageKey, session?.userId]);
 
   useEffect(() => {
     resetCompaniesPage();
@@ -429,6 +469,62 @@ export default function JobOsCompaniesPage() {
     setDetailMode("edit");
   }
 
+  function openAddIndustryDialog(): void {
+    setNewIndustry("");
+    setEditingIndustry(null);
+    setEditingIndustryDraft("");
+    setIndustryDialogOpen(true);
+  }
+
+  function addIndustry(): void {
+    const industry = newIndustry.trim().replace(/\s+/g, " ");
+    if (!industry) return;
+    if (industryOptions.some((option) => normalizeIndustryKey(option) === normalizeIndustryKey(industry))) {
+      setNewIndustry("");
+      return;
+    }
+    setCustomIndustries((current) => [...current, industry]);
+    if (detailMode === "edit" && selectedCompany) {
+      setEditDraft((current) => ({ ...current, industry }));
+    } else {
+      setDraft((current) => ({ ...current, industry }));
+    }
+    setNewIndustry("");
+  }
+
+  async function saveIndustryEdit(originalIndustry: string): Promise<void> {
+    const nextIndustry = editingIndustryDraft.trim().replace(/\s+/g, " ");
+    if (!nextIndustry) return;
+    const originalKey = normalizeIndustryKey(originalIndustry);
+    const nextKey = normalizeIndustryKey(nextIndustry);
+
+    setCustomIndustries((current) => {
+      const withoutOriginal = current.filter((industry) => normalizeIndustryKey(industry) !== originalKey);
+      if (withoutOriginal.some((industry) => normalizeIndustryKey(industry) === nextKey)) {
+        return withoutOriginal;
+      }
+      return [...withoutOriginal, nextIndustry];
+    });
+
+    if (normalizeIndustryKey(draft.industry) === originalKey) {
+      setDraft((current) => ({ ...current, industry: nextIndustry }));
+    }
+    if (normalizeIndustryKey(editDraft.industry ?? "") === originalKey) {
+      setEditDraft((current) => ({ ...current, industry: nextIndustry }));
+    }
+
+    const companiesToUpdate = companies.filter(
+      (company) => normalizeIndustryKey(company.industry) === originalKey
+    );
+    await Promise.all(
+      companiesToUpdate.map((company) => updateCompany(company.id, { industry: nextIndustry }))
+    );
+
+    setEditingIndustry(null);
+    setEditingIndustryDraft("");
+    toast.success(`Industry updated to ${nextIndustry}`);
+  }
+
   async function handleSaveEdit(): Promise<void> {
     if (!selectedCompanyId || !editDraft.name?.trim()) return;
     setIsSavingEdit(true);
@@ -563,11 +659,45 @@ export default function JobOsCompaniesPage() {
               onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
               placeholder="Company"
             />
-            <Input
-              value={draft.industry}
-              onChange={(e) => setDraft((p) => ({ ...p, industry: e.target.value }))}
-              placeholder="Industry"
-            />
+            <div className="flex gap-2">
+              <Select
+                value={draft.industry || undefined}
+                onValueChange={(value) => setDraft((p) => ({ ...p, industry: value }))}
+              >
+                <SelectTrigger className="min-w-0 flex-1">
+                  <SelectValue placeholder="Industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industryOptions.length > 0 ? (
+                    industryOptions.map((industry) => (
+                      <SelectItem key={industry} value={industry}>
+                        {industry}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="Unknown">Unknown</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 px-3"
+                onClick={openAddIndustryDialog}
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => setIndustryDialogOpen(true)}
+                aria-label="Manage industries"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
             <Input
               value={draft.size}
               onChange={(e) => setDraft((p) => ({ ...p, size: e.target.value }))}
@@ -609,9 +739,9 @@ export default function JobOsCompaniesPage() {
             <div className="md:col-span-2">
               <Button
                 className="w-full"
-                disabled={companyListLocked}
+                disabled={companyListLocked || !draft.name.trim() || !draft.industry.trim()}
                 onClick={() => {
-                  if (!draft.name) return;
+                  if (!draft.name.trim() || !draft.industry.trim()) return;
                   void addCompany(draft).then(() => toast.success("Company added"));
                   setDraft({
                     name: "",
@@ -741,16 +871,16 @@ export default function JobOsCompaniesPage() {
                     {(companiesPage - 1) * COMPANIES_PAGE_SIZE + index + 1}
                   </TableCell>
                   <TableCell className="font-medium">{company.name}</TableCell>
-                  <TableCell>{company.industry}</TableCell>
-                  <TableCell>{company.size}</TableCell>
-                  <TableCell>{company.remotePolicy}</TableCell>
-                  <TableCell>{company.priority}</TableCell>
-                  <TableCell>{company.status}</TableCell>
-                  <TableCell className="max-w-[260px] truncate">
-                    {company.notes || "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <TableCell>{company.industry}</TableCell>
+                    <TableCell>{company.size}</TableCell>
+                    <TableCell>{company.remotePolicy}</TableCell>
+                    <TableCell>{company.priority}</TableCell>
+                    <TableCell>{company.status}</TableCell>
+                    <TableCell className="max-w-[260px] truncate">
+                      {company.notes || "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="inline-flex">
@@ -765,6 +895,25 @@ export default function JobOsCompaniesPage() {
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top">View</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              disabled={companyListLocked}
+                              onClick={() => {
+                                setSelectedCompanyId(company.id);
+                                openEditMode(company);
+                              }}
+                              aria-label="Edit company"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Edit</TooltipContent>
                       </Tooltip>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -813,8 +962,8 @@ export default function JobOsCompaniesPage() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                    </div>
-                  </TableCell>
+                      </div>
+                    </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -1016,11 +1165,48 @@ export default function JobOsCompaniesPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-neutral-500">Industry</label>
-                  <Input
-                    value={editDraft.industry ?? ""}
-                    onChange={(e) => setEditDraft((p) => ({ ...p, industry: e.target.value }))}
-                    disabled={isSavingEdit}
-                  />
+                  <div className="flex gap-2">
+                    <Select
+                      value={editDraft.industry || undefined}
+                      onValueChange={(value) => setEditDraft((p) => ({ ...p, industry: value }))}
+                      disabled={isSavingEdit}
+                    >
+                      <SelectTrigger className="min-w-0 flex-1">
+                        <SelectValue placeholder="Industry" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {industryOptions.length > 0 ? (
+                          industryOptions.map((industry) => (
+                            <SelectItem key={industry} value={industry}>
+                              {industry}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="Unknown">Unknown</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={openAddIndustryDialog}
+                      disabled={isSavingEdit}
+                      className="gap-1.5 px-3"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setIndustryDialogOpen(true)}
+                      disabled={isSavingEdit}
+                      aria-label="Manage industries"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-neutral-500">Size</label>
@@ -1117,13 +1303,124 @@ export default function JobOsCompaniesPage() {
                 <Button
                   size="sm"
                   onClick={() => void handleSaveEdit()}
-                  disabled={!editDraft.name?.trim() || isSavingEdit}
+                  disabled={!editDraft.name?.trim() || !editDraft.industry?.trim() || isSavingEdit}
                 >
                   {isSavingEdit ? "Saving…" : "Save Changes"}
                 </Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={industryDialogOpen} onOpenChange={setIndustryDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Industries</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={newIndustry}
+                onChange={(event) => setNewIndustry(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addIndustry();
+                  }
+                }}
+                placeholder="Add industry"
+              />
+              <Button type="button" onClick={addIndustry} disabled={!newIndustry.trim()}>
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </div>
+
+            <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border border-border p-2">
+              {industryOptions.length > 0 ? (
+                industryOptions.map((industry) => {
+                  const usageCount = companies.filter(
+                    (company) => normalizeIndustryKey(company.industry) === normalizeIndustryKey(industry)
+                  ).length;
+                  const isEditing = editingIndustry === industry;
+
+                  return (
+                    <div
+                      key={industry}
+                      className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5"
+                    >
+                      {isEditing ? (
+                        <Input
+                          value={editingIndustryDraft}
+                          onChange={(event) => setEditingIndustryDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void saveIndustryEdit(industry);
+                            }
+                          }}
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">{industry}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {usageCount} compan{usageCount === 1 ? "y" : "ies"}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => void saveIndustryEdit(industry)}
+                              disabled={!editingIndustryDraft.trim()}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingIndustry(null);
+                                setEditingIndustryDraft("");
+                              }}
+                              aria-label="Cancel industry edit"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingIndustry(industry);
+                              setEditingIndustryDraft(industry);
+                            }}
+                            aria-label={`Edit ${industry}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  Add your first industry to use the dropdown.
+                </div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

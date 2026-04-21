@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isPublicAfaReportCollection(collectionName) {
+      return collectionName in ['applications', 'companies', 'roles'];
+    }
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /users/JeUm6rAA1XOZrfqHtFPPXCtXpZ2/{collectionName}/{documentId} {
+      allow read: if isPublicAfaReportCollection(collectionName);
+    }
+  }
+}

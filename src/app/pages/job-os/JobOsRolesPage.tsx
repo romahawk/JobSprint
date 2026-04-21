@@ -95,6 +95,8 @@ export default function JobOsRolesPage() {
   } = useJobOsContext();
 
   const [addFormOpen, setAddFormOpen] = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyOptionsOpen, setCompanyOptionsOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> | null>(null);
   const [formNotice, setFormNotice] = useState<string | null>(null);
@@ -129,6 +131,15 @@ export default function JobOsRolesPage() {
     () => new Map(companies.map((company) => [company.id, company])),
     [companies]
   );
+  const selectedDraftCompany = draft.companyId ? companiesById.get(draft.companyId) : null;
+  const filteredCompanyOptions = useMemo(() => {
+    const query = companySearch.trim().toLowerCase();
+    const matches = query
+      ? companies.filter((company) => company.name.toLowerCase().includes(query))
+      : companies;
+
+    return matches.slice(0, 50);
+  }, [companies, companySearch]);
 
   const filtered = useMemo(() => {
     const companyQuery = tableFilters.company.trim().toLowerCase();
@@ -329,6 +340,7 @@ export default function JobOsRolesPage() {
         jobDescription: "",
         jobDescriptionUpdatedAt: undefined,
       });
+      setCompanySearch("");
       setFormNotice("");
       toast.success("Role added");
     } catch (error) {
@@ -388,6 +400,7 @@ export default function JobOsRolesPage() {
   function handleToggleAddForm() {
     if (addFormOpen && !confirmAddFormDiscard()) return;
     setAddFormOpen((value) => !value);
+    setCompanyOptionsOpen(false);
   }
 
   return (
@@ -414,12 +427,55 @@ export default function JobOsRolesPage() {
         </CardHeader>
         {addFormOpen ? (
           <CardContent className="grid gap-3 pt-4 md:grid-cols-4">
-            <Select value={draft.companyId} onValueChange={(value) => setDraft((current) => ({ ...current, companyId: value }))}>
-              <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
-              <SelectContent>
-                {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="relative">
+              <Input
+                value={companyOptionsOpen ? companySearch : selectedDraftCompany?.name ?? companySearch}
+                onChange={(event) => {
+                  setCompanySearch(event.target.value);
+                  setCompanyOptionsOpen(true);
+                  setDraft((current) => ({ ...current, companyId: "" }));
+                }}
+                onFocus={() => {
+                  setCompanySearch(selectedDraftCompany?.name ?? companySearch);
+                  setCompanyOptionsOpen(true);
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => setCompanyOptionsOpen(false), 120);
+                }}
+                placeholder="Company"
+                autoComplete="off"
+              />
+              {companyOptionsOpen ? (
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
+                  {filteredCompanyOptions.length > 0 ? (
+                    filteredCompanyOptions.map((company) => (
+                      <button
+                        key={company.id}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setDraft((current) => ({ ...current, companyId: company.id }));
+                          setCompanySearch(company.name);
+                          setCompanyOptionsOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={`h-4 w-4 ${
+                            draft.companyId === company.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <span className="truncate">{company.name}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-2 py-3 text-sm text-muted-foreground">
+                      No company found.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Role title" />
             <Select value={draft.origin ?? "self_sourced"} onValueChange={(value) => setDraft((current) => ({ ...current, origin: value as RoleOrigin }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>

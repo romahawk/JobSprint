@@ -302,6 +302,7 @@ export interface JobOsApplication {
   aiEnrichment?: AiImportEnrichmentV1;
   // Execution engine metadata
   lastResponseAt?: string;
+  interviewStageReached?: boolean;
   createdAt: string;
   updatedAt: string;
 }

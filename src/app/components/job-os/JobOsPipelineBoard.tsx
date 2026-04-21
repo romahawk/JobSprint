@@ -1,17 +1,13 @@
-import { CalendarDays, FileText, MoveRight } from "lucide-react";
+import { CalendarDays, FileText, MessageSquare, MoveRight } from "lucide-react";
 import { Badge } from "../ui/badge";
+import {
+  APPLICATION_STATUS_LABELS,
+  applicationReachedInterview,
+  getApplicationVisibleNextAction,
+} from "../../services/jobOsApplications";
 import type { ApplicationStatus, JobOsApplication, JobOsCompany, JobOsRole } from "../../types/jobOs";
 
-export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-  sent: "Submitted",
-  screen: "Screening",
-  case: "Case Study",
-  interview: "Interview",
-  final: "Final Round",
-  offer: "Offer",
-  rejected: "Rejected",
-  ghosted: "Ghosted",
-};
+export { APPLICATION_STATUS_LABELS };
 
 export const APPLICATION_STAGE_GROUPS = {
   active: {
@@ -52,6 +48,8 @@ function JobOsPipelineCard({
   roleTitle: string;
   onClick: () => void;
 }) {
+  const visibleNextAction = getApplicationVisibleNextAction(application);
+
   return (
     <button
       type="button"
@@ -80,9 +78,15 @@ function JobOsPipelineCard({
             CV tailored
           </Badge>
         ) : null}
-        {application.nextAction ? (
+        {applicationReachedInterview(application) ? (
+          <Badge variant="secondary" className="gap-1 rounded-full text-[10px]">
+            <MessageSquare className="h-3 w-3" />
+            Interviewed
+          </Badge>
+        ) : null}
+        {visibleNextAction ? (
           <Badge variant="outline" className="rounded-full text-[10px]">
-            {application.nextAction}
+            {visibleNextAction}
           </Badge>
         ) : null}
         {application.notes ? <FileText className="h-3.5 w-3.5" /> : null}

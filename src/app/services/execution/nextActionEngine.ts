@@ -16,6 +16,7 @@ export type NextActionType =
   | "add_role"
   | "research"
   | "optimize_cv"
+  | "add_jd"
   | "archive";
 
 export type ActionPriority = "urgent" | "high" | "medium" | "low";
@@ -537,6 +538,43 @@ export function getPipelineStats(
   };
 }
 
+// ─── Missing JD Actions ──────────────────────────────────────────────────────
+
+const ADD_JD_BASE = 45;
+const ADD_JD_ACTIVE_STATUSES = new Set(["sent", "screen", "case", "interview", "final"]);
+
+function generateAddJdActions(
+  applications: JobOsApplication[],
+  companies: JobOsCompany[]
+): NextAction[] {
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+
+  return applications
+    .filter(
+      (a) =>
+        ADD_JD_ACTIVE_STATUSES.has(a.status) &&
+        !a.latestJobDescriptionId
+    )
+    .map((app) => {
+      const company = companyMap.get(app.companyId);
+      const priorityBonus = company ? PRIORITY_WEIGHT[company.priority] : 0;
+      const score = clamp(ADD_JD_BASE + priorityBonus, 0, 100);
+
+      return {
+        id: `add-jd-${app.id}`,
+        type: "add_jd" as NextActionType,
+        priority: toPriority(score),
+        score,
+        companyId: app.companyId,
+        companyName: company?.name,
+        applicationId: app.id,
+        reason: "No job description attached — add one to enable CV tailoring",
+        actionLabel: "Add JD",
+        href: "/cv-optimizer",
+      };
+    });
+}
+
 // ─── Main Entry Point ─────────────────────────────────────────────────────────
 
 /**
@@ -554,6 +592,7 @@ export function getNextActions(
     ...generateOverdueOutreachActions(outreach, companies),
     ...generateStalledApplicationActions(applications, outreach, companies),
     ...generateFollowUpActions(applications, companies),
+    ...generateAddJdActions(applications, companies),
     ...generateLogApplicationActions(roles, companies, applications),
     ...generateApplyActions(roles, companies, applications),
     ...generateAddRoleActions(companies, roles),

@@ -155,10 +155,11 @@ export function AppNavbar({
                   </div>
                   <Link
                     to={appPath("/compliance/afa")}
+                    to="/job-os/afa-report"
                     className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-900"
                   >
                     <Lock className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                    <span>AfA Compliance</span>
+                    <span>AfA Report</span>
                   </Link>
                 </div>
               </DropdownMenuContent>
@@ -229,10 +230,11 @@ export function AppNavbar({
               <SheetClose asChild>
                 <Link
                   to={appPath("/compliance/afa")}
+                  to="/job-os/afa-report"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
                   <Lock className="w-4 h-4 shrink-0 text-neutral-500" />
-                  AfA Compliance
+                  AfA Report
                 </Link>
               </SheetClose>
             </div>

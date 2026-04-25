@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { ChevronDown, ChevronUp, Layers3 } from "lucide-react";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
+import { UnifiedAddModal } from "../../components/job-os/UnifiedAddModal";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
 import {
   getNextActions,
@@ -31,6 +32,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const jobOsSync = useJobOsSyncSnapshot();
   const [supportOpen, setSupportOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const {
     companies,
     roles,
@@ -154,7 +156,7 @@ export function DashboardPage() {
 
             <div className="min-w-0 lg:self-start">
               <div className="space-y-4 lg:sticky lg:top-24">
-                <QuickActions />
+                <QuickActions onAddRole={() => setAddModalOpen(true)} />
                 <WeeklyExecutionPanel applications={applications} />
                 <PipelineStats stats={stats} isLoading={loading} />
                 <ProbabilityPanel stats={stats} isLoading={loading} />
@@ -194,6 +196,15 @@ export function DashboardPage() {
           </div>
         </AppPageShell>
       </main>
+
+      <UnifiedAddModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        companies={companies}
+        addCompany={addCompany}
+        addRole={addRole}
+        addApplication={addApplication}
+      />
     </div>
   );
 }

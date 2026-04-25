@@ -13,9 +13,10 @@ import {
 } from "../../components/ui/alert-dialog";
 import { usePagination } from "../../hooks/usePagination";
 import { PaginationControls } from "../../components/ui/PaginationControls";
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, Plus, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, MessageSquare, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
+import { Checkbox } from "../../components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -31,9 +32,16 @@ import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { AppPageShell } from "../../components/layout/AppPageShell";
 import {
   APPLICATION_STAGE_GROUPS,
-  APPLICATION_STATUS_LABELS,
   JobOsPipelineBoard,
 } from "../../components/job-os/JobOsPipelineBoard";
+import {
+  APPLICATION_STATUS_LABELS,
+  INTERVIEW_RELATED_APPLICATION_STATUSES,
+  applicationReachedInterview,
+  sortJobOsApplications,
+  type ApplicationSortField,
+  type SortDirection,
+} from "../../services/jobOsApplications";
 import { getApplicationCvLabel, getDefaultCvAsset } from "../../services/cvAssets";
 import { ApplicationQualityBadge } from "../../components/job-os/ApplicationQualityBadge";
 import { appPath } from "../../routing";
@@ -52,8 +60,8 @@ const STATUS_VALUES: ApplicationStatus[] = [
 
 type PipelineViewMode = "board" | "list";
 type ApplicationStageGroup = keyof typeof APPLICATION_STAGE_GROUPS;
-type SortField = "company" | "role" | "status" | "date" | "nextAction";
-type SortDirection = "asc" | "desc";
+type SortField = ApplicationSortField;
+type ClosedInterviewFilter = "all" | "withInterview";
 
 const EMPTY_APPLICATION_DRAFT = {
   dateApplied: new Date().toISOString().slice(0, 10),
@@ -65,6 +73,7 @@ const EMPTY_APPLICATION_DRAFT = {
   status: "sent" as ApplicationStatus,
   nextAction: "",
   notes: "",
+  interviewStageReached: false,
   latestJobDescriptionId: undefined,
   latestCvTailoringRunId: undefined,
   tailoredCvHeadline: "",
@@ -103,7 +112,13 @@ export default function JobOsApplicationsPage() {
     roleId: string,
     newStatus: ApplicationStatus
   ): Promise<void> {
-    await updateApplication(applicationId, { status: newStatus });
+    const application = applications.find((item) => item.id === applicationId);
+    await updateApplication(applicationId, {
+      status: newStatus,
+      ...(application?.interviewStageReached || INTERVIEW_RELATED_APPLICATION_STATUSES.has(newStatus)
+        ? { interviewStageReached: true }
+        : {}),
+    });
 
     const closingStatuses: ApplicationStatus[] = ["interview", "final", "offer", "rejected", "ghosted"];
     if (closingStatuses.includes(newStatus)) {
@@ -120,13 +135,14 @@ export default function JobOsApplicationsPage() {
   const defaultCv = getDefaultCvAsset(assets.cvs);
   const [viewMode, setViewMode] = useState<PipelineViewMode>("list");
   const [stageGroup, setStageGroup] = useState<ApplicationStageGroup>("active");
+  const [closedInterviewFilter, setClosedInterviewFilter] = useState<ClosedInterviewFilter>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDraftSnapshot, setCreateDraftSnapshot] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "status" | "nextAction" | "notes"> | null>(null);
+  const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "dateApplied" | "channel" | "status" | "nextAction" | "notes" | "interviewStageReached"> | null>(null);
   const [detailDraftSnapshot, setDetailDraftSnapshot] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -143,6 +159,13 @@ export default function JobOsApplicationsPage() {
 
     const visibleApplications = applications.filter((application) => {
       if (!groupStatuses.includes(application.status)) return false;
+      if (
+        stageGroup === "closed" &&
+        closedInterviewFilter === "withInterview" &&
+        !applicationReachedInterview(application)
+      ) {
+        return false;
+      }
       if (!query) return true;
 
       const companyName = companiesById.get(application.companyId)?.name ?? "";
@@ -151,8 +174,9 @@ export default function JobOsApplicationsPage() {
         companyName,
         roleTitle,
         application.channel,
-        application.nextAction,
+        stageGroup === "closed" ? "" : application.nextAction,
         application.notes,
+        applicationReachedInterview(application) ? "interview interviewed" : "",
       ]
         .join(" ")
         .toLowerCase();
@@ -160,31 +184,8 @@ export default function JobOsApplicationsPage() {
       return haystack.includes(query);
     });
 
-    return [...visibleApplications].sort((left, right) => {
-      const leftCompany = companiesById.get(left.companyId)?.name ?? "";
-      const rightCompany = companiesById.get(right.companyId)?.name ?? "";
-      const leftRole = rolesById.get(left.roleId)?.title ?? "";
-      const rightRole = rolesById.get(right.roleId)?.title ?? "";
-
-      const comparison = (() => {
-        switch (sortField) {
-          case "company":
-            return leftCompany.localeCompare(rightCompany);
-          case "role":
-            return leftRole.localeCompare(rightRole);
-          case "status":
-            return APPLICATION_STATUS_LABELS[left.status].localeCompare(APPLICATION_STATUS_LABELS[right.status]);
-          case "nextAction":
-            return (left.nextAction || "").localeCompare(right.nextAction || "");
-          case "date":
-          default:
-            return left.dateApplied.localeCompare(right.dateApplied);
-        }
-      })();
-
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-  }, [applications, companiesById, groupStatuses, rolesById, searchTerm, sortDirection, sortField]);
+    return sortJobOsApplications(visibleApplications, companiesById, rolesById, sortField, sortDirection);
+  }, [applications, closedInterviewFilter, companiesById, groupStatuses, rolesById, searchTerm, sortDirection, sortField, stageGroup]);
 
   const PAGE_SIZE = 10;
   const {
@@ -197,7 +198,7 @@ export default function JobOsApplicationsPage() {
 
   useEffect(() => {
     resetAppPage();
-  }, [resetAppPage, searchTerm, stageGroup, sortField, sortDirection]);
+  }, [closedInterviewFilter, resetAppPage, searchTerm, stageGroup, sortField, sortDirection]);
 
   function resetDraft(): void {
     setDraft(createDraft(defaultCv ? { id: defaultCv.id, name: defaultCv.name } : undefined));
@@ -216,9 +217,12 @@ export default function JobOsApplicationsPage() {
 
   function openDetails(application: JobOsApplication): void {
     const initial = {
+      dateApplied: application.dateApplied,
+      channel: application.channel,
       status: application.status,
       nextAction: application.nextAction,
       notes: application.notes,
+      interviewStageReached: applicationReachedInterview(application),
     };
     setDetailId(application.id);
     setDetailDraft(initial);
@@ -243,6 +247,8 @@ export default function JobOsApplicationsPage() {
   }
 
   function toggleSort(field: SortField): void {
+    if (stageGroup === "closed" && field === "nextAction") return;
+
     if (sortField === field) {
       setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
       return;
@@ -269,7 +275,17 @@ export default function JobOsApplicationsPage() {
   }
 
   async function applyBulkStatus(status: ApplicationStatus): Promise<void> {
-    await Promise.all(selectedIds.map((id) => updateApplication(id, { status })));
+    await Promise.all(
+      selectedIds.map((id) => {
+        const application = applications.find((item) => item.id === id);
+        return updateApplication(id, {
+          status,
+          ...(application?.interviewStageReached || INTERVIEW_RELATED_APPLICATION_STATUSES.has(status)
+            ? { interviewStageReached: true }
+            : {}),
+        });
+      })
+    );
     setSelectedIds([]);
   }
 
@@ -280,7 +296,10 @@ export default function JobOsApplicationsPage() {
 
   async function handleCreateApplication(): Promise<void> {
     if (!draft.companyId || !draft.roleId) return;
-    await addApplication(draft);
+    await addApplication({
+      ...draft,
+      interviewStageReached: draft.interviewStageReached || INTERVIEW_RELATED_APPLICATION_STATUSES.has(draft.status),
+    });
     toast.success("Application added");
     resetDraft();
     setCreateOpen(false);
@@ -288,9 +307,24 @@ export default function JobOsApplicationsPage() {
 
   async function handleSaveDetails(): Promise<void> {
     if (!detailApplication || !detailDraft) return;
-    await updateApplication(detailApplication.id, detailDraft);
+    await updateApplication(detailApplication.id, {
+      ...detailDraft,
+      interviewStageReached:
+        detailDraft.interviewStageReached || INTERVIEW_RELATED_APPLICATION_STATUSES.has(detailDraft.status),
+    });
     closeDetails();
   }
+
+  const closedInterviewCount = useMemo(
+    () =>
+      applications.filter(
+        (application) =>
+          APPLICATION_STAGE_GROUPS.closed.statuses.includes(application.status) &&
+          applicationReachedInterview(application)
+      ).length,
+    [applications]
+  );
+  const isClosedStageGroup = stageGroup === "closed";
 
   function handleCreateDialogKeyDown(
     event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -353,7 +387,14 @@ export default function JobOsApplicationsPage() {
     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       <Tabs
         value={stageGroup}
-        onValueChange={(value) => setStageGroup(value as ApplicationStageGroup)}
+        onValueChange={(value) => {
+          const nextStageGroup = value as ApplicationStageGroup;
+          setStageGroup(nextStageGroup);
+          if (nextStageGroup === "closed" && sortField === "nextAction") {
+            setSortField("date");
+            setSortDirection("desc");
+          }
+        }}
         className="gap-3"
       >
         <TabsList className="h-auto w-full flex-wrap justify-start rounded-2xl bg-muted/70 p-1 sm:w-fit">
@@ -375,14 +416,43 @@ export default function JobOsApplicationsPage() {
         </TabsList>
       </Tabs>
 
-      <div className="relative w-full xl:max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search company, role, next action, notes"
-          className="pl-9"
-        />
+      <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:max-w-2xl xl:justify-end">
+        {stageGroup === "closed" ? (
+          <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-background/70 p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={closedInterviewFilter === "all" ? "secondary" : "ghost"}
+              className="rounded-lg"
+              onClick={() => setClosedInterviewFilter("all")}
+            >
+              All
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={closedInterviewFilter === "withInterview" ? "secondary" : "ghost"}
+              className="rounded-lg gap-1.5"
+              onClick={() => setClosedInterviewFilter("withInterview")}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Interviewed
+              <Badge variant="outline" className="rounded-full bg-background/70 px-1.5 py-0 text-[10px]">
+                {closedInterviewCount}
+              </Badge>
+            </Button>
+          </div>
+        ) : null}
+
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder={isClosedStageGroup ? "Search company, role, notes" : "Search company, role, next action, notes"}
+            className="pl-9"
+          />
+        </div>
       </div>
     </div>
   );
@@ -410,9 +480,11 @@ export default function JobOsApplicationsPage() {
                   {selectedIds.length} application{selectedIds.length === 1 ? "" : "s"} selected.
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => void bulkFollowUp()}>
-                    Set Follow-up
-                  </Button>
+                  {!isClosedStageGroup ? (
+                    <Button size="sm" variant="outline" onClick={() => void bulkFollowUp()}>
+                      Set Follow-up
+                    </Button>
+                  ) : null}
                   <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("screen")}>
                     Move to Screen
                   </Button>
@@ -451,82 +523,100 @@ export default function JobOsApplicationsPage() {
                       <TableHead>Quality</TableHead>
                       <TableHead>{renderSortHeader("Status", "status")}</TableHead>
                       <TableHead>{renderSortHeader("Date", "date")}</TableHead>
-                      <TableHead>{renderSortHeader("Next Action", "nextAction")}</TableHead>
+                      {!isClosedStageGroup ? (
+                        <TableHead>{renderSortHeader("Next Action", "nextAction")}</TableHead>
+                      ) : null}
                       <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pagedApplications.map((application) => (
-                      <TableRow
-                        key={application.id}
-                        className="cursor-pointer"
-                        onClick={() => openDetails(application)}
-                      >
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedSet.has(application.id)}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={() => toggleSelection(application.id)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {companiesById.get(application.companyId)?.name ?? "-"}
-                        </TableCell>
-                        <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
-                        <TableCell>
-                          {!["rejected", "ghosted"].includes(application.status) && (
-                            <ApplicationQualityBadge
-                              application={application}
-                              cvTailoringRuns={cvTailoringRuns}
+                    {pagedApplications.map((application) => {
+                      const reachedInterview = applicationReachedInterview(application);
+                      const isClosedApplication = APPLICATION_STAGE_GROUPS.closed.statuses.includes(application.status);
+
+                      return (
+                        <TableRow
+                          key={application.id}
+                          className="cursor-pointer"
+                          onClick={() => openDetails(application)}
+                        >
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              checked={selectedSet.has(application.id)}
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={() => toggleSelection(application.id)}
                             />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={application.status}
-                            onValueChange={(value) =>
-                              void handleApplicationStatusChange(
-                                application.id,
-                                application.roleId,
-                                value as ApplicationStatus
+                          </TableCell>
+                          <TableCell>
+                            {companiesById.get(application.companyId)?.name ?? "-"}
+                          </TableCell>
+                          <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
+                          <TableCell>
+                            {isClosedApplication ? (
+                              reachedInterview ? (
+                                <Badge variant="secondary" className="gap-1 rounded-full">
+                                  <MessageSquare className="h-3.5 w-3.5" />
+                                  Interviewed
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
                               )
-                            }
-                          >
-                            <SelectTrigger className="w-36">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUS_VALUES.map((status) => (
-                                <SelectItem key={status} value={status}>
-                                  {APPLICATION_STATUS_LABELS[status]}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>{application.dateApplied}</TableCell>
-                        <TableCell className="max-w-[220px] truncate">
-                          {application.nextAction || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openDetails(application);
-                            }}
-                          >
-                            Open
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                            ) : (
+                              <ApplicationQualityBadge
+                                application={application}
+                                cvTailoringRuns={cvTailoringRuns}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={application.status}
+                              onValueChange={(value) =>
+                                void handleApplicationStatusChange(
+                                  application.id,
+                                  application.roleId,
+                                  value as ApplicationStatus
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-36">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {STATUS_VALUES.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {APPLICATION_STATUS_LABELS[status]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>{application.dateApplied}</TableCell>
+                          {!isClosedStageGroup ? (
+                            <TableCell className="max-w-[220px] truncate">
+                              {application.nextAction || "-"}
+                            </TableCell>
+                          ) : null}
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openDetails(application);
+                              }}
+                            >
+                              Open
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {filteredApplications.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={isClosedStageGroup ? 7 : 8}
                           className="py-10 text-center text-sm text-muted-foreground"
                         >
                           <div className="mx-auto flex max-w-md flex-col items-center gap-3">
@@ -645,6 +735,18 @@ export default function JobOsApplicationsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <label className="flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm text-foreground md:col-span-2">
+              <Checkbox
+                checked={draft.interviewStageReached || INTERVIEW_RELATED_APPLICATION_STATUSES.has(draft.status)}
+                onCheckedChange={(checked) =>
+                  setDraft((current) => ({
+                    ...current,
+                    interviewStageReached: checked === true,
+                  }))
+                }
+              />
+              Reached interview stage
+            </label>
             <div className="md:col-span-2">
               <Input
                 value={draft.nextAction}
@@ -692,6 +794,11 @@ export default function JobOsApplicationsPage() {
         <DialogContent className="max-w-2xl">
           {detailApplication && detailDraft ? (
             <>
+              {(() => {
+                const isClosedDetail = APPLICATION_STAGE_GROUPS.closed.statuses.includes(detailDraft.status);
+
+                return (
+                  <>
               <DialogHeader>
                 <DialogTitle>
                   {companiesById.get(detailApplication.companyId)?.name ?? "Unknown company"}
@@ -706,13 +813,31 @@ export default function JobOsApplicationsPage() {
                   <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Applied
                   </div>
-                  <div className="text-sm text-foreground">{detailApplication.dateApplied}</div>
+                  <Input
+                    type="date"
+                    value={detailDraft.dateApplied}
+                    onChange={(event) =>
+                      setDetailDraft((current) =>
+                        current ? { ...current, dateApplied: event.target.value } : current
+                      )
+                    }
+                    onKeyDown={handleDetailDialogKeyDown}
+                  />
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Channel
                   </div>
-                  <div className="text-sm text-foreground">{detailApplication.channel}</div>
+                  <Input
+                    value={detailDraft.channel}
+                    onChange={(event) =>
+                      setDetailDraft((current) =>
+                        current ? { ...current, channel: event.target.value } : current
+                      )
+                    }
+                    onKeyDown={handleDetailDialogKeyDown}
+                    placeholder="Application source"
+                  />
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -736,14 +861,32 @@ export default function JobOsApplicationsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="md:col-span-2">
-                  <Input
-                    value={detailDraft.nextAction}
-                    onChange={(event) => setDetailDraft((current) => current ? { ...current, nextAction: event.target.value } : current)}
-                    onKeyDown={handleDetailDialogKeyDown}
-                    placeholder="What should happen next?"
+                <label className="flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm text-foreground md:col-span-2">
+                  <Checkbox
+                    checked={detailDraft.interviewStageReached || INTERVIEW_RELATED_APPLICATION_STATUSES.has(detailDraft.status)}
+                    onCheckedChange={(checked) =>
+                      setDetailDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              interviewStageReached: checked === true,
+                            }
+                          : current
+                      )
+                    }
                   />
-                </div>
+                  Reached interview stage
+                </label>
+                {!isClosedDetail ? (
+                  <div className="md:col-span-2">
+                    <Input
+                      value={detailDraft.nextAction}
+                      onChange={(event) => setDetailDraft((current) => current ? { ...current, nextAction: event.target.value } : current)}
+                      onKeyDown={handleDetailDialogKeyDown}
+                      placeholder="What should happen next?"
+                    />
+                  </div>
+                ) : null}
                 <div className="md:col-span-2">
                   <Textarea
                     value={detailDraft.notes}
@@ -754,6 +897,9 @@ export default function JobOsApplicationsPage() {
                   />
                 </div>
               </div>
+                  </>
+                );
+              })()}
 
               <div className="flex flex-wrap justify-between gap-2">
                 <div className="flex gap-2">

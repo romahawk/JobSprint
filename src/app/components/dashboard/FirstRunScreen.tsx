@@ -24,6 +24,7 @@ import type {
   JobOsCompany,
   JobOsRole,
 } from "../../types/jobOs";
+import { appPath } from "../../routing";
 
 type Step = "input" | "analyzing" | "reviewing" | "next_action" | "saving" | "done";
 
@@ -314,7 +315,7 @@ export function FirstRunScreen({
                 asChild
                 className="text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
               >
-                <Link to="/job-os/companies" onClick={onDismiss}>
+                <Link to={appPath("/job-os/companies")} onClick={onDismiss}>
                   Enter manually
                 </Link>
               </Button>

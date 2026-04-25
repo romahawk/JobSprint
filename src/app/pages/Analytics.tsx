@@ -1,8 +1,10 @@
 import { useMemo } from "react";
+import { Link } from "react-router";
 import { BarChart2 } from "lucide-react";
 import { useApp } from "../context";
 import { useJobOs } from "../hooks/useJobOs";
 import { AppNavbar } from "../components/AppNavbar";
+import { appPath } from "../routing";
 import {
   BarChart,
   Bar,
@@ -92,12 +94,12 @@ function EmptyAnalytics() {
         Add applications to your Job OS pipeline to start seeing conversion
         analytics and funnel benchmarks.
       </p>
-      <a
-        href="/job-os/applications"
+      <Link
+        to={appPath("/job-os/applications")}
         className="text-xs text-blue-500 hover:underline mt-1"
       >
         Go to Applications →
-      </a>
+      </Link>
     </div>
   );
 }

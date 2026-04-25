@@ -5,6 +5,7 @@ import type {
   JobOsApplication,
   CompanyPriority,
 } from "../../types/jobOs";
+import { appPath } from "../../routing";
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ function generateApplyActions(
         roleTitle: role.title,
         reason: `Fit score ${role.fitScore}/5${company ? ` · ${company.priority}-priority target` : ""}`,
         actionLabel: "Apply Now",
-        href: "/job-os/roles",
+        href: appPath("/job-os/roles"),
       };
     });
 }
@@ -143,7 +144,7 @@ function generateFollowUpActions(
         applicationId: app.id,
         reason: `Applied ${days} day${days !== 1 ? "s" : ""} ago — no response yet`,
         actionLabel: "Follow Up",
-        href: "/job-os/applications",
+        href: appPath("/job-os/applications"),
       };
     });
 }
@@ -180,7 +181,7 @@ function generateLogApplicationActions(
         roleTitle: role.title,
         reason: `Role is marked ${role.status} but no application record exists yet`,
         actionLabel: "Log Application",
-        href: "/job-os/roles",
+        href: appPath("/job-os/roles"),
       };
     });
 }
@@ -212,7 +213,7 @@ function generateOptimizeCvActions(
         applicationId: app.id,
         reason: "Interview stage — tailor your CV to maximise impact",
         actionLabel: "Tailor CV",
-        href: "/cv-optimizer",
+        href: appPath("/cv-optimizer"),
       };
     });
 }
@@ -242,7 +243,7 @@ function generateAddRoleActions(
         companyName: company.name,
         reason: `${company.status} company — no roles tracked yet`,
         actionLabel: "Add Role",
-        href: "/job-os/companies",
+        href: appPath("/job-os/companies"),
       };
     });
 }
@@ -269,7 +270,7 @@ function generateResearchActions(
       companyName: company.name,
       reason: "A-priority target in research — find open roles",
       actionLabel: "Research",
-      href: "/job-os/companies",
+      href: appPath("/job-os/companies"),
     }));
 }
 
@@ -298,7 +299,7 @@ function generateArchiveActions(
         applicationId: app.id,
         reason: "Keep your pipeline clean — close stale applications",
         actionLabel: "Archive",
-        href: "/job-os/applications",
+        href: appPath("/job-os/applications"),
       };
     });
 }
@@ -354,7 +355,7 @@ function generateStalledApplicationActions(
           applicationId: app.id,
           reason: `Re-engage — last message was ${days} days ago`,
           actionLabel: "Re-engage",
-          href: "/job-os/outreach",
+          href: appPath("/job-os/outreach"),
         });
       } else {
         actions.push({
@@ -367,7 +368,7 @@ function generateStalledApplicationActions(
           applicationId: app.id,
           reason: `Applied ${days} days ago — no outreach logged`,
           actionLabel: "Log Outreach",
-          href: "/job-os/outreach",
+          href: appPath("/job-os/outreach"),
         });
       }
     }
@@ -384,7 +385,7 @@ function generateStalledApplicationActions(
         applicationId: app.id,
         reason: `Screener stage for ${days} days — check status`,
         actionLabel: "Check Status",
-        href: "/job-os/applications",
+        href: appPath("/job-os/applications"),
       });
     }
   }
@@ -425,7 +426,7 @@ function generateOverdueOutreachActions(
         companyName: company?.name,
         reason: `Follow-up with ${o.contactName || "contact"} at ${company?.name ?? "company"} is overdue`,
         actionLabel: "Follow Up",
-        href: "/job-os/outreach",
+        href: appPath("/job-os/outreach"),
       };
     });
 }
@@ -472,7 +473,7 @@ export function getHotOpportunities(
         fitScore: role.fitScore,
         score,
         reason: reasons.join(" · ") || `Fit score ${role.fitScore}/5`,
-        href: "/job-os/roles",
+        href: appPath("/job-os/roles"),
       };
     })
     .sort((a, b) => b.score - a.score)

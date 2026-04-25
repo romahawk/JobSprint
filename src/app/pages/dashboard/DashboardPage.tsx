@@ -24,6 +24,7 @@ import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
 import { AppPageShell } from "../../components/layout/AppPageShell";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 import { WeeklyExecutionPanel } from "../../components/WeeklyExecutionPanel";
+import { appPath } from "../../routing";
 
 export function DashboardPage() {
   const { session } = useApp();
@@ -130,7 +131,7 @@ export function DashboardPage() {
             addApplication={addApplication}
             onDismiss={() => {
               updateOnboardingStatus("dismissed");
-              void navigate("/job-os/companies");
+              void navigate(appPath("/job-os/companies"));
             }}
             onComplete={() => updateOnboardingStatus("completed")}
           />

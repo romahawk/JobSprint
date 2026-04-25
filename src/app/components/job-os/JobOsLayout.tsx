@@ -12,17 +12,18 @@ import {
 import { AppNavbar } from "../AppNavbar";
 import { useApp } from "../../context";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
+import { appPath } from "../../routing";
 
 const PIPELINE_NAV_ITEMS = [
-  { to: "/job-os/applications", label: "Applications", icon: FileSpreadsheet },
-  { to: "/job-os/outreach", label: "Outreach", icon: Megaphone },
+  { to: appPath("/job-os/applications"), label: "Applications", icon: FileSpreadsheet },
+  { to: appPath("/job-os/outreach"), label: "Outreach", icon: Megaphone },
 ];
 
 const SYSTEM_NAV_ITEMS = [
-  { to: "/job-os/assets", label: "Assets", icon: FolderOpen },
-  { to: "/job-os/companies", label: "Companies", icon: Building2 },
-  { to: "/job-os/roles", label: "Roles", icon: FileText },
-  { to: "/job-os/settings", label: "Settings", icon: Settings },
+  { to: appPath("/job-os/assets"), label: "Assets", icon: FolderOpen },
+  { to: appPath("/job-os/companies"), label: "Companies", icon: Building2 },
+  { to: appPath("/job-os/roles"), label: "Roles", icon: FileText },
+  { to: appPath("/job-os/settings"), label: "Settings", icon: Settings },
 ];
 
 export function JobOsLayout({
@@ -47,9 +48,9 @@ export function JobOsLayout({
     ? new Date(jobOsSync.lastSyncedAt).toLocaleString()
     : "not yet synced";
   const inPipelineContext =
-    location.pathname === "/job-os" ||
-    location.pathname.startsWith("/job-os/applications") ||
-    location.pathname.startsWith("/job-os/outreach");
+    location.pathname === appPath("/job-os") ||
+    location.pathname.startsWith(appPath("/job-os/applications")) ||
+    location.pathname.startsWith(appPath("/job-os/outreach"));
   const navItems = inPipelineContext ? PIPELINE_NAV_ITEMS : SYSTEM_NAV_ITEMS;
 
   const settingsContent = session ? (
@@ -103,7 +104,7 @@ export function JobOsLayout({
           </nav>
           {!inPipelineContext ? (
             <NavLink
-              to="/cv-optimizer"
+              to={appPath("/cv-optimizer")}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
             >
               <WandSparkles className="h-3.5 w-3.5" />

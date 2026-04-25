@@ -16,6 +16,7 @@ import { useJobOsSyncSnapshot } from "../services/jobOsSync";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { trackPageView } from "../services/analytics";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { appPath } from "../routing";
 import {
   Sheet,
   SheetContent,
@@ -34,31 +35,31 @@ interface AppNavbarProps {
 
 const NAV_ITEMS = [
   {
-    to: "/",
+    to: appPath(),
     label: "Action",
     icon: LayoutDashboard,
-    matches: (pathname: string) => pathname === "/" || pathname === "/analytics",
+    matches: (pathname: string) => pathname === appPath() || pathname === appPath("/analytics"),
   },
   {
-    to: "/job-os/applications",
+    to: appPath("/job-os/applications"),
     label: "Pipeline",
     icon: BriefcaseBusiness,
     matches: (pathname: string) =>
-      pathname === "/job-os" ||
-      pathname === "/job-os/applications" ||
-      pathname === "/job-os/outreach",
+      pathname === appPath("/job-os") ||
+      pathname === appPath("/job-os/applications") ||
+      pathname === appPath("/job-os/outreach"),
   },
   {
-    to: "/job-os/assets",
+    to: appPath("/job-os/assets"),
     label: "System",
     icon: FolderOpen,
     matches: (pathname: string) =>
-      pathname === "/job-os/assets" ||
-      pathname === "/job-os/companies" ||
-      pathname === "/job-os/roles" ||
-      pathname === "/job-os/settings" ||
-      pathname === "/cv-optimizer" ||
-      pathname === "/compliance/afa",
+      pathname === appPath("/job-os/assets") ||
+      pathname === appPath("/job-os/companies") ||
+      pathname === appPath("/job-os/roles") ||
+      pathname === appPath("/job-os/settings") ||
+      pathname === appPath("/cv-optimizer") ||
+      pathname === appPath("/compliance/afa"),
   },
 ];
 
@@ -153,7 +154,7 @@ export function AppNavbar({
                     Private Access
                   </div>
                   <Link
-                    to="/compliance/afa"
+                    to={appPath("/compliance/afa")}
                     className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-900"
                   >
                     <Lock className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
@@ -227,7 +228,7 @@ export function AppNavbar({
             <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 mt-2">
               <SheetClose asChild>
                 <Link
-                  to="/compliance/afa"
+                  to={appPath("/compliance/afa")}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
                   <Lock className="w-4 h-4 shrink-0 text-neutral-500" />

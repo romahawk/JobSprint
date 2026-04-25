@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { PlusCircle, FileText, Building2, ClipboardList } from "lucide-react";
+import { appPath } from "../../routing";
 
 interface QuickAction {
   label: string;
@@ -12,25 +13,25 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     label: "Add Company",
     description: "Track a new target",
-    href: "/job-os/companies",
+    href: appPath("/job-os/companies"),
     icon: <Building2 className="h-4 w-4" />,
   },
   {
     label: "Log Application",
     description: "Record a submission",
-    href: "/job-os/applications",
+    href: appPath("/job-os/applications"),
     icon: <ClipboardList className="h-4 w-4" />,
   },
   {
     label: "Tailor CV",
     description: "Optimise for a role",
-    href: "/cv-optimizer",
+    href: appPath("/cv-optimizer"),
     icon: <FileText className="h-4 w-4" />,
   },
   {
     label: "Browse Roles",
     description: "Review your pipeline",
-    href: "/job-os/roles",
+    href: appPath("/job-os/roles"),
     icon: <PlusCircle className="h-4 w-4" />,
   },
 ];

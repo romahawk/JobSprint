@@ -14,12 +14,11 @@ test.describe("Authentication", () => {
     await page.locator("#email").fill("e2e@example.com");
     await page.locator("#password").fill("password123");
     await page.locator('button[type="submit"]').click();
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/app");
   });
 
   test("protected route redirects unauthenticated users to sign-in", async ({ page }) => {
-    // Visit a protected page without signing in first
-    await page.goto("/");
+    await page.goto("/app");
     await expect(page).toHaveURL("/signin");
   });
 });

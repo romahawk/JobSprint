@@ -1,40 +1,11 @@
 import { Link } from "react-router";
-import { PlusCircle, FileText, Building2, ClipboardList } from "lucide-react";
-import { appPath } from "../../routing";
 import { PlusCircle, FileText, ClipboardList, Rocket } from "lucide-react";
+import { appPath } from "../../routing";
 
 interface QuickActionsProps {
   onAddRole?: () => void;
 }
 
-const QUICK_ACTIONS: QuickAction[] = [
-  {
-    label: "Add Company",
-    description: "Track a new target",
-    href: appPath("/job-os/companies"),
-    icon: <Building2 className="h-4 w-4" />,
-  },
-  {
-    label: "Log Application",
-    description: "Record a submission",
-    href: appPath("/job-os/applications"),
-    icon: <ClipboardList className="h-4 w-4" />,
-  },
-  {
-    label: "Tailor CV",
-    description: "Optimise for a role",
-    href: appPath("/cv-optimizer"),
-    icon: <FileText className="h-4 w-4" />,
-  },
-  {
-    label: "Browse Roles",
-    description: "Review your pipeline",
-    href: appPath("/job-os/roles"),
-    icon: <PlusCircle className="h-4 w-4" />,
-  },
-];
-
-export function QuickActions() {
 export function QuickActions({ onAddRole }: QuickActionsProps) {
   return (
     <section className="space-y-3">
@@ -59,7 +30,7 @@ export function QuickActions({ onAddRole }: QuickActionsProps) {
         </button>
 
         <Link
-          to="/job-os/applications"
+          to={appPath("/job-os/applications")}
           className="flex flex-col items-center gap-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-center shadow-sm hover:border-primary/50 hover:bg-primary/5 transition-colors"
         >
           <span className="text-neutral-500 dark:text-neutral-400">
@@ -74,7 +45,7 @@ export function QuickActions({ onAddRole }: QuickActionsProps) {
         </Link>
 
         <Link
-          to="/cv-optimizer"
+          to={appPath("/cv-optimizer")}
           className="flex flex-col items-center gap-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-center shadow-sm hover:border-primary/50 hover:bg-primary/5 transition-colors"
         >
           <span className="text-neutral-500 dark:text-neutral-400">
@@ -89,7 +60,7 @@ export function QuickActions({ onAddRole }: QuickActionsProps) {
         </Link>
 
         <Link
-          to="/job-os/roles"
+          to={appPath("/job-os/roles")}
           className="flex flex-col items-center gap-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-center shadow-sm hover:border-primary/50 hover:bg-primary/5 transition-colors"
         >
           <span className="text-neutral-500 dark:text-neutral-400">

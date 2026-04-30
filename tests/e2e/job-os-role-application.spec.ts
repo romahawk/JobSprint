@@ -135,7 +135,7 @@ test("syncs role status changes into Applications and dashboard metrics", async 
       .getByRole("combobox")
   ).toContainText("Interview");
 
-  await page.goto("/");
+  await page.goto("/app");
   await expect(page.getByText("Pipeline Snapshot")).toBeVisible();
   await expect(
     page

@@ -16,6 +16,7 @@ import { useJobOsSyncSnapshot } from "../services/jobOsSync";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { trackPageView } from "../services/analytics";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { appPath } from "../routing";
 import {
   Sheet,
   SheetContent,
@@ -34,31 +35,31 @@ interface AppNavbarProps {
 
 const NAV_ITEMS = [
   {
-    to: "/",
+    to: appPath(),
     label: "Action",
     icon: LayoutDashboard,
-    matches: (pathname: string) => pathname === "/" || pathname === "/analytics",
+    matches: (pathname: string) => pathname === appPath() || pathname === appPath("/analytics"),
   },
   {
-    to: "/job-os/applications",
+    to: appPath("/job-os/applications"),
     label: "Pipeline",
     icon: BriefcaseBusiness,
     matches: (pathname: string) =>
-      pathname === "/job-os" ||
-      pathname === "/job-os/applications" ||
-      pathname === "/job-os/outreach",
+      pathname === appPath("/job-os") ||
+      pathname === appPath("/job-os/applications") ||
+      pathname === appPath("/job-os/outreach"),
   },
   {
-    to: "/job-os/assets",
+    to: appPath("/job-os/assets"),
     label: "System",
     icon: FolderOpen,
     matches: (pathname: string) =>
-      pathname === "/job-os/assets" ||
-      pathname === "/job-os/companies" ||
-      pathname === "/job-os/roles" ||
-      pathname === "/job-os/settings" ||
-      pathname === "/cv-optimizer" ||
-      pathname === "/compliance/afa",
+      pathname === appPath("/job-os/assets") ||
+      pathname === appPath("/job-os/companies") ||
+      pathname === appPath("/job-os/roles") ||
+      pathname === appPath("/job-os/settings") ||
+      pathname === appPath("/cv-optimizer") ||
+      pathname === appPath("/compliance/afa"),
   },
 ];
 

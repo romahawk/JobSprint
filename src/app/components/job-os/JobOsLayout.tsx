@@ -1,7 +1,8 @@
-import { NavLink, useLocation } from "react-router";
+import { NavLink } from "react-router";
 import { CommandCenter } from "./CommandCenter";
 import {
   Building2,
+  Compass,
   FileSpreadsheet,
   FileText,
   FolderOpen,
@@ -12,17 +13,19 @@ import {
 import { AppNavbar } from "../AppNavbar";
 import { useApp } from "../../context";
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
+import { appPath } from "../../routing";
 
-const PIPELINE_NAV_ITEMS = [
-  { to: "/job-os/applications", label: "Applications", icon: FileSpreadsheet },
-  { to: "/job-os/outreach", label: "Outreach", icon: Megaphone },
+const JOB_OS_NAV_ITEMS = [
+  { to: appPath("/job-os/sources"), label: "Sources", icon: Compass },
+  { to: appPath("/job-os/companies"), label: "Companies", icon: Building2 },
+  { to: appPath("/job-os/roles"), label: "Roles", icon: FileText },
+  { to: appPath("/job-os/applications"), label: "Applications", icon: FileSpreadsheet },
+  { to: appPath("/job-os/outreach"), label: "Outreach", icon: Megaphone },
+  { to: appPath("/job-os/assets"), label: "Assets", icon: FolderOpen },
 ];
 
-const SYSTEM_NAV_ITEMS = [
-  { to: "/job-os/assets", label: "Assets", icon: FolderOpen },
-  { to: "/job-os/companies", label: "Companies", icon: Building2 },
-  { to: "/job-os/roles", label: "Roles", icon: FileText },
-  { to: "/job-os/settings", label: "Settings", icon: Settings },
+const SETTINGS_NAV_ITEMS = [
+  { to: appPath("/job-os/settings"), label: "Settings", icon: Settings },
 ];
 
 export function JobOsLayout({
@@ -42,15 +45,10 @@ export function JobOsLayout({
 }) {
   const { session } = useApp();
   const jobOsSync = useJobOsSyncSnapshot();
-  const location = useLocation();
   const lastSyncedLabel = jobOsSync.lastSyncedAt
     ? new Date(jobOsSync.lastSyncedAt).toLocaleString()
     : "not yet synced";
-  const inPipelineContext =
-    location.pathname === "/job-os" ||
-    location.pathname.startsWith("/job-os/applications") ||
-    location.pathname.startsWith("/job-os/outreach");
-  const navItems = inPipelineContext ? PIPELINE_NAV_ITEMS : SYSTEM_NAV_ITEMS;
+  const navItems = JOB_OS_NAV_ITEMS;
 
   const settingsContent = session ? (
     <div className="rounded-md bg-white p-4 text-sm dark:bg-neutral-950">
@@ -101,15 +99,34 @@ export function JobOsLayout({
               );
             })}
           </nav>
-          {!inPipelineContext ? (
+          <div className="flex flex-wrap items-center gap-3">
+            {SETTINGS_NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `text-xs px-3 py-1.5 rounded-md border transition-colors inline-flex items-center gap-1.5 ${
+                      isActive
+                        ? "bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-100 dark:text-black dark:border-neutral-100"
+                        : "bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                    }`
+                  }
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {item.label}
+                </NavLink>
+              );
+            })}
             <NavLink
-              to="/cv-optimizer"
+              to={appPath("/cv-optimizer")}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
             >
               <WandSparkles className="h-3.5 w-3.5" />
               CV Optimizer
             </NavLink>
-          ) : null}
+          </div>
         </div>
       </div>
       <CommandCenter />

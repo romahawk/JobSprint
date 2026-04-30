@@ -57,5 +57,5 @@ export async function signIn(page: Page, email = "e2e@example.com"): Promise<voi
   await page.locator("#email").fill(email);
   await page.locator("#password").fill("password123");
   await page.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/app");
 }

@@ -41,6 +41,7 @@ import { usePagination } from "../../hooks/usePagination";
 import { PaginationControls } from "../../components/ui/PaginationControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
+import { appPath } from "../../routing";
 import { getRecommendedCvForTrack } from "../../services/cvAssets";
 import type { JobOsRole, JobTrack, RoleStatus } from "../../types/jobOs";
 
@@ -911,7 +912,7 @@ export default function JobOsRolesPage() {
                       <TooltipTrigger asChild>
                         <span className="inline-flex">
                           <Button asChild size="icon" variant="secondary" aria-label="Tailor CV">
-                            <Link to={`/cv-optimizer?roleId=${role.id}`}>
+                            <Link to={`${appPath("/cv-optimizer")}?roleId=${role.id}`}>
                               <WandSparkles className="h-4 w-4" />
                             </Link>
                           </Button>

@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { Button } from "../components/ui/button";
 import { Home } from "lucide-react";
+import { appPath } from "../routing";
 
 export default function NotFound() {
   return (
@@ -12,7 +13,7 @@ export default function NotFound() {
         <p className="text-neutral-600 dark:text-neutral-400 mb-8">
           Page not found
         </p>
-        <Link to="/">
+        <Link to={appPath()}>
           <Button className="gap-2">
             <Home className="w-4 h-4" />
             Back to Dashboard

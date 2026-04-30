@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import { appPath } from "../../routing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -597,7 +598,7 @@ export default function JobOsAssetsPage() {
                               return (
                                 <Link
                                   key={application.id}
-                                  to={`/cv-optimizer?applicationId=${application.id}`}
+                                  to={`${appPath("/cv-optimizer")}?applicationId=${application.id}`}
                                   className="rounded-full border border-border px-3 py-1.5 text-xs transition-colors hover:border-brand-blue/40 hover:bg-brand-blue/5"
                                 >
                                   {companyName} - {roleTitle} - {getApplicationCvLabel(application, assets.cvs)}

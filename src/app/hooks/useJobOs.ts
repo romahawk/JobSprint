@@ -20,6 +20,7 @@ import type {
   ApplicationStatus,
   CvProfile,
   CvTailoringRun,
+  ExtendedJobTrack,
   JobDescription,
   JobOsApplication,
   JobOsCompany,
@@ -29,11 +30,14 @@ import type {
   JobOsScriptAsset,
   JobOsState,
   JobOsTemplateAsset,
+  JobSource,
   RoleStatus,
+  SavedSearch,
 } from "../types/jobOs";
 import {
   EMPTY_JOB_OS_STATE,
   JOB_OS_COLLECTION_KEYS,
+  type JobOsCollectionKey,
   normalizeJobOsState,
 } from "../services/jobOsState";
 import {
@@ -44,7 +48,9 @@ import {
 import { normalizeApplicationNextActionForStatus } from "../services/jobOsApplications";
 
 const LOCAL_KEY_PREFIX = "job_os_v1";
+const DISCOVERY_SEED_KEY_PREFIX = "job_os_sources_seeded_v1";
 const MUTATION_TIMEOUT_MS = 12000;
+type SyncedCollectionKey = JobOsCollectionKey;
 
 function normalizeCompanyName(value: unknown): string {
   return String(value ?? "")
@@ -85,6 +91,26 @@ function dedupeCompanies(items: JobOsCompany[]): JobOsCompany[] {
 
 function localKey(userId: string): string {
   return `${LOCAL_KEY_PREFIX}_${userId}`;
+}
+
+function discoverySeedKey(userId: string): string {
+  return `${DISCOVERY_SEED_KEY_PREFIX}_${userId}`;
+}
+
+function hasSeededDiscoveryDefaults(userId: string): boolean {
+  try {
+    return localStorage.getItem(discoverySeedKey(userId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markDiscoveryDefaultsSeeded(userId: string): void {
+  try {
+    localStorage.setItem(discoverySeedKey(userId), "1");
+  } catch {
+    // Best-effort only.
+  }
 }
 
 function readLocal(userId: string): JobOsState {
@@ -193,6 +219,183 @@ function stripUndefinedValue(value: unknown): unknown {
   return value;
 }
 
+function buildDefaultSourceSeedPayloads(): Array<
+  Omit<JobSource, "id" | "createdAt" | "updatedAt">
+> {
+  return [
+    {
+      name: "LinkedIn",
+      url: "https://www.linkedin.com/jobs/search/?keywords=technical%20product%20manager&location=Europe",
+      category: "general",
+      priority: "A",
+      bestFor: "Broad market scan, recruiters, TPM/Product roles",
+      cadence: "daily",
+      notes: "Use for daily market scanning and recruiter signal checks.",
+      active: true,
+    },
+    {
+      name: "Wellfound",
+      url: "https://wellfound.com/jobs?query=product%20manager%20remote",
+      category: "startup",
+      priority: "A",
+      bestFor: "Startups, remote-first product and builder roles",
+      cadence: "twice_weekly",
+      notes: "High-signal startup and builder-market pipeline.",
+      active: true,
+    },
+    {
+      name: "MyGreenhouse",
+      url: "https://my.greenhouse.io/jobs?query=product",
+      category: "ats",
+      priority: "A",
+      bestFor: "Direct ATS discovery and company pipelines",
+      cadence: "twice_weekly",
+      notes: "Use for direct ATS discovery across target companies.",
+      active: true,
+    },
+    {
+      name: "We Work Remotely",
+      url: "https://weworkremotely.com/remote-jobs/search?term=product",
+      category: "remote",
+      priority: "B",
+      bestFor: "Remote-first roles",
+      cadence: "twice_weekly",
+      notes: "Strong for remote-first operating models.",
+      active: true,
+    },
+    {
+      name: "Himalayas",
+      url: "https://himalayas.app/jobs?search=product%20manager",
+      category: "remote",
+      priority: "B",
+      bestFor: "Remote roles and structured job discovery",
+      cadence: "twice_weekly",
+      notes: "Useful when you want structured remote discovery.",
+      active: true,
+    },
+    {
+      name: "Glassdoor",
+      url: "https://www.glassdoor.com/Job/product-manager-jobs-SRCH_KO0,15.htm",
+      category: "research",
+      priority: "B",
+      bestFor: "Company research, salaries, reviews",
+      cadence: "weekly",
+      notes: "Use more for research than top-of-funnel capture.",
+      active: true,
+    },
+    {
+      name: "Indeed Germany",
+      url: "https://de.indeed.com/jobs?q=product+manager&l=Germany",
+      category: "general",
+      priority: "C",
+      bestFor: "Local German market scan",
+      cadence: "weekly",
+      notes: "Use for local market coverage and volume scanning.",
+      active: true,
+    },
+    {
+      name: "Welcome to the Jungle",
+      url: "https://www.welcometothejungle.com/en/jobs?query=product",
+      category: "startup",
+      priority: "B",
+      bestFor: "European startups and scaleups",
+      cadence: "weekly",
+      notes: "Helpful for European startup and scaleup coverage.",
+      active: true,
+    },
+  ];
+}
+
+function buildDefaultSavedSearchSeedPayloads(
+  sourceIdByName: Map<string, string>
+): Array<Omit<SavedSearch, "id" | "createdAt" | "updatedAt">> {
+  const search = (
+    sourceName: string,
+    name: string,
+    query: string,
+    targetTrack: ExtendedJobTrack,
+    priority: SavedSearch["priority"],
+    cadence: SavedSearch["cadence"],
+    url: string
+  ): Omit<SavedSearch, "id" | "createdAt" | "updatedAt"> => ({
+    sourceId: sourceIdByName.get(sourceName) ?? "",
+    name,
+    query,
+    url,
+    targetTrack,
+    priority,
+    cadence,
+    active: true,
+    notes: "",
+  });
+
+  return [
+    search(
+      "LinkedIn",
+      "TPM Remote Europe",
+      "technical product manager remote europe",
+      "TPM",
+      "A",
+      "daily",
+      "https://www.linkedin.com/jobs/search/?keywords=technical%20product%20manager&location=Europe&f_WT=2"
+    ),
+    search(
+      "Indeed Germany",
+      "AI Product Manager Germany",
+      "ai product manager germany english",
+      "AI Product",
+      "A",
+      "twice_weekly",
+      "https://de.indeed.com/jobs?q=AI+Product+Manager&l=Germany"
+    ),
+    search(
+      "Wellfound",
+      "Product Engineer Remote",
+      "product engineer remote",
+      "Product Engineer",
+      "A",
+      "twice_weekly",
+      "https://wellfound.com/jobs?query=product%20engineer%20remote"
+    ),
+    search(
+      "LinkedIn",
+      "MedTech Product Germany",
+      "medtech product manager germany",
+      "MedTech Product",
+      "B",
+      "weekly",
+      "https://www.linkedin.com/jobs/search/?keywords=medtech%20product%20manager&location=Germany"
+    ),
+    search(
+      "LinkedIn",
+      "Implementation / Solutions Manager Germany",
+      "implementation manager germany OR solutions manager germany",
+      "Implementation",
+      "A",
+      "twice_weekly",
+      "https://www.linkedin.com/jobs/search/?keywords=implementation%20manager&location=Germany"
+    ),
+    search(
+      "We Work Remotely",
+      "Remote Product Roles",
+      "remote product manager OR product operations",
+      "Other",
+      "B",
+      "weekly",
+      "https://weworkremotely.com/remote-jobs/search?term=product%20manager"
+    ),
+    search(
+      "Indeed Germany",
+      "English-speaking Product Germany",
+      "english product manager germany",
+      "Other",
+      "B",
+      "weekly",
+      "https://de.indeed.com/jobs?q=english+product+manager&l=Germany"
+    ),
+  ].filter((item) => item.sourceId);
+}
+
 function syncApplicationCvLabels(
   applications: JobOsApplication[],
   previousCvs: JobOsCvAsset[],
@@ -288,24 +491,28 @@ function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
 
 function isOfflineLike(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
+  const code =
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+      ? ((error as { code: string }).code || "").toLowerCase()
+      : "";
   return (
+    code.includes("permission-denied") ||
+    code.includes("unauthenticated") ||
     message.includes("timed out") ||
     message.includes("offline") ||
     message.includes("network") ||
-    message.includes("unavailable")
+    message.includes("unavailable") ||
+    message.includes("insufficient permissions") ||
+    message.includes("missing or insufficient permissions")
   );
 }
 
 function collectionDoc<T extends { id: string }>(
   state: JobOsState,
-  key:
-    | "companies"
-    | "roles"
-    | "applications"
-    | "outreach"
-    | "cvProfiles"
-    | "jobDescriptions"
-    | "cvTailoringRuns",
+  key: SyncedCollectionKey,
   id: string,
   updater: (existing: T) => T
 ): JobOsState {
@@ -335,6 +542,12 @@ export interface UseJobOsReturn extends JobOsState {
   addTemplate: (payload: Omit<JobOsTemplateAsset, "id" | "createdAt" | "updatedAt">) => Promise<void>;
   updateTemplate: (id: string, updates: Partial<JobOsTemplateAsset>) => Promise<void>;
   removeTemplate: (id: string) => Promise<void>;
+  addSource: (payload: Omit<JobSource, "id" | "createdAt" | "updatedAt">) => Promise<string | null>;
+  updateSource: (id: string, updates: Partial<JobSource>) => Promise<void>;
+  removeSource: (id: string) => Promise<void>;
+  addSavedSearch: (payload: Omit<SavedSearch, "id" | "createdAt" | "updatedAt">) => Promise<string | null>;
+  updateSavedSearch: (id: string, updates: Partial<SavedSearch>) => Promise<void>;
+  removeSavedSearch: (id: string) => Promise<void>;
   addCompany: (payload: Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">) => Promise<string | null>;
   updateCompany: (id: string, updates: Partial<JobOsCompany>) => Promise<void>;
   addRole: (payload: Omit<JobOsRole, "id" | "createdAt" | "updatedAt">) => Promise<string | null>;
@@ -374,6 +587,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
   const [localOnly, setLocalOnly] = useState(false);
   const [pendingWrites, setPendingWrites] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [seedingDiscoveryDefaults, setSeedingDiscoveryDefaults] = useState(false);
   const effectiveState = userId ? state : EMPTY_JOB_OS_STATE;
   const effectiveLoading = userId ? loading : false;
   const effectiveSyncNotice = userId
@@ -402,6 +616,8 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     const unsubscribers: Array<() => void> = [];
     const SUBSCRIPTION_KEYS = [
       "assets",
+      "sources",
+      "savedSearches",
       "companies",
       "roles",
       "applications",
@@ -418,14 +634,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
       }
     };
     const subscribeCollection = (
-      name:
-        | "companies"
-        | "roles"
-        | "applications"
-        | "outreach"
-        | "cvProfiles"
-        | "jobDescriptions"
-        | "cvTailoringRuns",
+      name: SyncedCollectionKey,
       mapper: (id: string, data: DocumentData) => unknown
     ) => {
       const ref = collection(firebase.db, "users", userId, name);
@@ -483,6 +692,8 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           const remote = snapshot.exists()
             ? normalizeJobOsState({
                 assets: snapshot.data() as JobOsState["assets"],
+                sources: prev.sources,
+                savedSearches: prev.savedSearches,
                 companies: prev.companies,
                 roles: prev.roles,
                 applications: prev.applications,
@@ -508,6 +719,12 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     );
     unsubscribers.push(assetsUnsub);
 
+    subscribeCollection("sources", (id, data) =>
+      withTimestamps({ ...(data as Record<string, unknown>), id })
+    );
+    subscribeCollection("savedSearches", (id, data) =>
+      withTimestamps({ ...(data as Record<string, unknown>), id })
+    );
     subscribeCollection("companies", (id, data) =>
       withTimestamps({ ...(data as Record<string, unknown>), id })
     );
@@ -960,14 +1177,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
 
   const addCollectionItem = useCallback(
     async <T extends { id: string; createdAt: string }>(
-      key:
-        | "companies"
-        | "roles"
-        | "applications"
-        | "outreach"
-        | "cvProfiles"
-        | "jobDescriptions"
-        | "cvTailoringRuns",
+      key: SyncedCollectionKey,
       prefix: string,
       payload: Omit<T, "id" | "createdAt">,
       options?: { hasUpdatedAt?: boolean }
@@ -1060,14 +1270,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
 
   const updateCollectionItem = useCallback(
     async <T extends { id: string }>(
-      key:
-        | "companies"
-        | "roles"
-        | "applications"
-        | "outreach"
-        | "cvProfiles"
-        | "jobDescriptions"
-        | "cvTailoringRuns",
+      key: SyncedCollectionKey,
       id: string,
       updates: Partial<T>,
       options?: { hasUpdatedAt?: boolean }
@@ -1107,14 +1310,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
 
   const removeCollectionItem = useCallback(
     async (
-      key:
-        | "companies"
-        | "roles"
-        | "applications"
-        | "outreach"
-        | "cvProfiles"
-        | "jobDescriptions"
-        | "cvTailoringRuns",
+      key: SyncedCollectionKey,
       id: string
     ) => {
       await mutate(
@@ -1139,6 +1335,78 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
     },
     [firebase, localOnly, mutate, userId]
   );
+
+  useEffect(() => {
+    if (!userId || loading || seedingDiscoveryDefaults) {
+      return;
+    }
+
+    if (hasSeededDiscoveryDefaults(userId)) {
+      return;
+    }
+
+    if (state.sources.length > 0 && state.savedSearches.length > 0) {
+      markDiscoveryDefaultsSeeded(userId);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function seedDefaults(): Promise<void> {
+      setSeedingDiscoveryDefaults(true);
+      try {
+        const sourceIdByName = new Map(state.sources.map((source) => [source.name, source.id]));
+
+        if (state.sources.length === 0) {
+          for (const source of buildDefaultSourceSeedPayloads()) {
+            if (cancelled) return;
+            const createdId = await addCollectionItem<JobSource>(
+              "sources",
+              "source",
+              source,
+              { hasUpdatedAt: true }
+            );
+            if (createdId) {
+              sourceIdByName.set(source.name, createdId);
+            }
+          }
+        }
+
+        if (state.savedSearches.length === 0) {
+          for (const search of buildDefaultSavedSearchSeedPayloads(sourceIdByName)) {
+            if (cancelled) return;
+            await addCollectionItem<SavedSearch>(
+              "savedSearches",
+              "saved-search",
+              search,
+              { hasUpdatedAt: true }
+            );
+          }
+        }
+
+        if (!cancelled) {
+          markDiscoveryDefaultsSeeded(userId);
+        }
+      } finally {
+        if (!cancelled) {
+          setSeedingDiscoveryDefaults(false);
+        }
+      }
+    }
+
+    void seedDefaults();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    addCollectionItem,
+    loading,
+    seedingDiscoveryDefaults,
+    state.savedSearches,
+    state.sources,
+    userId,
+  ]);
 
   const importAll = useCallback(
     async (data: {
@@ -1234,6 +1502,20 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
         addTemplate,
         updateTemplate,
         removeTemplate,
+        addSource: (payload: Omit<JobSource, "id" | "createdAt" | "updatedAt">) =>
+          addCollectionItem<JobSource>("sources", "source", payload, { hasUpdatedAt: true }),
+        updateSource: (id: string, updates: Partial<JobSource>) =>
+          updateCollectionItem<JobSource>("sources", id, updates, { hasUpdatedAt: true }),
+        removeSource: (id: string) => removeCollectionItem("sources", id),
+        addSavedSearch: (payload: Omit<SavedSearch, "id" | "createdAt" | "updatedAt">) =>
+          addCollectionItem<SavedSearch>("savedSearches", "saved-search", payload, {
+            hasUpdatedAt: true,
+          }),
+        updateSavedSearch: (id: string, updates: Partial<SavedSearch>) =>
+          updateCollectionItem<SavedSearch>("savedSearches", id, updates, {
+            hasUpdatedAt: true,
+          }),
+        removeSavedSearch: (id: string) => removeCollectionItem("savedSearches", id),
         addCompany: (payload: Omit<JobOsCompany, "id" | "createdAt" | "updatedAt">) =>
           addCollectionItem<JobOsCompany>("companies", "company", payload, { hasUpdatedAt: true }),
         updateCompany: (id: string, updates: Partial<JobOsCompany>) =>

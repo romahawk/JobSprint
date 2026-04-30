@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useApp } from "../context";
+import { appPath } from "../routing";
 
 export default function SignIn() {
   const { session, signIn, signInWithGoogle, supportsGoogleSignIn, authLoading, resetPassword } = useApp();
@@ -18,7 +19,7 @@ export default function SignIn() {
   const [resetError, setResetError] = useState("");
 
   if (session) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={appPath()} replace />;
   }
 
   const handleSubmit = async (event: React.FormEvent) => {

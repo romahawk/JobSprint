@@ -44,6 +44,7 @@ import {
 } from "../../services/jobOsApplications";
 import { getApplicationCvLabel, getDefaultCvAsset } from "../../services/cvAssets";
 import { ApplicationQualityBadge } from "../../components/job-os/ApplicationQualityBadge";
+import { appPath } from "../../routing";
 import type { ApplicationStatus, JobOsApplication, JobOsCompany, JobOsRole } from "../../types/jobOs";
 
 const STATUS_VALUES: ApplicationStatus[] = [
@@ -903,7 +904,7 @@ export default function JobOsApplicationsPage() {
               <div className="flex flex-wrap justify-between gap-2">
                 <div className="flex gap-2">
                   <Button asChild variant="outline">
-                    <Link to={`/cv-optimizer?applicationId=${detailApplication.id}`}>Tailor CV</Link>
+                    <Link to={`${appPath("/cv-optimizer")}?applicationId=${detailApplication.id}`}>Tailor CV</Link>
                   </Button>
                   <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                     <Button

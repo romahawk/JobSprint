@@ -5,9 +5,11 @@ import type {
   JobOsApplication,
   JobOsCompany,
   JobOsCvAsset,
+  JobSource,
   JobOsScriptAsset,
   JobOsState,
   JobOsTemplateAsset,
+  SavedSearch,
 } from "../types/jobOs";
 import { normalizeCvDefaults } from "./cvAssets";
 
@@ -70,6 +72,8 @@ export const DEFAULT_CV_PROFILES: CvProfile[] = [
 
 export const EMPTY_JOB_OS_STATE: JobOsState = {
   assets: { cvs: [], scripts: [], templates: [] },
+  sources: [],
+  savedSearches: [],
   companies: [],
   roles: [],
   applications: [],
@@ -80,6 +84,8 @@ export const EMPTY_JOB_OS_STATE: JobOsState = {
 };
 
 export const JOB_OS_COLLECTION_KEYS = [
+  "sources",
+  "savedSearches",
   "companies",
   "roles",
   "applications",
@@ -148,6 +154,16 @@ export function normalizeJobOsState(raw: unknown): JobOsState {
           ) as JobOsTemplateAsset[])
         : [],
     },
+    sources: Array.isArray(maybe.sources)
+      ? (maybe.sources.map((value) =>
+          withTimestamps(value as Record<string, unknown>)
+        ) as JobSource[])
+      : [],
+    savedSearches: Array.isArray(maybe.savedSearches)
+      ? (maybe.savedSearches.map((value) =>
+          withTimestamps(value as Record<string, unknown>)
+        ) as SavedSearch[])
+      : [],
     companies: Array.isArray(maybe.companies)
       ? (maybe.companies.map((value) =>
           withTimestamps(value as Record<string, unknown>)

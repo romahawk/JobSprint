@@ -15,6 +15,7 @@ const DashboardPage = lazy(() =>
 const Analytics = lazy(() => import("./pages/Analytics"));
 const JobOsAssetsPage = lazy(() => import("./pages/job-os/JobOsAssetsPage"));
 const JobOsCompaniesPage = lazy(() => import("./pages/job-os/JobOsCompaniesPage"));
+const JobOsSourcesPage = lazy(() => import("./pages/job-os/JobOsSourcesPage"));
 const JobOsRolesPage = lazy(() => import("./pages/job-os/JobOsRolesPage"));
 const JobOsApplicationsPage = lazy(() => import("./pages/job-os/JobOsApplicationsPage"));
 const JobOsAfaReportPage = lazy(() => import("./pages/job-os/JobOsAfaReportPage"));
@@ -48,12 +49,13 @@ export const router = createBrowserRouter([
     Component: PublicJobOsReportProvider,
     children: [
       {
-        path: "/job-os/afa-report",
+        path: "job-os/afa-report",
         element: lazyElement(<JobOsAfaReportPage />),
       },
     ],
   },
   {
+    path: "/app",
     Component: ProtectedRoute,
     children: [
       {
@@ -77,7 +79,11 @@ export const router = createBrowserRouter([
         children: [
           {
             path: "job-os",
-            element: lazyElement(<JobOsApplicationsPage />),
+            element: lazyElement(<JobOsSourcesPage />),
+          },
+          {
+            path: "job-os/sources",
+            element: lazyElement(<JobOsSourcesPage />),
           },
           {
             path: "job-os/assets",
@@ -134,6 +140,10 @@ export const router = createBrowserRouter([
   {
     path: "/job-os/assets",
     element: <Navigate to={appPath("/job-os/assets")} replace />,
+  },
+  {
+    path: "/job-os/sources",
+    element: <Navigate to={appPath("/job-os/sources")} replace />,
   },
   {
     path: "/job-os/companies",

@@ -1,4 +1,32 @@
 export type JobTrack = "TPM" | "Product Engineer" | "Systems PM";
+export type JobSourcePriority = "A" | "B" | "C";
+export type JobSourceCategory =
+  | "general"
+  | "remote"
+  | "startup"
+  | "ats"
+  | "company_career"
+  | "community"
+  | "recruiter"
+  | "research";
+export type SourceCadence =
+  | "daily"
+  | "twice_weekly"
+  | "weekly"
+  | "manual";
+export type DiscoveryStatus =
+  | "discovered"
+  | "qualified"
+  | "to_apply"
+  | "applied"
+  | "rejected"
+  | "archived";
+export type ExtendedJobTrack =
+  | JobTrack
+  | "Implementation"
+  | "AI Product"
+  | "MedTech Product"
+  | "Other";
 export type CvTargetTrack = "TPM" | "PO" | "Implementation";
 export type AiImportSchemaVersion = "ai_import_v1";
 export type AiImportConfidenceLevel = "low" | "medium" | "high";
@@ -254,6 +282,39 @@ export interface JobOsCompany {
   updatedAt: string;
 }
 
+export interface JobSource {
+  id: string;
+  clientRequestId?: string;
+  name: string;
+  url: string;
+  category: JobSourceCategory;
+  priority: JobSourcePriority;
+  bestFor: string;
+  cadence: SourceCadence;
+  lastCheckedAt?: string;
+  notes?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedSearch {
+  id: string;
+  clientRequestId?: string;
+  sourceId: string;
+  name: string;
+  query: string;
+  url: string;
+  targetTrack: ExtendedJobTrack;
+  priority: JobSourcePriority;
+  cadence: SourceCadence;
+  lastCheckedAt?: string;
+  active: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface JobOsRole {
   id: string;
   clientRequestId?: string;
@@ -269,6 +330,13 @@ export interface JobOsRole {
   origin?: "self_sourced" | "recruiter"; // how the candidate discovered the role
   jobDescription?: string;
   jobDescriptionUpdatedAt?: string;
+  sourceId?: string;
+  savedSearchId?: string;
+  sourceUrl?: string;
+  discoveryStatus?: DiscoveryStatus;
+  qualificationNotes?: string;
+  qualificationRisks?: string;
+  nextStep?: string;
   // Ingestion / import metadata (optional — backwards compatible)
   sourceType?: "manual" | "csv" | "link" | "generated";
   sourcePlatform?: string;
@@ -385,6 +453,8 @@ export interface JobOsState {
     scripts: JobOsScriptAsset[];
     templates: JobOsTemplateAsset[];
   };
+  sources: JobSource[];
+  savedSearches: SavedSearch[];
   companies: JobOsCompany[];
   roles: JobOsRole[];
   applications: JobOsApplication[];

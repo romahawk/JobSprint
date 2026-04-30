@@ -6,6 +6,22 @@ The format follows Keep a Changelog principles and this project uses date-based 
 
 ## [Unreleased]
 
+### Added (2026-04-29 — Repo Audit)
+
+- `docs/ARCHITECTURE.md`: full rewrite documenting current data model, navigation structure, persistence modes, and known structure issues (migration backlog).
+- `docs/SPRINT_BACKLOG.md`: replaced outdated Month-3 backlog with current P0/P1/P2/P3 priorities.
+- `docs/NEXT_SESSION_START.md`: updated with post-audit state, uncommitted work summary, and recommended next issues.
+- `docs/ROADMAP.md`: updated completion snapshot and next 3-month focus.
+- `README.md`: rewritten to reflect all current product modules (Source Hub, Assets Vault, AfA Compliance, CV Optimizer).
+- `CLAUDE.md`: added Product Workflow section anchoring Source Hub as top-of-funnel.
+
+### Changed (2026-04-29 — Repo Audit)
+
+- `origin/dev` remote branch deleted (fully merged into main, no unique work).
+- `origin/feat/131-source-hub-workflow` remote branch deleted (PR #152 merged, no unique remote work).
+- 11 local merged branches deleted.
+- 3 stale git worktrees pruned (`.worktrees/issue-131`, `JobSprint-jobos`, `pr-137-fix`).
+
 ### Added
 
 - Wave 2 UX feedback loops: empty states, loading skeletons, unsaved-changes guard.

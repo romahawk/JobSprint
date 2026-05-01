@@ -26,7 +26,7 @@ import {
 } from "./ui/sheet";
 
 interface AppNavbarProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   rightActions?: React.ReactNode;
   showSync?: boolean;
@@ -38,34 +38,35 @@ const NAV_ITEMS = [
     to: appPath(),
     label: "Action",
     icon: LayoutDashboard,
-    matches: (pathname: string) => pathname === appPath() || pathname === appPath("/analytics"),
+    matches: (pathname: string) =>
+      pathname === appPath() ||
+      pathname === appPath("/analytics") ||
+      pathname.startsWith(appPath("/job-os/sources")),
   },
   {
-    to: appPath("/job-os/applications"),
+    to: appPath("/job-os/roles"),
     label: "Pipeline",
     icon: BriefcaseBusiness,
     matches: (pathname: string) =>
       pathname === appPath("/job-os") ||
-      pathname === appPath("/job-os/applications") ||
-      pathname === appPath("/job-os/outreach"),
+      pathname.startsWith(appPath("/job-os/roles")) ||
+      pathname.startsWith(appPath("/job-os/applications")) ||
+      pathname.startsWith(appPath("/job-os/outreach")),
   },
   {
-    to: appPath("/job-os/assets"),
+    to: appPath("/job-os/companies"),
     label: "System",
     icon: FolderOpen,
     matches: (pathname: string) =>
-      pathname === appPath("/job-os/assets") ||
-      pathname === appPath("/job-os/companies") ||
-      pathname === appPath("/job-os/roles") ||
-      pathname === appPath("/job-os/settings") ||
-      pathname === appPath("/cv-optimizer") ||
-      pathname === appPath("/compliance/afa"),
+      pathname.startsWith(appPath("/job-os/companies")) ||
+      pathname.startsWith(appPath("/job-os/assets")) ||
+      pathname.startsWith(appPath("/job-os/settings")) ||
+      pathname.startsWith(appPath("/cv-optimizer")) ||
+      pathname.startsWith(appPath("/compliance/afa")),
   },
 ];
 
 export function AppNavbar({
-  title,
-  subtitle,
   rightActions,
   showSync = false,
   settingsContent,
@@ -77,7 +78,6 @@ export function AppNavbar({
   const hasSettingsMenu = Boolean(settingsContent);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Close drawer on navigation
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
@@ -104,7 +104,7 @@ export function AppNavbar({
             </button>
 
             <span className="text-base font-bold text-white tracking-tight">
-              {title}
+              JobSprint OS
             </span>
 
             {/* Desktop nav */}
@@ -187,12 +187,6 @@ export function AppNavbar({
             </button>
           </div>
         </div>
-
-        {subtitle && (
-          <div className="pb-1.5 -mt-1 text-xs text-white/45 truncate">
-            {subtitle}
-          </div>
-        )}
       </div>
 
       {/* Mobile nav drawer */}
@@ -200,7 +194,7 @@ export function AppNavbar({
         <SheetContent side="left" className="w-72 p-0 flex flex-col">
           <SheetHeader className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
             <SheetTitle className="text-base font-bold tracking-tight">
-              JobSprint
+              JobSprint OS
             </SheetTitle>
           </SheetHeader>
 

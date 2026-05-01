@@ -53,7 +53,8 @@ type RoleSortKey =
   | "seniority"
   | "track"
   | "fitScore"
-  | "status";
+  | "status"
+  | "createdAt";
 
 const ROLE_STATUSES: RoleStatus[] = ["to_apply", "applied", "interview", "rejected", "offer", "closed"];
 const SENIORITY_OPTIONS = ["Senior", "Middle", "Junior"] as const;
@@ -102,8 +103,8 @@ export default function JobOsRolesPage() {
   const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> | null>(null);
   const [formNotice, setFormNotice] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<{ tone: "success" | "error"; message: string } | null>(null);
-  const [sortKey, setSortKey] = useState<RoleSortKey>("title");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortKey, setSortKey] = useState<RoleSortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [tableFilters, setTableFilters] = useState<RoleTableFilters>({
     company: "",
     title: "",
@@ -204,6 +205,12 @@ export default function JobOsRolesPage() {
             (seniorityRank[normalizeSeniority(a.seniority)] ?? 999) -
             (seniorityRank[normalizeSeniority(b.seniority)] ?? 999);
           break;
+        case "createdAt": {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          cmp = (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+          break;
+        }
         case "location":
         case "title":
         case "track":
@@ -572,6 +579,7 @@ export default function JobOsRolesPage() {
                 <TableHead>{renderSortHeader("Track", "track")}</TableHead>
                 <TableHead>{renderSortHeader("Fit", "fitScore")}</TableHead>
                 <TableHead>{renderSortHeader("Status", "status")}</TableHead>
+                <TableHead>{renderSortHeader("Added", "createdAt")}</TableHead>
                 <TableHead>JD</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -670,6 +678,7 @@ export default function JobOsRolesPage() {
                     </SelectContent>
                   </Select>
                 </TableHead>
+                <TableHead />
                 <TableHead />
                 <TableHead />
               </TableRow>
@@ -803,6 +812,9 @@ export default function JobOsRolesPage() {
                         <SelectContent>{ROLE_STATUSES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent>
                       </Select>
                     )}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    {role.createdAt ? role.createdAt.slice(0, 10) : "—"}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {role.jobDescription || (editingRoleId === role.id && editDraft?.jobDescription) ? (

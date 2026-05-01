@@ -560,8 +560,6 @@ export default function JobOsSourcesPage() {
 
   return (
     <JobOsLayout
-      title="Source Hub"
-      subtitle="Search less randomly. Scan high-signal sources, capture roles, and qualify only the roles worth applying to."
       notice={syncNotice}
       settingsFooter={
         <JobOsTransferControls getExportState={exportState} onImportState={replaceState} />

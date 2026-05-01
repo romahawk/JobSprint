@@ -459,8 +459,6 @@ export default function JobOsApplicationsPage() {
 
   return (
     <JobOsLayout
-      title="Applications"
-      subtitle="Pipeline control surface for submitted applications"
       notice={syncNotice}
       settingsFooter={
         <JobOsTransferControls getExportState={exportState} onImportState={replaceState} />

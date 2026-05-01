@@ -38,6 +38,18 @@ function toUserId(email: string) {
   return `user_${email.trim().toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
 }
 
+function readStoredSession(storage: StorageLike): UserSession | null {
+  const raw = storage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as UserSession;
+    if (!parsed?.email || !parsed?.userId) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveFirebaseSession(user: User) {
   if (!user.uid || !user.email) {
     throw new Error("Unable to establish session.");
@@ -65,6 +77,11 @@ export function createAuthService(storage: StorageLike): AuthService {
         const current = firebase.auth.currentUser;
         if (current?.uid && current.email) {
           return resolveFirebaseSession(current);
+        }
+
+        const storedSession = readStoredSession(storage);
+        if (storedSession) {
+          return storedSession;
         }
 
         return await new Promise<UserSession | null>((resolve) => {
@@ -177,15 +194,7 @@ export function createAuthService(storage: StorageLike): AuthService {
   return {
     supportsGoogleSignIn: false,
     async bootstrapSession() {
-      const raw = storage.getItem(SESSION_KEY);
-      if (!raw) return null;
-      try {
-        const parsed = JSON.parse(raw) as UserSession;
-        if (!parsed?.email || !parsed?.userId) return null;
-        return parsed;
-      } catch {
-        return null;
-      }
+      return readStoredSession(storage);
     },
     async signIn(email: string) {
       const normalizedEmail = email.trim().toLowerCase();

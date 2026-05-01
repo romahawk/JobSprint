@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, Navigate } from "react-router";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -8,6 +8,8 @@ import {
   Workflow,
 } from "lucide-react";
 import { Button } from "../app/components/ui/button";
+import { useApp } from "../app/context";
+import { appPath } from "../app/routing";
 
 const PROOF_POINTS = [
   {
@@ -37,6 +39,20 @@ const FEATURE_STRIPS = [
 ];
 
 export default function LandingPage() {
+  const { session, authLoading } = useApp();
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-neutral-400 dark:text-neutral-600">
+        Loading session...
+      </div>
+    );
+  }
+
+  if (session) {
+    return <Navigate to={appPath()} replace />;
+  }
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_42%,#f7f7f2_100%)] text-slate-950">
       <div className="absolute inset-x-0 top-0 -z-10 h-[34rem] bg-[radial-gradient(circle_at_top_left,rgba(18,75,230,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(230,170,18,0.18),transparent_28%)]" />

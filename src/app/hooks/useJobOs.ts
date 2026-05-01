@@ -463,10 +463,10 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                   items as Array<{ id: string; clientRequestId?: string }>,
                   latestLocal as Array<{ id: string; clientRequestId?: string }>
                 );
-            const next = {
+            const next = normalizeJobOsState({
               ...prev,
               [name]: mergedItems,
-            } as JobOsState;
+            });
             writeLocal(userId, next);
             return next;
           });

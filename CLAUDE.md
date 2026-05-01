@@ -155,6 +155,28 @@ Rules:
 
 ---
 
+## Product Workflow (for context)
+
+The canonical user journey through JobSprint:
+
+```
+Source Hub (sources + saved searches)
+  → Quick Capture (paste-link import dialog)
+  → Qualification Queue (DiscoveryStatus: discovered → qualified → to_apply)
+  → Companies (company engine)
+  → Roles (roles pipeline)
+  → Applications (applications log, with CV linked)
+  → CV Optimizer (tailoring from Assets Vault or inline)
+  → Outreach (recruiter / direct messages)
+  → AfA Compliance (German job-seekers)
+  → Dashboard (Command Centre: next-action engine, pipeline stats)
+  → Analytics (funnel conversion, offer probability)
+```
+
+Source Hub is **top of funnel**. All new features should reinforce this flow.
+
+---
+
 ## Stack Constraints (frozen)
 
 | Concern | Approved choice |

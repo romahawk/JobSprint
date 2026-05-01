@@ -1,139 +1,80 @@
 # Roadmap
 
-## Completion Snapshot (as of 2026-03-19)
+Last updated: 2026-04-29
 
-- Week 1 complete: baseline docs and repo clarity.
-- Week 2 complete: workflow governance and release discipline.
-- Week 3 complete: 7-day activity signal + app-level error boundary.
-- Week 4 complete: form hardening, safe delete with undo, smoke tests.
-- Month 2 complete: persistence boundary, migration helper, auth/session, sync status, Firebase integration.
-- Post-Month 2 UX hardening in progress: dashboard compression, clearer next actions, safer Role-to-Application handoff, and a stronger Assets Vault workflow.
-- E2E suite stabilised: Probability Engine toggle test fixed to assert the correct empty-pipeline state message (all 15 Playwright tests now pass).
+---
 
-## Next 4 Weeks
+## Completion Snapshot (as of 2026-04-29)
 
-## Week 1: Stabilize Baseline
+All foundational infrastructure and core Job OS modules are shipped:
 
-### Outcome
+| Area | Status |
+|---|---|
+| Firebase Auth + Firestore persistence | Done |
+| Local-first with localStorage fallback | Done |
+| Dashboard / Command Centre (next-action engine, probability engine) | Done |
+| Analytics (funnel, conversion charts) | Done |
+| Job OS: Companies, Roles, Applications, Outreach | Done |
+| Assets Vault (CV snapshots, scripts, templates) | Done |
+| Source Hub + Saved Searches | Done (PR #152) |
+| CV Optimizer (profiles, tailoring, history) | Done |
+| AfA Compliance module + public report | Done |
+| JSON import/export | Done |
+| Public landing page with auth redirect | Done |
+| CI: lint, build, unit tests | Done |
+| E2E: Playwright baseline (auth, pipeline, Job OS navigation) | Done |
+| Branch policy + commit policy in CLAUDE.md | Done |
 
-Repository is clear, scoped, and reviewable in under 10 minutes.
+---
 
-### Issues
+## Current Focus (April 2026)
 
-- Rewrite README with product framing and setup.
-- Add PRD, architecture, roadmap, and decisions log.
-- Add contribution workflow and release format.
-- Add `.env.example` baseline.
+Harden the execution loop from Source Hub through Application for a solo operator running a focused job search.
 
-### Definition of Done
+**In progress / next up:**
 
-- Documentation is complete and internally consistent.
-- New contributor can run app locally from README instructions.
+1. **Ship uncommitted local work** — session redirect (LandingPage) + state normalisation fix + auth refactor
+2. **#117 First-class Next Action model** — add `nextActionDueDate` to roles and applications; surface in next-action engine
+3. **#122 Onboarding first workflow** — guide user through: Source Hub → Company → Role → Application → Next Action
+4. **#124 Normalize filters and views** — consistent filter/sort/view state across Sources, Roles, Applications
 
-### Demo Artifact
-
-- Screenshot of README + docs index in repository.
-
-## Week 2: Ship One Visible Improvement
-
-### Outcome
-
-Project has deploy and release discipline visible to external reviewers.
-
-### Issues
-
-- Add CI workflow for build checks.
-- Add issue templates and PR template.
-- Ensure Vercel deployment is active and documented in README.
-- Add changelog with first adoption entry.
-
-### Definition of Done
-
-- CI runs on pushes and pull requests.
-- Vercel deployment URL is live and documented.
-- Changelog updated with dated entry.
-
-### Demo Artifact
-
-- Screenshot or Loom of successful CI run and live Vercel deploy.
-
-## Week 3: Add One Signal Feature
-
-### Outcome
-
-Users can see an additional quality/usage signal beyond existing KPIs.
-
-### Issues
-
-- Add a 7-day activity signal card.
-- Add error boundary fallback for runtime failures.
-- Improve metric explanation copy for probability output.
-
-### Definition of Done
-
-- Signal feature appears in dashboard/analytics.
-- Error fallback path is testable manually.
-
-### Demo Artifact
-
-- Screenshot of new signal card and fallback state.
-
-## Week 4: Data Trust and UX Hardening
-
-### Outcome
-
-Data entry errors decrease and destructive actions are safer.
-
-### Issues
-
-- Add stricter form validation and user feedback.
-- Add undo path or delayed confirmation for delete.
-- Add smoke tests for CRUD and stage movement.
-
-### Definition of Done
-
-- Invalid data entry paths are blocked.
-- Manual smoke test checklist passes.
-
-### Demo Artifact
-
-- Loom showing validation and safe delete flow.
+---
 
 ## Next 3 Months
 
-## Month 2: Expand Capability
+### P1 — JobSprint Execution Quality
 
-- Introduce backend persistence boundary.
-- Add authentication for single-user account continuity.
-- Support data sync across devices.
+| Issue | Outcome |
+|---|---|
+| #117 Next Action model | Structured due-date tracking, scored in next-action engine |
+| #122 Onboarding | User can complete first loop without friction |
+| #124 Normalize filters | Saved views for A-fit / remote / English-first / MedTech / AI Product |
+| CV Optimizer discoverability | Direct link from Applications row to CV Optimizer for the linked role |
+| AfA Compliance discoverability | Link from Applications page so German job-seekers find it naturally |
 
-## Month 3: Proof-of-Work Expansion
+### P2 — Reliability
 
-- Publish structured demo narrative and case-study assets.
-- Add import/export path for portability.
-- Add release KPI snapshots for visible progress trend.
-- Add first E2E suite for auth + CRUD + pipeline + refresh persistence.
-- Add offline/connection UX polish for Firebase sync errors.
+| Issue | Outcome |
+|---|---|
+| #128 Unit tests | State, sync, next-action logic covered by Vitest |
+| #127 E2E — full flow | Sources → Company → Role → Application → Dashboard next-action |
+| #130 Bundle size | Lazy-load mammoth + pdfjs; target vendor chunk < 400 kB gzipped |
 
-## Current Focus (March 2026)
+### P3 — Polish (after P1+P2 stable)
 
-- Improve dashboard density so the primary cards fit within a single desktop viewport more often.
-- Make Today's Actions resilient to data gaps, especially when a role is marked progressed but no application row exists yet.
-- Reduce accidental duplicate records by tightening Job OS handoff flows and surfacing explicit success/error feedback.
-- Turn Assets Vault into a compact CV constructor with stable CV-to-application linking, import/export support, reusable script/template editing, and explicit file-import feedback.
-- Publish proof-of-work artifacts and keep trimming initial bundle cost as richer Job OS surfaces are added.
+| Issue | Outcome |
+|---|---|
+| #123 Command palette | Quick-add + search from anywhere |
+| #125 Board/list toggle | Kanban view for roles and applications |
+| #126 Activity timeline | Per-entity history of status changes and outreach |
 
-## Next Session Starting Point
-
-The E2E suite is fully green (15/15 Playwright tests pass as of 2026-03-20).
-
-1. **Paste-link import engine** - continue implementation on `claude/paste-link-import-engine-Gmr65`; the branch exists and is pushed. Check the linked issue for remaining acceptance criteria.
-2. Continue bundle-size reduction: focus on the remaining shared `vendor` chunk and heavy always-on dependencies.
-3. Revisit Firebase/analytics loading boundaries to see whether more of the shared runtime can move off the default path.
+---
 
 ## Freeze List
 
 - No framework migration.
-- No large-scale component library refactor.
+- No MUI, Emotion, Bootstrap, or styled-components (Tailwind + Radix is the approved stack).
 - No multi-user collaboration features.
-- No ATS integrations before persistence/auth baseline.
+- No ATS integrations before core execution loop is stable.
+- No force pushes to `main`.
+- No large-scale component migrations without a dedicated issue approved by the human owner.

@@ -35,7 +35,7 @@ interface AppNavbarProps {
 
 const NAV_ITEMS = [
   {
-    to: appPath("/job-os/sources"),
+    to: appPath(),
     label: "Action",
     icon: LayoutDashboard,
     matches: (pathname: string) =>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
-import { ChevronDown, ChevronUp, Layers3 } from "lucide-react";
+import { NavLink, useNavigate } from "react-router";
+import { ChevronDown, ChevronUp, Compass, LayoutDashboard, Layers3 } from "lucide-react";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
 import { UnifiedAddModal } from "../../components/job-os/UnifiedAddModal";
@@ -116,6 +116,32 @@ export function DashboardPage() {
         showSync
         settingsContent={settingsContent}
       />
+      <div className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+        <div className="max-w-[1800px] mx-auto px-6 py-3">
+          <nav className="flex flex-wrap gap-2">
+            {[
+              { to: appPath(), label: "Command Center", icon: LayoutDashboard, end: true },
+              { to: appPath("/job-os/sources"), label: "Sources", icon: Compass, end: false },
+            ].map(({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `text-xs px-3 py-1.5 rounded-md border transition-colors inline-flex items-center gap-1.5 ${
+                    isActive
+                      ? "bg-neutral-900 text-white border-neutral-900 dark:bg-neutral-100 dark:text-black dark:border-neutral-100"
+                      : "bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                  }`
+                }
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+      </div>
 
       <main className="mx-auto max-w-[1800px] px-4 py-5 sm:px-6">
         {holdDashboard ? (

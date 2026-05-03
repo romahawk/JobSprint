@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useMemo, useState } from "react";
-import { Archive, CheckCheck, Compass, ExternalLink, Globe2, ListChecks, Plus, Search } from "lucide-react";
+import { Archive, CheckCheck, Compass, ExternalLink, Globe2, HelpCircle, ListChecks, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { AppPageShell } from "../../components/layout/AppPageShell";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { Textarea } from "../../components/ui/textarea";
 import { useJobOsContext } from "../../context/JobOsContext";
 import { appPath } from "../../routing";
@@ -270,6 +271,9 @@ export default function JobOsSourcesPage() {
   const [queueSearch, setQueueSearch] = useState("");
   const [queueFitFilter, setQueueFitFilter] = useState("all");
   const [queueStatusFilter, setQueueStatusFilter] = useState<DiscoveryStatus | "all">("all");
+  const [dueSearch, setDueSearch] = useState("");
+  const [duePriorityFilter, setDuePriorityFilter] = useState<JobSourcePriority | "all">("all");
+  const [dueTypeFilter, setDueTypeFilter] = useState<"all" | "source" | "savedSearch">("all");
 
   const companiesById = useMemo(
     () => new Map(companies.map((company) => [company.id, company])),
@@ -332,6 +336,16 @@ export default function JobOsSourcesPage() {
     () => scanItems.filter((entry) => isDue(entry.item.lastCheckedAt, entry.item.cadence)),
     [scanItems]
   );
+
+  const filteredDueItems = useMemo(() => {
+    const base = showAllDue ? scanItems : dueScanItems;
+    return base.filter((entry) => {
+      if (dueSearch && !entry.item.name.toLowerCase().includes(dueSearch.toLowerCase())) return false;
+      if (duePriorityFilter !== "all" && entry.item.priority !== duePriorityFilter) return false;
+      if (dueTypeFilter !== "all" && entry.kind !== dueTypeFilter) return false;
+      return true;
+    });
+  }, [showAllDue, scanItems, dueScanItems, dueSearch, duePriorityFilter, dueTypeFilter]);
 
   const filteredSavedSearchOptions = useMemo(() => {
     if (!captureDraft.sourceId) return activeSavedSearches;
@@ -676,42 +690,106 @@ export default function JobOsSourcesPage() {
           </section>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="h-auto flex-wrap gap-1 p-1">
-              <TabsTrigger value="due-today">
-                Due Today{dueScanItems.length > 0 ? ` (${dueScanItems.length})` : ""}
-              </TabsTrigger>
-              <TabsTrigger value="sources">
-                Sources ({activeSources.length}/{sources.length})
-              </TabsTrigger>
-              <TabsTrigger value="saved-searches">
-                Saved Searches ({activeSavedSearches.length}/{savedSearches.length})
-              </TabsTrigger>
-              <TabsTrigger value="queue">
-                Queue{qualificationQueue.length > 0 ? ` (${qualificationQueue.length})` : ""}
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-2">
+              <TabsList className="h-auto flex-wrap gap-1 p-1">
+                <TabsTrigger value="due-today">
+                  Due Today{dueScanItems.length > 0 ? ` (${dueScanItems.length})` : ""}
+                </TabsTrigger>
+                <TabsTrigger value="sources">
+                  Sources ({activeSources.length}/{sources.length})
+                </TabsTrigger>
+                <TabsTrigger value="saved-searches">
+                  Saved Searches ({activeSavedSearches.length}/{savedSearches.length})
+                </TabsTrigger>
+                <TabsTrigger value="queue">
+                  Queue{qualificationQueue.length > 0 ? ` (${qualificationQueue.length})` : ""}
+                </TabsTrigger>
+              </TabsList>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+                    aria-label="Tab guide"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <div className="space-y-1.5">
+                    <div><span className="font-semibold">Due Today</span> — sources and saved searches overdue for their scan cadence, sorted by priority. Filter by type or priority.</div>
+                    <div><span className="font-semibold">Sources</span> — your full discovery stack. Add, edit, enable or disable sources.</div>
+                    <div><span className="font-semibold">Saved Searches</span> — keyword searches tied to specific sources. Filter by source or track.</div>
+                    <div><span className="font-semibold">Queue</span> — roles captured from sources awaiting qualification before applying.</div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
 
             <TabsContent value="due-today" className="mt-4">
               <Card>
-                <CardContent className="space-y-3 pt-5">
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative min-w-[180px] flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        className="h-9 pl-8 text-sm"
+                        placeholder="Search items…"
+                        value={dueSearch}
+                        onChange={(e) => setDueSearch(e.target.value)}
+                      />
+                    </div>
+                    <Select
+                      value={duePriorityFilter}
+                      onValueChange={(v) => setDuePriorityFilter(v as JobSourcePriority | "all")}
+                    >
+                      <SelectTrigger className="h-9 w-[120px] text-sm">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All priorities</SelectItem>
+                        {SOURCE_PRIORITIES.map((p) => (
+                          <SelectItem key={p} value={p}>Priority {p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={dueTypeFilter}
+                      onValueChange={(v) => setDueTypeFilter(v as "all" | "source" | "savedSearch")}
+                    >
+                      <SelectTrigger className="h-9 w-[150px] text-sm">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        <SelectItem value="source">Sources only</SelectItem>
+                        <SelectItem value="savedSearch">Saved searches only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAllDue((v) => !v)}
+                      className="text-xs text-muted-foreground"
+                    >
+                      {showAllDue ? "Due only" : `All (${scanItems.length})`}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   {scanItems.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
                       Source Hub is ready. Your default source stack should appear here as soon as sync finishes.
                     </div>
-                  ) : dueScanItems.length === 0 && !showAllDue ? (
-                    <div className="space-y-3">
-                      <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-                        Nothing is due right now. Check back when cadences reset.
-                      </div>
-                      <div className="flex justify-center">
-                        <Button variant="ghost" size="sm" onClick={() => setShowAllDue(true)}>
-                          Show all {scanItems.length} scan items
-                        </Button>
-                      </div>
+                  ) : filteredDueItems.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                      {dueScanItems.length === 0 && !showAllDue
+                        ? "Nothing is due right now."
+                        : "No items match the current filters."}
                     </div>
                   ) : (
                     <>
-                      {(showAllDue ? scanItems : dueScanItems.slice(0, 10)).map((entry) => {
+                      {filteredDueItems.map((entry) => {
                         const isSource = entry.kind === "source";
                         const sourceName = isSource
                           ? entry.item.name
@@ -785,15 +863,13 @@ export default function JobOsSourcesPage() {
                           </div>
                         );
                       })}
-                      <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
-                        <span>
-                          {showAllDue
-                            ? `Showing all ${scanItems.length} scan items`
-                            : `${dueScanItems.length} item${dueScanItems.length !== 1 ? "s" : ""} due`}
-                        </span>
-                        <Button variant="ghost" size="sm" onClick={() => setShowAllDue((v) => !v)}>
-                          {showAllDue ? "Show due only" : `Show all ${scanItems.length}`}
-                        </Button>
+                      <div className="pt-1 text-xs text-muted-foreground">
+                        {showAllDue
+                          ? `All ${scanItems.length} scan items`
+                          : `${dueScanItems.length} item${dueScanItems.length !== 1 ? "s" : ""} due`}
+                        {filteredDueItems.length !== (showAllDue ? scanItems : dueScanItems).length
+                          ? ` · ${filteredDueItems.length} shown after filtering`
+                          : ""}
                       </div>
                     </>
                   )}

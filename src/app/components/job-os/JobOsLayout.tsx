@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   FileText,
   FolderOpen,
+  LayoutDashboard,
   Megaphone,
   Settings,
   ShieldCheck,
@@ -35,6 +36,7 @@ function getActiveSection(pathname: string): "action" | "pipeline" | "system" {
 
 const SECTION_NAV = {
   action: [
+    { to: appPath(), label: "Command Center", icon: LayoutDashboard },
     { to: appPath("/job-os/sources"), label: "Sources", icon: Compass },
   ],
   pipeline: [

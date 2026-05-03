@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router";
 import { ChevronDown, ChevronUp, Compass, LayoutDashboard, Layers3 } from "lucide-react";
 import { useApp } from "../../context";
 import { useJobOs } from "../../hooks/useJobOs";
-import { UnifiedAddModal } from "../../components/job-os/UnifiedAddModal";
+
 import { useJobOsSyncSnapshot } from "../../services/jobOsSync";
 import {
   getNextActions,
@@ -20,7 +20,7 @@ import { TodayPanel } from "../../components/dashboard/TodayPanel";
 import { HotOpportunities } from "../../components/dashboard/HotOpportunities";
 import { PipelineStats } from "../../components/dashboard/PipelineStats";
 import { ProbabilityPanel } from "../../components/dashboard/ProbabilityPanel";
-import { QuickActions } from "../../components/dashboard/QuickActions";
+
 import { FirstRunScreen } from "../../components/dashboard/FirstRunScreen";
 import { AppPageShell } from "../../components/layout/AppPageShell";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
@@ -32,7 +32,6 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const jobOsSync = useJobOsSyncSnapshot();
   const [supportOpen, setSupportOpen] = useState(false);
-  const [addModalOpen, setAddModalOpen] = useState(false);
   const {
     companies,
     roles,
@@ -182,7 +181,6 @@ export function DashboardPage() {
 
             <div className="min-w-0 lg:self-start">
               <div className="space-y-4 lg:sticky lg:top-24">
-                <QuickActions onAddRole={() => setAddModalOpen(true)} />
                 <WeeklyExecutionPanel applications={applications} />
                 <PipelineStats stats={stats} isLoading={loading} />
                 <ProbabilityPanel stats={stats} isLoading={loading} />
@@ -223,14 +221,6 @@ export function DashboardPage() {
         </AppPageShell>
       </main>
 
-      <UnifiedAddModal
-        open={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        companies={companies}
-        addCompany={addCompany}
-        addRole={addRole}
-        addApplication={addApplication}
-      />
     </div>
   );
 }

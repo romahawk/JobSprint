@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -18,10 +17,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   BriefcaseBusiness,
-  Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Pencil,
   Rocket,
   Search,
@@ -89,7 +85,6 @@ export default function JobOsRolesPage() {
     applications,
     assets,
     cvProfiles,
-    addRole,
     updateRole,
     addApplication,
     removeRole,
@@ -98,12 +93,8 @@ export default function JobOsRolesPage() {
     replaceState,
   } = useJobOsContext();
 
-  const [addFormOpen, setAddFormOpen] = useState(false);
-  const [companySearch, setCompanySearch] = useState("");
-  const [companyOptionsOpen, setCompanyOptionsOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> | null>(null);
-  const [formNotice, setFormNotice] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [sortKey, setSortKey] = useState<RoleSortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -119,33 +110,11 @@ export default function JobOsRolesPage() {
   const [unifiedSearch, setUnifiedSearch] = useState("");
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedJdRoleId, setSelectedJdRoleId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt">>({
-    companyId: "",
-    title: "",
-    url: "",
-    location: "",
-    seniority: "",
-    track: "TPM",
-    fitScore: 3,
-    status: "to_apply",
-    origin: "self_sourced",
-    jobDescription: "",
-    jobDescriptionUpdatedAt: undefined,
-  });
 
   const companiesById = useMemo(
     () => new Map(companies.map((company) => [company.id, company])),
     [companies]
   );
-  const selectedDraftCompany = draft.companyId ? companiesById.get(draft.companyId) : null;
-  const filteredCompanyOptions = useMemo(() => {
-    const query = companySearch.trim().toLowerCase();
-    const matches = query
-      ? companies.filter((company) => company.name.toLowerCase().includes(query))
-      : companies;
-
-    return matches.slice(0, 50);
-  }, [companies, companySearch]);
 
   const filtered = useMemo(() => {
     const searchQuery = unifiedSearch.trim().toLowerCase();
@@ -316,51 +285,6 @@ export default function JobOsRolesPage() {
     toast.success("Role updated");
   }
 
-  async function handleAddRole(): Promise<void> {
-    const missingFields: string[] = [];
-    if (!draft.companyId) missingFields.push("company");
-    if (!draft.title.trim()) missingFields.push("role title");
-
-    if (missingFields.length > 0) {
-      setFormNotice(`Add a ${missingFields.join(" and ")} before creating the role.`);
-      return;
-    }
-
-    try {
-      setFormNotice("Saving role...");
-      const createdId = await addRole({
-        ...draft,
-        title: draft.title.trim(),
-        seniority: normalizeSeniority(draft.seniority),
-        jobDescriptionUpdatedAt: draft.jobDescription?.trim() ? new Date().toISOString() : undefined,
-      });
-
-      if (!createdId) {
-        setFormNotice("Role could not be created.");
-        return;
-      }
-
-      setDraft({
-        companyId: "",
-        title: "",
-        url: "",
-        location: "",
-        seniority: "",
-        track: "TPM",
-        fitScore: 3,
-        status: "to_apply",
-        origin: "self_sourced",
-        jobDescription: "",
-        jobDescriptionUpdatedAt: undefined,
-      });
-      setCompanySearch("");
-      setFormNotice("");
-      toast.success("Role added");
-    } catch (error) {
-      setFormNotice(error instanceof Error ? error.message : "Role could not be created.");
-    }
-  }
-
   async function handleAddApplication(role: JobOsRole): Promise<void> {
     if (applicationRoleIds.has(role.id)) {
       setActionNotice({
@@ -401,21 +325,6 @@ export default function JobOsRolesPage() {
     }
   }
 
-  const isAddFormDirty =
-    addFormOpen &&
-    (draft.companyId !== "" ||
-      draft.title.trim() !== "" ||
-      (draft.url ?? "").trim() !== "" ||
-      (draft.location ?? "").trim() !== "" ||
-      (draft.jobDescription ?? "").trim() !== "");
-  const { confirmDiscard: confirmAddFormDiscard } = useUnsavedChanges(isAddFormDirty);
-
-  function handleToggleAddForm() {
-    if (addFormOpen && !confirmAddFormDiscard()) return;
-    setAddFormOpen((value) => !value);
-    setCompanyOptionsOpen(false);
-  }
-
   return (
     <JobOsLayout
       title="Roles"
@@ -423,140 +332,6 @@ export default function JobOsRolesPage() {
       notice={syncNotice}
       settingsFooter={<JobOsTransferControls getExportState={exportState} onImportState={replaceState} />}
     >
-      <Card>
-        <CardHeader className="pb-0">
-          <button
-            type="button"
-            onClick={handleToggleAddForm}
-            className="flex items-center gap-1.5 group"
-          >
-            {addFormOpen ? (
-              <ChevronDown className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-foreground" />
-            )}
-            <CardTitle className="text-sm select-none">Add Role</CardTitle>
-          </button>
-        </CardHeader>
-        {addFormOpen ? (
-          <CardContent className="grid gap-3 pt-4 md:grid-cols-4">
-            <div className="relative">
-              <Input
-                value={companyOptionsOpen ? companySearch : selectedDraftCompany?.name ?? companySearch}
-                onChange={(event) => {
-                  setCompanySearch(event.target.value);
-                  setCompanyOptionsOpen(true);
-                  setDraft((current) => ({ ...current, companyId: "" }));
-                }}
-                onFocus={() => {
-                  setCompanySearch(selectedDraftCompany?.name ?? companySearch);
-                  setCompanyOptionsOpen(true);
-                }}
-                onBlur={() => {
-                  window.setTimeout(() => setCompanyOptionsOpen(false), 120);
-                }}
-                placeholder="Company"
-                autoComplete="off"
-              />
-              {companyOptionsOpen ? (
-                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
-                  {filteredCompanyOptions.length > 0 ? (
-                    filteredCompanyOptions.map((company) => (
-                      <button
-                        key={company.id}
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => {
-                          setDraft((current) => ({ ...current, companyId: company.id }));
-                          setCompanySearch(company.name);
-                          setCompanyOptionsOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={`h-4 w-4 ${
-                            draft.companyId === company.id ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        <span className="truncate">{company.name}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-2 py-3 text-sm text-muted-foreground">
-                      No company found.
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-            <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Role title" />
-            <Select value={draft.origin ?? "self_sourced"} onValueChange={(value) => setDraft((current) => ({ ...current, origin: value as RoleOrigin }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="self_sourced">Self-sourced</SelectItem>
-                <SelectItem value="recruiter">Recruiter contacted me</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              value={draft.url}
-              onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
-              placeholder={draft.origin === "recruiter" ? "Posting URL (optional)" : "Role URL"}
-            />
-            <Input
-              list="role-location-suggestions"
-              value={draft.location}
-              onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))}
-              placeholder="Location"
-            />
-            <datalist id="role-location-suggestions">
-              {LOCATION_SUGGESTIONS.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
-            <Select
-              value={draft.seniority}
-              onValueChange={(value) => setDraft((current) => ({ ...current, seniority: value }))}
-            >
-              <SelectTrigger><SelectValue placeholder="Seniority" /></SelectTrigger>
-              <SelectContent>
-                {SENIORITY_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={draft.track} onValueChange={(value) => setDraft((current) => ({ ...current, track: value as JobTrack }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="TPM">TPM</SelectItem>
-                <SelectItem value="Product Engineer">Product Engineer</SelectItem>
-                <SelectItem value="Systems PM">Systems PM</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={String(draft.fitScore)} onValueChange={(value) => setDraft((current) => ({ ...current, fitScore: Number(value) as 1 | 2 | 3 | 4 | 5 }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{[1, 2, 3, 4, 5].map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectContent>
-            </Select>
-            <Button onClick={() => void handleAddRole()} disabled={!draft.companyId || !draft.title.trim()}>
-              Add Role
-            </Button>
-            <div className="text-xs text-muted-foreground md:col-span-4">
-              Company and role title are required before adding a role.
-            </div>
-            {formNotice ? (
-              <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground md:col-span-4">
-                {formNotice}
-              </div>
-            ) : null}
-            <div className="md:col-span-4">
-              <Textarea
-                value={draft.jobDescription ?? ""}
-                onChange={(event) => setDraft((current) => ({ ...current, jobDescription: event.target.value }))}
-                rows={4}
-                placeholder="Optional: store the job description here so CV tailoring can sync directly from the role."
-              />
-            </div>
-          </CardContent>
-        ) : null}
-      </Card>
-
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[200px] flex-1">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />

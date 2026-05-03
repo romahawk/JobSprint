@@ -55,7 +55,7 @@ const NAV_ITEMS = [
   },
   {
     to: appPath("/job-os/companies"),
-    label: "System",
+    label: "Companies & System",
     icon: FolderOpen,
     matches: (pathname: string) =>
       pathname.startsWith(appPath("/job-os/companies")) ||

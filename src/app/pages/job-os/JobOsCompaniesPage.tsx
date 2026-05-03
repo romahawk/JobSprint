@@ -549,8 +549,8 @@ export default function JobOsCompaniesPage() {
 
   return (
     <JobOsLayout
-      title="Company Engine"
-      subtitle="Account-based target company tracking"
+      title="Companies"
+      subtitle="Track companies by status — Research, Target, Active — and route them into roles"
       notice={syncNotice}
       settingsFooter={<JobOsTransferControls getExportState={exportState} onImportState={replaceState} />}
     >

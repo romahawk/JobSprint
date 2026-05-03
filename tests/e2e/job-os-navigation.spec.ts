@@ -8,7 +8,7 @@ test.describe("Job OS navigation", () => {
 
   test("navigates to Companies page", async ({ page }) => {
     await page.goto("/job-os/companies");
-    await expect(page.getByRole("heading", { name: "Companies" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Companies", exact: true })).toBeVisible();
   });
 
   test("navigates to Roles page", async ({ page }) => {

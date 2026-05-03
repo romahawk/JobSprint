@@ -7,12 +7,13 @@ import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Textarea } from "../../components/ui/textarea";
 import { useJobOsContext } from "../../context/JobOsContext";
 import { appPath } from "../../routing";
@@ -256,6 +257,19 @@ export default function JobOsSourcesPage() {
   const [sourceEditDraft, setSourceEditDraft] = useState<SourceEditDraft | null>(null);
   const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearch | null>(null);
   const [savedSearchEditDraft, setSavedSearchEditDraft] = useState<SavedSearchEditDraft | null>(null);
+  const [activeTab, setActiveTab] = useState("due-today");
+  const [showAllDue, setShowAllDue] = useState(false);
+  const [sourcesSearch, setSourcesSearch] = useState("");
+  const [sourcesPriorityFilter, setSourcesPriorityFilter] = useState<JobSourcePriority | "all">("all");
+  const [sourcesCategoryFilter, setSourcesCategoryFilter] = useState<JobSourceCategory | "all">("all");
+  const [sourcesActiveFilter, setSourcesActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const [searchesSearch, setSearchesSearch] = useState("");
+  const [searchesPriorityFilter, setSearchesPriorityFilter] = useState<JobSourcePriority | "all">("all");
+  const [searchesSourceFilter, setSearchesSourceFilter] = useState("all");
+  const [searchesActiveFilter, setSearchesActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const [queueSearch, setQueueSearch] = useState("");
+  const [queueFitFilter, setQueueFitFilter] = useState("all");
+  const [queueStatusFilter, setQueueStatusFilter] = useState<DiscoveryStatus | "all">("all");
 
   const companiesById = useMemo(
     () => new Map(companies.map((company) => [company.id, company])),
@@ -314,15 +328,58 @@ export default function JobOsSourcesPage() {
     [roles]
   );
 
-  const searchesDueToday = useMemo(
-    () => activeSavedSearches.filter((savedSearch) => isDue(savedSearch.lastCheckedAt, savedSearch.cadence)).length,
-    [activeSavedSearches]
+  const dueScanItems = useMemo(
+    () => scanItems.filter((entry) => isDue(entry.item.lastCheckedAt, entry.item.cadence)),
+    [scanItems]
   );
 
   const filteredSavedSearchOptions = useMemo(() => {
     if (!captureDraft.sourceId) return activeSavedSearches;
     return activeSavedSearches.filter((savedSearch) => savedSearch.sourceId === captureDraft.sourceId);
   }, [activeSavedSearches, captureDraft.sourceId]);
+
+  const filteredSources = useMemo(() => {
+    return sources.filter((source) => {
+      if (
+        sourcesSearch &&
+        !source.name.toLowerCase().includes(sourcesSearch.toLowerCase()) &&
+        !source.bestFor.toLowerCase().includes(sourcesSearch.toLowerCase())
+      ) return false;
+      if (sourcesPriorityFilter !== "all" && source.priority !== sourcesPriorityFilter) return false;
+      if (sourcesCategoryFilter !== "all" && source.category !== sourcesCategoryFilter) return false;
+      if (sourcesActiveFilter === "active" && !source.active) return false;
+      if (sourcesActiveFilter === "inactive" && source.active) return false;
+      return true;
+    });
+  }, [sources, sourcesSearch, sourcesPriorityFilter, sourcesCategoryFilter, sourcesActiveFilter]);
+
+  const filteredSavedSearches = useMemo(() => {
+    return savedSearches.filter((savedSearch) => {
+      if (
+        searchesSearch &&
+        !savedSearch.name.toLowerCase().includes(searchesSearch.toLowerCase()) &&
+        !savedSearch.query.toLowerCase().includes(searchesSearch.toLowerCase())
+      ) return false;
+      if (searchesPriorityFilter !== "all" && savedSearch.priority !== searchesPriorityFilter) return false;
+      if (searchesSourceFilter !== "all" && savedSearch.sourceId !== searchesSourceFilter) return false;
+      if (searchesActiveFilter === "active" && !savedSearch.active) return false;
+      if (searchesActiveFilter === "inactive" && savedSearch.active) return false;
+      return true;
+    });
+  }, [savedSearches, searchesSearch, searchesPriorityFilter, searchesSourceFilter, searchesActiveFilter]);
+
+  const filteredQueue = useMemo(() => {
+    return qualificationQueue.filter((role) => {
+      if (queueSearch) {
+        const company = companiesById.get(role.companyId);
+        const searchText = `${role.title} ${company?.name ?? ""}`.toLowerCase();
+        if (!searchText.includes(queueSearch.toLowerCase())) return false;
+      }
+      if (queueFitFilter !== "all" && String(role.fitScore) !== queueFitFilter) return false;
+      if (queueStatusFilter !== "all" && role.discoveryStatus !== queueStatusFilter) return false;
+      return true;
+    });
+  }, [qualificationQueue, queueSearch, queueFitFilter, queueStatusFilter, companiesById]);
 
   function openUrl(url?: string): void {
     if (!url) return;
@@ -568,9 +625,9 @@ export default function JobOsSourcesPage() {
     >
       <AppPageShell
         title="Source Hub"
-        subtitle="Use this as the top of the funnel: keep your sources sharp, work through due searches, then capture only the roles worth qualifying."
+        subtitle="Work through today's due scans, then capture only the roles worth qualifying."
       >
-        <div className="space-y-6">
+        <div className="space-y-5">
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardContent className="flex items-center justify-between py-5">
@@ -587,9 +644,9 @@ export default function JobOsSourcesPage() {
               <CardContent className="flex items-center justify-between py-5">
                 <div>
                   <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Searches Due Today
+                    Due Today
                   </div>
-                  <div className="mt-2 text-2xl font-semibold">{searchesDueToday}</div>
+                  <div className="mt-2 text-2xl font-semibold">{dueScanItems.length}</div>
                 </div>
                 <Search className="h-5 w-5 text-muted-foreground" />
               </CardContent>
@@ -618,415 +675,573 @@ export default function JobOsSourcesPage() {
             </Card>
           </section>
 
-          <section className="grid gap-6 2xl:grid-cols-[1.2fr_1fr]">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Today&apos;s Scan</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {scanItems.length > 0 ? (
-                  scanItems.map((entry) => {
-                    const isSource = entry.kind === "source";
-                    const sourceName = isSource
-                      ? entry.item.name
-                      : sourcesById.get(entry.item.sourceId)?.name ?? "Unknown source";
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="h-auto flex-wrap gap-1 p-1">
+              <TabsTrigger value="due-today">
+                Due Today{dueScanItems.length > 0 ? ` (${dueScanItems.length})` : ""}
+              </TabsTrigger>
+              <TabsTrigger value="sources">
+                Sources ({activeSources.length}/{sources.length})
+              </TabsTrigger>
+              <TabsTrigger value="saved-searches">
+                Saved Searches ({activeSavedSearches.length}/{savedSearches.length})
+              </TabsTrigger>
+              <TabsTrigger value="queue">
+                Queue{qualificationQueue.length > 0 ? ` (${qualificationQueue.length})` : ""}
+              </TabsTrigger>
+            </TabsList>
 
-                    return (
-                      <div
-                        key={`${entry.kind}-${entry.item.id}`}
-                        className="rounded-xl border border-border bg-background/80 p-4"
-                      >
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="font-medium text-foreground">{entry.item.name}</div>
-                              <Badge variant="outline" className={getPriorityBadgeClass(entry.item.priority)}>
-                                {entry.item.priority}
-                              </Badge>
-                              <Badge variant="outline">
-                                {isSource ? "Source" : "Saved Search"}
-                              </Badge>
-                              {isDue(entry.item.lastCheckedAt, entry.item.cadence) ? (
-                                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-                                  Due
-                                </Badge>
-                              ) : null}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {isSource ? (entry.item as JobSource).bestFor : sourceName}
-                            </div>
-                            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                              <span>Cadence: {CADENCE_LABELS[entry.item.cadence]}</span>
-                              <span>Last checked: {formatDateLabel(entry.item.lastCheckedAt)}</span>
+            <TabsContent value="due-today" className="mt-4">
+              <Card>
+                <CardContent className="space-y-3 pt-5">
+                  {scanItems.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                      Source Hub is ready. Your default source stack should appear here as soon as sync finishes.
+                    </div>
+                  ) : dueScanItems.length === 0 && !showAllDue ? (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                        Nothing is due right now. Check back when cadences reset.
+                      </div>
+                      <div className="flex justify-center">
+                        <Button variant="ghost" size="sm" onClick={() => setShowAllDue(true)}>
+                          Show all {scanItems.length} scan items
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {(showAllDue ? scanItems : dueScanItems.slice(0, 10)).map((entry) => {
+                        const isSource = entry.kind === "source";
+                        const sourceName = isSource
+                          ? entry.item.name
+                          : sourcesById.get(entry.item.sourceId)?.name ?? "Unknown source";
+
+                        return (
+                          <div
+                            key={`${entry.kind}-${entry.item.id}`}
+                            className="rounded-xl border border-border bg-background/80 p-4"
+                          >
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="font-medium text-foreground">{entry.item.name}</div>
+                                  <Badge variant="outline" className={getPriorityBadgeClass(entry.item.priority)}>
+                                    {entry.item.priority}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {isSource ? "Source" : "Saved Search"}
+                                  </Badge>
+                                  {isDue(entry.item.lastCheckedAt, entry.item.cadence) ? (
+                                    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                                      Due
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {isSource ? (entry.item as JobSource).bestFor : sourceName}
+                                </div>
+                                <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                  <span>Cadence: {CADENCE_LABELS[entry.item.cadence]}</span>
+                                  <span>Last checked: {formatDateLabel(entry.item.lastCheckedAt)}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Button variant="outline" size="sm" onClick={() => openUrl(entry.item.url)}>
+                                  <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                                  Open
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    isSource
+                                      ? void handleMarkSourceChecked(entry.item as JobSource)
+                                      : void handleMarkSavedSearchChecked(entry.item as SavedSearch)
+                                  }
+                                >
+                                  <CheckCheck className="mr-1 h-3.5 w-3.5" />
+                                  Mark checked
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    openCapture(
+                                      isSource
+                                        ? { sourceId: entry.item.id, sourceUrl: entry.item.url }
+                                        : {
+                                            sourceId: (entry.item as SavedSearch).sourceId,
+                                            savedSearchId: entry.item.id,
+                                            sourceUrl: entry.item.url,
+                                          }
+                                    )
+                                  }
+                                >
+                                  <Plus className="mr-1 h-3.5 w-3.5" />
+                                  Capture role
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" size="sm" onClick={() => openUrl(entry.item.url)}>
-                              <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                              Open
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                isSource
-                                  ? void handleMarkSourceChecked(entry.item as JobSource)
-                                  : void handleMarkSavedSearchChecked(entry.item as SavedSearch)
-                              }
-                            >
-                              <CheckCheck className="mr-1 h-3.5 w-3.5" />
-                              Mark checked
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                openCapture(
-                                  isSource
-                                    ? {
-                                        sourceId: entry.item.id,
-                                        sourceUrl: entry.item.url,
-                                      }
-                                    : {
-                                        sourceId: (entry.item as SavedSearch).sourceId,
-                                        savedSearchId: entry.item.id,
-                                        sourceUrl: entry.item.url,
-                                      }
-                                )
-                              }
-                            >
-                              <Plus className="mr-1 h-3.5 w-3.5" />
-                              Capture role
-                            </Button>
+                        );
+                      })}
+                      <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+                        <span>
+                          {showAllDue
+                            ? `Showing all ${scanItems.length} scan items`
+                            : `${dueScanItems.length} item${dueScanItems.length !== 1 ? "s" : ""} due`}
+                        </span>
+                        <Button variant="ghost" size="sm" onClick={() => setShowAllDue((v) => !v)}>
+                          {showAllDue ? "Show due only" : `Show all ${scanItems.length}`}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="sources" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative min-w-[180px] flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        className="h-9 pl-8 text-sm"
+                        placeholder="Search sources…"
+                        value={sourcesSearch}
+                        onChange={(e) => setSourcesSearch(e.target.value)}
+                      />
+                    </div>
+                    <Select
+                      value={sourcesPriorityFilter}
+                      onValueChange={(v) => setSourcesPriorityFilter(v as JobSourcePriority | "all")}
+                    >
+                      <SelectTrigger className="h-9 w-[120px] text-sm">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All priorities</SelectItem>
+                        {SOURCE_PRIORITIES.map((p) => (
+                          <SelectItem key={p} value={p}>Priority {p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={sourcesCategoryFilter}
+                      onValueChange={(v) => setSourcesCategoryFilter(v as JobSourceCategory | "all")}
+                    >
+                      <SelectTrigger className="h-9 w-[140px] text-sm">
+                        <SelectValue placeholder="Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All categories</SelectItem>
+                        {SOURCE_CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>{SOURCE_CATEGORY_LABELS[c]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={sourcesActiveFilter}
+                      onValueChange={(v) => setSourcesActiveFilter(v as "all" | "active" | "inactive")}
+                    >
+                      <SelectTrigger className="h-9 w-[110px] text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Best for</TableHead>
+                          <TableHead>Priority</TableHead>
+                          <TableHead>Cadence</TableHead>
+                          <TableHead>Last checked</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSources.map((source) => (
+                          <TableRow key={source.id} className={source.active ? "" : "opacity-50"}>
+                            <TableCell className="font-medium">{source.name}</TableCell>
+                            <TableCell>{SOURCE_CATEGORY_LABELS[source.category]}</TableCell>
+                            <TableCell className="max-w-[340px] text-muted-foreground">{source.bestFor}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={getPriorityBadgeClass(source.priority)}>
+                                {source.priority}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{CADENCE_LABELS[source.cadence]}</TableCell>
+                            <TableCell>{formatDateLabel(source.lastCheckedAt)}</TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => openUrl(source.url)}>Open</Button>
+                                <Button size="sm" variant="outline" onClick={() => void handleMarkSourceChecked(source)}>Mark checked</Button>
+                                <Button size="sm" variant="outline" onClick={() => openSourceEditor(source)}>Edit</Button>
+                                <Button size="sm" variant="ghost" onClick={() => void handleToggleSource(source)}>
+                                  {source.active ? "Disable" : "Enable"}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredSources.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                              No sources match the current filters.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="grid gap-3 md:hidden">
+                    {filteredSources.map((source) => (
+                      <div key={source.id} className={`rounded-xl border border-border p-4 ${source.active ? "" : "opacity-50"}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-medium">{source.name}</div>
+                            <div className="text-sm text-muted-foreground">{source.bestFor}</div>
                           </div>
+                          <Badge variant="outline" className={getPriorityBadgeClass(source.priority)}>{source.priority}</Badge>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          <span>{SOURCE_CATEGORY_LABELS[source.category]}</span>
+                          <span>{CADENCE_LABELS[source.cadence]}</span>
+                          <span>{formatDateLabel(source.lastCheckedAt)}</span>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => openUrl(source.url)}>Open</Button>
+                          <Button size="sm" variant="outline" onClick={() => void handleMarkSourceChecked(source)}>Mark checked</Button>
+                          <Button size="sm" variant="outline" onClick={() => openSourceEditor(source)}>Edit</Button>
+                          <Button size="sm" variant="ghost" onClick={() => void handleToggleSource(source)}>
+                            {source.active ? "Disable" : "Enable"}
+                          </Button>
                         </div>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-                    Source Hub is ready. Your default source stack should appear here as soon as sync finishes.
+                    ))}
+                    {filteredSources.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                        No sources match the current filters.
+                      </div>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Qualification Queue</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {qualificationQueue.length > 0 ? (
-                  qualificationQueue.map((role) => {
-                    const company = companiesById.get(role.companyId);
-                    const sourceName =
-                      (role.savedSearchId
-                        ? sourcesById.get(savedSearchesById.get(role.savedSearchId)?.sourceId ?? "")
-                        : undefined)?.name ??
-                      (role.sourceId ? sourcesById.get(role.sourceId)?.name : undefined) ??
-                      "Manual capture";
+            <TabsContent value="saved-searches" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative min-w-[180px] flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        className="h-9 pl-8 text-sm"
+                        placeholder="Search saved searches…"
+                        value={searchesSearch}
+                        onChange={(e) => setSearchesSearch(e.target.value)}
+                      />
+                    </div>
+                    <Select
+                      value={searchesPriorityFilter}
+                      onValueChange={(v) => setSearchesPriorityFilter(v as JobSourcePriority | "all")}
+                    >
+                      <SelectTrigger className="h-9 w-[120px] text-sm">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All priorities</SelectItem>
+                        {SOURCE_PRIORITIES.map((p) => (
+                          <SelectItem key={p} value={p}>Priority {p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={searchesSourceFilter} onValueChange={setSearchesSourceFilter}>
+                      <SelectTrigger className="h-9 w-[150px] text-sm">
+                        <SelectValue placeholder="Source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All sources</SelectItem>
+                        {sources.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={searchesActiveFilter}
+                      onValueChange={(v) => setSearchesActiveFilter(v as "all" | "active" | "inactive")}
+                    >
+                      <SelectTrigger className="h-9 w-[110px] text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Search name</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Target track</TableHead>
+                          <TableHead>Priority</TableHead>
+                          <TableHead>Cadence</TableHead>
+                          <TableHead>Last checked</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSavedSearches.map((savedSearch) => (
+                          <TableRow key={savedSearch.id} className={savedSearch.active ? "" : "opacity-50"}>
+                            <TableCell className="font-medium">{savedSearch.name}</TableCell>
+                            <TableCell>{sourcesById.get(savedSearch.sourceId)?.name ?? "Unknown source"}</TableCell>
+                            <TableCell>{savedSearch.targetTrack}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={getPriorityBadgeClass(savedSearch.priority)}>
+                                {savedSearch.priority}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{CADENCE_LABELS[savedSearch.cadence]}</TableCell>
+                            <TableCell>{formatDateLabel(savedSearch.lastCheckedAt)}</TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => openUrl(savedSearch.url)}>Open</Button>
+                                <Button size="sm" variant="outline" onClick={() => void handleMarkSavedSearchChecked(savedSearch)}>Mark checked</Button>
+                                <Button size="sm" onClick={() => openCapture({ sourceId: savedSearch.sourceId, savedSearchId: savedSearch.id, sourceUrl: savedSearch.url })}>Capture role</Button>
+                                <Button size="sm" variant="outline" onClick={() => openSavedSearchEditor(savedSearch)}>Edit</Button>
+                                <Button size="sm" variant="ghost" onClick={() => void handleToggleSavedSearch(savedSearch)}>
+                                  {savedSearch.active ? "Disable" : "Enable"}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredSavedSearches.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                              No saved searches match the current filters.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="grid gap-3 md:hidden">
+                    {filteredSavedSearches.map((savedSearch) => (
+                      <div key={savedSearch.id} className={`rounded-xl border border-border p-4 ${savedSearch.active ? "" : "opacity-50"}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-medium">{savedSearch.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {sourcesById.get(savedSearch.sourceId)?.name ?? "Unknown source"} · {savedSearch.targetTrack}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className={getPriorityBadgeClass(savedSearch.priority)}>{savedSearch.priority}</Badge>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          <span>{CADENCE_LABELS[savedSearch.cadence]}</span>
+                          <span>{formatDateLabel(savedSearch.lastCheckedAt)}</span>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => openUrl(savedSearch.url)}>Open</Button>
+                          <Button size="sm" variant="outline" onClick={() => void handleMarkSavedSearchChecked(savedSearch)}>Mark checked</Button>
+                          <Button size="sm" onClick={() => openCapture({ sourceId: savedSearch.sourceId, savedSearchId: savedSearch.id, sourceUrl: savedSearch.url })}>Capture role</Button>
+                          <Button size="sm" variant="outline" onClick={() => openSavedSearchEditor(savedSearch)}>Edit</Button>
+                          <Button size="sm" variant="ghost" onClick={() => void handleToggleSavedSearch(savedSearch)}>
+                            {savedSearch.active ? "Disable" : "Enable"}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredSavedSearches.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                        No saved searches match the current filters.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                    return (
-                      <div
-                        key={role.id}
-                        className={`rounded-xl border p-4 ${
-                          role.fitScore >= 4
-                            ? "border-foreground/20 bg-neutral-100/70 dark:bg-neutral-900/60"
-                            : "border-border bg-background/80"
-                        }`}
-                      >
-                        <div className="flex flex-col gap-3">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <div className="font-medium text-foreground">{role.title}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {company?.name ?? "Unknown company"} · {sourceName}
+            <TabsContent value="queue" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative min-w-[180px] flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        className="h-9 pl-8 text-sm"
+                        placeholder="Search roles…"
+                        value={queueSearch}
+                        onChange={(e) => setQueueSearch(e.target.value)}
+                      />
+                    </div>
+                    <Select value={queueFitFilter} onValueChange={setQueueFitFilter}>
+                      <SelectTrigger className="h-9 w-[120px] text-sm">
+                        <SelectValue placeholder="Fit score" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All fit scores</SelectItem>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <SelectItem key={n} value={String(n)}>Fit {n}/5</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={queueStatusFilter}
+                      onValueChange={(v) => setQueueStatusFilter(v as DiscoveryStatus | "all")}
+                    >
+                      <SelectTrigger className="h-9 w-[140px] text-sm">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        {DISCOVERY_QUEUE_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>{DISCOVERY_STATUS_LABELS[s]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {filteredQueue.length > 0 ? (
+                    filteredQueue.map((role) => {
+                      const company = companiesById.get(role.companyId);
+                      const sourceName =
+                        (role.savedSearchId
+                          ? sourcesById.get(savedSearchesById.get(role.savedSearchId)?.sourceId ?? "")
+                          : undefined)?.name ??
+                        (role.sourceId ? sourcesById.get(role.sourceId)?.name : undefined) ??
+                        "Manual capture";
+
+                      return (
+                        <div
+                          key={role.id}
+                          className={`rounded-xl border p-4 ${
+                            role.fitScore >= 4
+                              ? "border-foreground/20 bg-neutral-100/70 dark:bg-neutral-900/60"
+                              : "border-border bg-background/80"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="font-medium text-foreground">{role.title}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {company?.name ?? "Unknown company"} · {sourceName}
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="outline">Fit {role.fitScore}/5</Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    role.discoveryStatus === "to_apply"
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                      : undefined
+                                  }
+                                >
+                                  {DISCOVERY_STATUS_LABELS[role.discoveryStatus ?? "discovered"]}
+                                </Badge>
+                                <Badge variant="outline">{role.track}</Badge>
+                              </div>
+                            </div>
+                            <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                              <div>
+                                <span className="font-medium text-foreground">Notes:</span>{" "}
+                                {role.qualificationNotes || "No qualification notes yet."}
+                              </div>
+                              <div>
+                                <span className="font-medium text-foreground">Next step:</span>{" "}
+                                {role.nextStep || "Clarify next move."}
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <Badge variant="outline">Fit {role.fitScore}/5</Badge>
-                              <Badge
+                              <Button
+                                size="sm"
                                 variant="outline"
-                                className={
-                                  role.discoveryStatus === "to_apply"
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                    : undefined
+                                onClick={() =>
+                                  void handleQueueAction(
+                                    role,
+                                    { discoveryStatus: "qualified" },
+                                    `${role.title} marked qualified`
+                                  )
                                 }
                               >
-                                {DISCOVERY_STATUS_LABELS[role.discoveryStatus ?? "discovered"]}
-                              </Badge>
-                              <Badge variant="outline">{role.track}</Badge>
+                                Qualify
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  void handleQueueAction(
+                                    role,
+                                    { discoveryStatus: "to_apply", status: "to_apply" },
+                                    `${role.title} moved to apply queue`
+                                  )
+                                }
+                              >
+                                Move to Apply Queue
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-muted-foreground"
+                                onClick={() =>
+                                  void handleQueueAction(
+                                    role,
+                                    { discoveryStatus: "archived", status: "closed" },
+                                    `${role.title} archived`
+                                  )
+                                }
+                              >
+                                <Archive className="mr-1 h-3.5 w-3.5" />
+                                Archive
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!role.url}
+                                onClick={() => openUrl(role.url)}
+                              >
+                                Open role URL
+                              </Button>
+                              <Button asChild size="sm" variant="outline">
+                                <Link to={appPath("/cv-optimizer")}>Open CV Optimizer</Link>
+                              </Button>
                             </div>
-                          </div>
-                          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                            <div>
-                              <span className="font-medium text-foreground">Notes:</span>{" "}
-                              {role.qualificationNotes || "No qualification notes yet."}
-                            </div>
-                            <div>
-                              <span className="font-medium text-foreground">Next step:</span>{" "}
-                              {role.nextStep || "Clarify next move."}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                void handleQueueAction(
-                                  role,
-                                  { discoveryStatus: "qualified" },
-                                  `${role.title} marked qualified`
-                                )
-                              }
-                            >
-                              Qualify
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                void handleQueueAction(
-                                  role,
-                                  { discoveryStatus: "to_apply", status: "to_apply" },
-                                  `${role.title} moved to apply queue`
-                                )
-                              }
-                            >
-                              Move to Apply Queue
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-muted-foreground"
-                              onClick={() =>
-                                void handleQueueAction(
-                                  role,
-                                  { discoveryStatus: "archived", status: "closed" },
-                                  `${role.title} archived`
-                                )
-                              }
-                            >
-                              <Archive className="mr-1 h-3.5 w-3.5" />
-                              Archive
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!role.url}
-                              onClick={() => openUrl(role.url)}
-                            >
-                              Open role URL
-                            </Button>
-                            <Button asChild size="sm" variant="outline">
-                              <Link to={appPath("/cv-optimizer")}>Open CV Optimizer</Link>
-                            </Button>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-                    Captured roles that are still worth qualifying will show up here.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </section>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
-              <CardTitle className="text-base">Source Library</CardTitle>
-              <Button size="sm" variant="outline" onClick={() => setAddSourceOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Source
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Best for</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Cadence</TableHead>
-                      <TableHead>Last checked</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sources.map((source) => (
-                      <TableRow key={source.id}>
-                        <TableCell className="font-medium">{source.name}</TableCell>
-                        <TableCell>{SOURCE_CATEGORY_LABELS[source.category]}</TableCell>
-                        <TableCell className="max-w-[340px] text-muted-foreground">{source.bestFor}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getPriorityBadgeClass(source.priority)}>
-                            {source.priority}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{CADENCE_LABELS[source.cadence]}</TableCell>
-                        <TableCell>{formatDateLabel(source.lastCheckedAt)}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" onClick={() => openUrl(source.url)}>
-                              Open
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => void handleMarkSourceChecked(source)}>
-                              Mark checked
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => openSourceEditor(source)}>
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => void handleToggleSource(source)}>
-                              {source.active ? "Disable" : "Enable"}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="grid gap-3 md:hidden">
-                {sources.map((source) => (
-                  <div key={source.id} className="rounded-xl border border-border p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-medium">{source.name}</div>
-                        <div className="text-sm text-muted-foreground">{source.bestFor}</div>
-                      </div>
-                      <Badge variant="outline" className={getPriorityBadgeClass(source.priority)}>
-                        {source.priority}
-                      </Badge>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                      {qualificationQueue.length === 0
+                        ? "Captured roles that are still worth qualifying will show up here."
+                        : "No roles match the current filters."}
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span>{SOURCE_CATEGORY_LABELS[source.category]}</span>
-                      <span>{CADENCE_LABELS[source.cadence]}</span>
-                      <span>{formatDateLabel(source.lastCheckedAt)}</span>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openUrl(source.url)}>
-                        Open
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => void handleMarkSourceChecked(source)}>
-                        Mark checked
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => openSourceEditor(source)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void handleToggleSource(source)}>
-                        {source.active ? "Disable" : "Enable"}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Saved Searches</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Search name</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Target track</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Cadence</TableHead>
-                      <TableHead>Last checked</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {savedSearches.map((savedSearch) => (
-                      <TableRow key={savedSearch.id}>
-                        <TableCell className="font-medium">{savedSearch.name}</TableCell>
-                        <TableCell>
-                          {sourcesById.get(savedSearch.sourceId)?.name ?? "Unknown source"}
-                        </TableCell>
-                        <TableCell>{savedSearch.targetTrack}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getPriorityBadgeClass(savedSearch.priority)}>
-                            {savedSearch.priority}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{CADENCE_LABELS[savedSearch.cadence]}</TableCell>
-                        <TableCell>{formatDateLabel(savedSearch.lastCheckedAt)}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" onClick={() => openUrl(savedSearch.url)}>
-                              Open
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => void handleMarkSavedSearchChecked(savedSearch)}
-                            >
-                              Mark checked
-                            </Button>
-                            <Button size="sm" onClick={() => openCapture({ sourceId: savedSearch.sourceId, savedSearchId: savedSearch.id, sourceUrl: savedSearch.url })}>
-                              Capture role
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => openSavedSearchEditor(savedSearch)}>
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => void handleToggleSavedSearch(savedSearch)}>
-                              {savedSearch.active ? "Disable" : "Enable"}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="grid gap-3 md:hidden">
-                {savedSearches.map((savedSearch) => (
-                  <div key={savedSearch.id} className="rounded-xl border border-border p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-medium">{savedSearch.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {sourcesById.get(savedSearch.sourceId)?.name ?? "Unknown source"} · {savedSearch.targetTrack}
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={getPriorityBadgeClass(savedSearch.priority)}>
-                        {savedSearch.priority}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span>{CADENCE_LABELS[savedSearch.cadence]}</span>
-                      <span>{formatDateLabel(savedSearch.lastCheckedAt)}</span>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openUrl(savedSearch.url)}>
-                        Open
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => void handleMarkSavedSearchChecked(savedSearch)}>
-                        Mark checked
-                      </Button>
-                      <Button size="sm" onClick={() => openCapture({ sourceId: savedSearch.sourceId, savedSearchId: savedSearch.id, sourceUrl: savedSearch.url })}>
-                        Capture role
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => openSavedSearchEditor(savedSearch)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void handleToggleSavedSearch(savedSearch)}>
-                        {savedSearch.active ? "Disable" : "Enable"}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </AppPageShell>
 

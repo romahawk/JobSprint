@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   FileText,
   FolderOpen,
+  LayoutDashboard,
   Megaphone,
   Settings,
   ShieldCheck,
@@ -35,6 +36,7 @@ function getActiveSection(pathname: string): "action" | "pipeline" | "system" {
 
 const SECTION_NAV = {
   action: [
+    { to: appPath(), label: "Command Center", icon: LayoutDashboard },
     { to: appPath("/job-os/sources"), label: "Sources", icon: Compass },
   ],
   pipeline: [
@@ -43,7 +45,7 @@ const SECTION_NAV = {
     { to: appPath("/job-os/outreach"), label: "Outreach", icon: Megaphone },
   ],
   system: [
-    { to: appPath("/job-os/companies"), label: "Target Companies", icon: Building2 },
+    { to: appPath("/job-os/companies"), label: "Companies", icon: Building2 },
     { to: appPath("/job-os/assets"), label: "Assets", icon: FolderOpen },
     { to: appPath("/cv-optimizer"), label: "CV Optimizer", icon: WandSparkles },
     { to: appPath("/compliance/afa"), label: "AfA Compliance", icon: ShieldCheck },

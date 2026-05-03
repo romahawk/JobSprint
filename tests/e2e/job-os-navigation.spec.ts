@@ -8,7 +8,7 @@ test.describe("Job OS navigation", () => {
 
   test("navigates to Companies page", async ({ page }) => {
     await page.goto("/job-os/companies");
-    await expect(page.getByText("Company Engine")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Companies", exact: true })).toBeVisible();
   });
 
   test("navigates to Roles page", async ({ page }) => {
@@ -24,7 +24,7 @@ test.describe("Job OS navigation", () => {
   test("AppNavbar contains all top-level navigation links", async ({ page }) => {
     await expect(page.getByRole("link", { name: "Action", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Pipeline", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "System", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Companies & System", exact: true })).toBeVisible();
   });
 });
 

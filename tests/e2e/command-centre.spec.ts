@@ -15,16 +15,13 @@ test.describe("Command Centre", () => {
     await expect(page.getByText("Pipeline Snapshot")).toBeVisible();
   });
 
-  test("renders Quick Actions", async ({ page }) => {
-    await expect(page.getByText("Quick Actions")).toBeVisible();
+  test("renders Weekly Execution panel", async ({ page }) => {
+    await expect(page.getByText("Weekly Execution")).toBeVisible();
   });
 
-  test("Quick Actions contains the expected actions", async ({ page }) => {
-    // "Add Role" is now a modal-trigger button (not a nav link)
-    await expect(page.getByRole("button", { name: /Add Role/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Log Application/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Tailor CV/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Browse Roles/i })).toBeVisible();
+  test("renders Pipeline Snapshot stats", async ({ page }) => {
+    await expect(page.getByText("To Apply")).toBeVisible();
+    await expect(page.getByText("Applied")).toBeVisible();
   });
 
   test("Probability Engine toggle expands the panel", async ({ page }) => {

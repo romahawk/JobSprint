@@ -24,6 +24,8 @@ import {
   ChevronRight,
   Pencil,
   Rocket,
+  Search,
+  SlidersHorizontal,
   Trash2,
   WandSparkles,
   X,
@@ -114,6 +116,8 @@ export default function JobOsRolesPage() {
     fitMin: "all",
     status: "all",
   });
+  const [unifiedSearch, setUnifiedSearch] = useState("");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedJdRoleId, setSelectedJdRoleId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt">>({
     companyId: "",
@@ -144,15 +148,16 @@ export default function JobOsRolesPage() {
   }, [companies, companySearch]);
 
   const filtered = useMemo(() => {
-    const companyQuery = tableFilters.company.trim().toLowerCase();
-    const titleQuery = tableFilters.title.trim().toLowerCase();
+    const searchQuery = unifiedSearch.trim().toLowerCase();
     const locationQuery = tableFilters.location.trim().toLowerCase();
 
     return roles.filter((role) => {
       const companyName = companiesById.get(role.companyId)?.name ?? "";
 
-      if (companyQuery && !companyName.toLowerCase().includes(companyQuery)) return false;
-      if (titleQuery && !role.title.toLowerCase().includes(titleQuery)) return false;
+      if (searchQuery) {
+        const haystack = `${companyName} ${role.title}`.toLowerCase();
+        if (!haystack.includes(searchQuery)) return false;
+      }
       if (locationQuery && !role.location.toLowerCase().includes(locationQuery)) return false;
       if (
         tableFilters.seniority !== "all" &&
@@ -168,7 +173,7 @@ export default function JobOsRolesPage() {
 
       return true;
     });
-  }, [companiesById, roles, tableFilters]);
+  }, [companiesById, roles, tableFilters, unifiedSearch]);
 
   const sortedRoles = useMemo(() => {
     const statusRank: Record<RoleStatus, number> = {
@@ -235,7 +240,7 @@ export default function JobOsRolesPage() {
 
   useEffect(() => {
     resetRolesPage();
-  }, [resetRolesPage, sortDir, sortKey, tableFilters]);
+  }, [resetRolesPage, sortDir, sortKey, tableFilters, unifiedSearch]);
 
   const applicationRoleIds = useMemo(
     () => new Set(applications.map((application) => application.roleId).filter(Boolean)),
@@ -552,6 +557,94 @@ export default function JobOsRolesPage() {
         ) : null}
       </Card>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            className="h-9 pl-8 text-sm"
+            placeholder="Search company or title…"
+            value={unifiedSearch}
+            onChange={(e) => setUnifiedSearch(e.target.value)}
+          />
+        </div>
+        <Select value={tableFilters.status} onValueChange={(value) => updateTableFilter("status", value)}>
+          <SelectTrigger className="h-9 w-[150px] text-sm">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {ROLE_STATUSES.map((status) => (
+              <SelectItem key={status} value={status}>{status}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowMoreFilters((v) => !v)}
+          className={`gap-1.5 text-xs ${showMoreFilters ? "text-foreground" : "text-muted-foreground"}`}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          {showMoreFilters ? "Fewer filters" : "More filters"}
+        </Button>
+        {(unifiedSearch || tableFilters.status !== "all" || tableFilters.location || tableFilters.seniority !== "all" || tableFilters.track !== "all" || tableFilters.fitMin !== "all") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground"
+            onClick={() => {
+              setUnifiedSearch("");
+              setTableFilters({ company: "", title: "", location: "", seniority: "all", track: "all", fitMin: "all", status: "all" });
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </div>
+      {showMoreFilters && (
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={tableFilters.location}
+            onChange={(event) => updateTableFilter("location", event.target.value)}
+            placeholder="Location"
+            className="h-9 w-[150px] text-sm"
+          />
+          <Select value={tableFilters.seniority} onValueChange={(value) => updateTableFilter("seniority", value)}>
+            <SelectTrigger className="h-9 w-[130px] text-sm">
+              <SelectValue placeholder="Seniority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All seniority</SelectItem>
+              {SENIORITY_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>{option}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={tableFilters.track} onValueChange={(value) => updateTableFilter("track", value)}>
+            <SelectTrigger className="h-9 w-[160px] text-sm">
+              <SelectValue placeholder="All tracks" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All tracks</SelectItem>
+              <SelectItem value="TPM">TPM</SelectItem>
+              <SelectItem value="Product Engineer">Product Engineer</SelectItem>
+              <SelectItem value="Systems PM">Systems PM</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={tableFilters.fitMin} onValueChange={(value) => updateTableFilter("fitMin", value)}>
+            <SelectTrigger className="h-9 w-[110px] text-sm">
+              <SelectValue placeholder="Fit score" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All fit</SelectItem>
+              {FIT_FILTER_VALUES.filter((value) => value !== "all").map((value) => (
+                <SelectItem key={value} value={value}>{value}+ fit</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Roles Pipeline</CardTitle>
@@ -582,105 +675,6 @@ export default function JobOsRolesPage() {
                 <TableHead>{renderSortHeader("Added", "createdAt")}</TableHead>
                 <TableHead>JD</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-              <TableRow className="bg-muted/20 hover:bg-muted/20">
-                <TableHead>
-                  <Input
-                    value={tableFilters.company}
-                    onChange={(event) => updateTableFilter("company", event.target.value)}
-                    placeholder="Filter company"
-                    className="h-8 min-w-[140px]"
-                  />
-                </TableHead>
-                <TableHead>
-                  <Input
-                    value={tableFilters.title}
-                    onChange={(event) => updateTableFilter("title", event.target.value)}
-                    placeholder="Filter title"
-                    className="h-8 min-w-[160px]"
-                  />
-                </TableHead>
-                <TableHead>
-                  <Input
-                    value={tableFilters.location}
-                    onChange={(event) => updateTableFilter("location", event.target.value)}
-                    placeholder="Filter location"
-                    className="h-8 min-w-[130px]"
-                  />
-                </TableHead>
-                <TableHead>
-                  <Select
-                    value={tableFilters.seniority}
-                    onValueChange={(value) => updateTableFilter("seniority", value)}
-                  >
-                    <SelectTrigger className="h-8 min-w-[120px]">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {SENIORITY_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableHead>
-                <TableHead>
-                  <Select
-                    value={tableFilters.track}
-                    onValueChange={(value) => updateTableFilter("track", value)}
-                  >
-                    <SelectTrigger className="h-8 min-w-[140px]">
-                      <SelectValue placeholder="All tracks" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All tracks</SelectItem>
-                      <SelectItem value="TPM">TPM</SelectItem>
-                      <SelectItem value="Product Engineer">Product Engineer</SelectItem>
-                      <SelectItem value="Systems PM">Systems PM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableHead>
-                <TableHead>
-                  <Select
-                    value={tableFilters.fitMin}
-                    onValueChange={(value) => updateTableFilter("fitMin", value)}
-                  >
-                    <SelectTrigger className="h-8 min-w-[96px]">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {FIT_FILTER_VALUES.filter((value) => value !== "all").map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {value}+
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableHead>
-                <TableHead>
-                  <Select
-                    value={tableFilters.status}
-                    onValueChange={(value) => updateTableFilter("status", value)}
-                  >
-                    <SelectTrigger className="h-8 min-w-[130px]">
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All statuses</SelectItem>
-                      {ROLE_STATUSES.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableHead>
-                <TableHead />
-                <TableHead />
-                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useMemo, useState } from "react";
-import { Archive, CheckCheck, Compass, ExternalLink, Globe2, HelpCircle, ListChecks, Plus, Search } from "lucide-react";
+import { Archive, CheckCheck, ExternalLink, HelpCircle, Plus, Search, WandSparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppPageShell } from "../../components/layout/AppPageShell";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
@@ -642,52 +642,23 @@ export default function JobOsSourcesPage() {
         subtitle="Work through today's due scans, then capture only the roles worth qualifying."
       >
         <div className="space-y-5">
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Card>
-              <CardContent className="flex items-center justify-between py-5">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Active Sources
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold">{activeSources.length}</div>
-                </div>
-                <Compass className="h-5 w-5 text-muted-foreground" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center justify-between py-5">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Due Today
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold">{dueScanItems.length}</div>
-                </div>
-                <Search className="h-5 w-5 text-muted-foreground" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center justify-between py-5">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Captured Roles
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold">{capturedRolesCount}</div>
-                </div>
-                <Globe2 className="h-5 w-5 text-muted-foreground" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center justify-between py-5">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Qualified Queue
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold">{qualificationQueue.length}</div>
-                </div>
-                <ListChecks className="h-5 w-5 text-muted-foreground" />
-              </CardContent>
-            </Card>
-          </section>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border border-border bg-background/80 px-4 py-2.5 text-sm">
+            <span className="text-muted-foreground">
+              <span className="font-semibold text-foreground">{activeSources.length}</span> active sources
+            </span>
+            <span className="hidden text-muted-foreground/40 sm:inline">·</span>
+            <span className="text-muted-foreground">
+              <span className="font-semibold text-foreground">{dueScanItems.length}</span> due today
+            </span>
+            <span className="hidden text-muted-foreground/40 sm:inline">·</span>
+            <span className="text-muted-foreground">
+              <span className="font-semibold text-foreground">{capturedRolesCount}</span> captured roles
+            </span>
+            <span className="hidden text-muted-foreground/40 sm:inline">·</span>
+            <span className="text-muted-foreground">
+              <span className="font-semibold text-foreground">{qualificationQueue.length}</span> in queue
+            </span>
+          </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center gap-2">
@@ -824,23 +795,7 @@ export default function JobOsSourcesPage() {
                                   <span>Last checked: {formatDateLabel(entry.item.lastCheckedAt)}</span>
                                 </div>
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openUrl(entry.item.url)}>
-                                  <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                                  Open
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    isSource
-                                      ? void handleMarkSourceChecked(entry.item as JobSource)
-                                      : void handleMarkSavedSearchChecked(entry.item as SavedSearch)
-                                  }
-                                >
-                                  <CheckCheck className="mr-1 h-3.5 w-3.5" />
-                                  Mark checked
-                                </Button>
+                              <div className="flex flex-wrap items-center gap-2">
                                 <Button
                                   size="sm"
                                   onClick={() =>
@@ -858,6 +813,26 @@ export default function JobOsSourcesPage() {
                                   <Plus className="mr-1 h-3.5 w-3.5" />
                                   Capture role
                                 </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    isSource
+                                      ? void handleMarkSourceChecked(entry.item as JobSource)
+                                      : void handleMarkSavedSearchChecked(entry.item as SavedSearch)
+                                  }
+                                >
+                                  <CheckCheck className="mr-1 h-3.5 w-3.5" />
+                                  Mark checked
+                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" onClick={() => openUrl(entry.item.url)} aria-label="Open in browser">
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">Open in browser</TooltipContent>
+                                </Tooltip>
                               </div>
                             </div>
                           </div>
@@ -961,13 +936,20 @@ export default function JobOsSourcesPage() {
                             <TableCell>{CADENCE_LABELS[source.cadence]}</TableCell>
                             <TableCell>{formatDateLabel(source.lastCheckedAt)}</TableCell>
                             <TableCell>
-                              <div className="flex justify-end gap-2">
-                                <Button size="sm" variant="outline" onClick={() => openUrl(source.url)}>Open</Button>
-                                <Button size="sm" variant="outline" onClick={() => void handleMarkSourceChecked(source)}>Mark checked</Button>
+                              <div className="flex items-center justify-end gap-1">
                                 <Button size="sm" variant="outline" onClick={() => openSourceEditor(source)}>Edit</Button>
+                                <Button size="sm" variant="ghost" onClick={() => void handleMarkSourceChecked(source)}>Mark checked</Button>
                                 <Button size="sm" variant="ghost" onClick={() => void handleToggleSource(source)}>
                                   {source.active ? "Disable" : "Enable"}
                                 </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" onClick={() => openUrl(source.url)} aria-label="Open source">
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">Open source</TooltipContent>
+                                </Tooltip>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -998,11 +980,14 @@ export default function JobOsSourcesPage() {
                           <span>{formatDateLabel(source.lastCheckedAt)}</span>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openUrl(source.url)}>Open</Button>
-                          <Button size="sm" variant="outline" onClick={() => void handleMarkSourceChecked(source)}>Mark checked</Button>
                           <Button size="sm" variant="outline" onClick={() => openSourceEditor(source)}>Edit</Button>
+                          <Button size="sm" variant="ghost" onClick={() => void handleMarkSourceChecked(source)}>Mark checked</Button>
                           <Button size="sm" variant="ghost" onClick={() => void handleToggleSource(source)}>
                             {source.active ? "Disable" : "Enable"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => openUrl(source.url)}>
+                            <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                            Open
                           </Button>
                         </div>
                       </div>
@@ -1098,14 +1083,21 @@ export default function JobOsSourcesPage() {
                             <TableCell>{CADENCE_LABELS[savedSearch.cadence]}</TableCell>
                             <TableCell>{formatDateLabel(savedSearch.lastCheckedAt)}</TableCell>
                             <TableCell>
-                              <div className="flex justify-end gap-2">
-                                <Button size="sm" variant="outline" onClick={() => openUrl(savedSearch.url)}>Open</Button>
-                                <Button size="sm" variant="outline" onClick={() => void handleMarkSavedSearchChecked(savedSearch)}>Mark checked</Button>
+                              <div className="flex items-center justify-end gap-1">
                                 <Button size="sm" onClick={() => openCapture({ sourceId: savedSearch.sourceId, savedSearchId: savedSearch.id, sourceUrl: savedSearch.url })}>Capture role</Button>
                                 <Button size="sm" variant="outline" onClick={() => openSavedSearchEditor(savedSearch)}>Edit</Button>
+                                <Button size="sm" variant="ghost" onClick={() => void handleMarkSavedSearchChecked(savedSearch)}>Mark checked</Button>
                                 <Button size="sm" variant="ghost" onClick={() => void handleToggleSavedSearch(savedSearch)}>
                                   {savedSearch.active ? "Disable" : "Enable"}
                                 </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" onClick={() => openUrl(savedSearch.url)} aria-label="Open search">
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">Open search</TooltipContent>
+                                </Tooltip>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1137,12 +1129,15 @@ export default function JobOsSourcesPage() {
                           <span>{formatDateLabel(savedSearch.lastCheckedAt)}</span>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openUrl(savedSearch.url)}>Open</Button>
-                          <Button size="sm" variant="outline" onClick={() => void handleMarkSavedSearchChecked(savedSearch)}>Mark checked</Button>
                           <Button size="sm" onClick={() => openCapture({ sourceId: savedSearch.sourceId, savedSearchId: savedSearch.id, sourceUrl: savedSearch.url })}>Capture role</Button>
                           <Button size="sm" variant="outline" onClick={() => openSavedSearchEditor(savedSearch)}>Edit</Button>
+                          <Button size="sm" variant="ghost" onClick={() => void handleMarkSavedSearchChecked(savedSearch)}>Mark checked</Button>
                           <Button size="sm" variant="ghost" onClick={() => void handleToggleSavedSearch(savedSearch)}>
                             {savedSearch.active ? "Disable" : "Enable"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => openUrl(savedSearch.url)}>
+                            <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                            Open
                           </Button>
                         </div>
                       </div>
@@ -1250,7 +1245,19 @@ export default function JobOsSourcesPage() {
                                 {role.nextStep || "Clarify next move."}
                               </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  void handleQueueAction(
+                                    role,
+                                    { discoveryStatus: "to_apply", status: "to_apply" },
+                                    `${role.title} moved to apply queue`
+                                  )
+                                }
+                              >
+                                Move to apply queue
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1263,18 +1270,6 @@ export default function JobOsSourcesPage() {
                                 }
                               >
                                 Qualify
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() =>
-                                  void handleQueueAction(
-                                    role,
-                                    { discoveryStatus: "to_apply", status: "to_apply" },
-                                    `${role.title} moved to apply queue`
-                                  )
-                                }
-                              >
-                                Move to Apply Queue
                               </Button>
                               <Button
                                 size="sm"
@@ -1291,17 +1286,24 @@ export default function JobOsSourcesPage() {
                                 <Archive className="mr-1 h-3.5 w-3.5" />
                                 Archive
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={!role.url}
-                                onClick={() => openUrl(role.url)}
-                              >
-                                Open role URL
-                              </Button>
-                              <Button asChild size="sm" variant="outline">
-                                <Link to={appPath("/cv-optimizer")}>Open CV Optimizer</Link>
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="icon" variant="ghost" disabled={!role.url} onClick={() => openUrl(role.url)} aria-label="Open role URL">
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">Open role URL</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button asChild size="icon" variant="ghost" aria-label="Open CV Optimizer">
+                                    <Link to={appPath("/cv-optimizer")}>
+                                      <WandSparkles className="h-3.5 w-3.5" />
+                                    </Link>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">Open CV Optimizer</TooltipContent>
+                              </Tooltip>
                             </div>
                           </div>
                         </div>

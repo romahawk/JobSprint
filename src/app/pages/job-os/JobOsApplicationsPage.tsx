@@ -13,7 +13,7 @@ import {
 } from "../../components/ui/alert-dialog";
 import { usePagination } from "../../hooks/usePagination";
 import { PaginationControls } from "../../components/ui/PaginationControls";
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, KanbanSquare, List, MessageSquare, Plus, Search } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, CircleHelp, Download, FileText, KanbanSquare, List, MessageSquare, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Checkbox } from "../../components/ui/checkbox";
@@ -38,6 +38,9 @@ import {
   APPLICATION_STATUS_LABELS,
   INTERVIEW_RELATED_APPLICATION_STATUSES,
   applicationReachedInterview,
+  buildArchiveApplicationUpdates,
+  buildRestoreApplicationUpdates,
+  isApplicationArchived,
   sortJobOsApplications,
   type ApplicationSortField,
   type SortDirection,
@@ -45,6 +48,7 @@ import {
 import { getApplicationCvLabel, getDefaultCvAsset } from "../../services/cvAssets";
 import { ApplicationQualityBadge } from "../../components/job-os/ApplicationQualityBadge";
 import { appPath } from "../../routing";
+import { isArchived } from "../../services/jobOsArchive";
 import type { ApplicationStatus, JobOsApplication, JobOsCompany, JobOsRole } from "../../types/jobOs";
 
 const STATUS_VALUES: ApplicationStatus[] = [
@@ -63,6 +67,18 @@ type ApplicationStageGroup = keyof typeof APPLICATION_STAGE_GROUPS;
 type SortField = ApplicationSortField;
 type ClosedInterviewFilter = "all" | "withInterview";
 
+interface ArchivedApplicationExportRow {
+  no: number;
+  company: string;
+  role: string;
+  status: string;
+  dateApplied: string;
+  channel: string;
+  archivedAt: string;
+  archivedReason: string;
+  notes: string;
+}
+
 const EMPTY_APPLICATION_DRAFT = {
   dateApplied: new Date().toISOString().slice(0, 10),
   companyId: "",
@@ -80,6 +96,9 @@ const EMPTY_APPLICATION_DRAFT = {
   tailoredCvSummary: "",
   tailoredCvText: "",
   tailoredCvUpdatedAt: undefined,
+  archived: false,
+  archivedAt: undefined,
+  archivedReason: undefined,
 };
 
 function createDraft(defaultCv?: { id: string; name: string }): Omit<JobOsApplication, "id" | "createdAt" | "updatedAt"> {
@@ -88,6 +107,31 @@ function createDraft(defaultCv?: { id: string; name: string }): Omit<JobOsApplic
     cvAssetId: defaultCv?.id,
     cvVersion: defaultCv?.name ?? "",
   };
+}
+
+function escapeCsvValue(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function downloadTextFile(fileName: string, content: string, type: string): void {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
 }
 
 export default function JobOsApplicationsPage() {
@@ -101,7 +145,6 @@ export default function JobOsApplicationsPage() {
     addApplication,
     updateApplication,
     updateOutreach,
-    removeApplication,
     syncNotice,
     exportState,
     replaceState,
@@ -140,7 +183,7 @@ export default function JobOsApplicationsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDraftSnapshot, setCreateDraftSnapshot] = useState("");
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [archiveAllConfirmOpen, setArchiveAllConfirmOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailDraft, setDetailDraft] = useState<Pick<JobOsApplication, "dateApplied" | "channel" | "status" | "nextAction" | "notes" | "interviewStageReached"> | null>(null);
   const [detailDraftSnapshot, setDetailDraftSnapshot] = useState("");
@@ -150,14 +193,51 @@ export default function JobOsApplicationsPage() {
 
   const companiesById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
   const rolesById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
+  const activeCompanies = useMemo(() => companies.filter((company) => !isArchived(company)), [companies]);
+  const activeCompanyIds = useMemo(() => new Set(activeCompanies.map((company) => company.id)), [activeCompanies]);
+  const activeRoles = useMemo(
+    () => roles.filter((role) => !isArchived(role) && activeCompanyIds.has(role.companyId)),
+    [activeCompanyIds, roles]
+  );
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const detailApplication = detailId ? applications.find((application) => application.id === detailId) ?? null : null;
+  const unarchivedApplications = useMemo(
+    () => applications.filter((application) => !isApplicationArchived(application)),
+    [applications]
+  );
+  const archivedApplications = useMemo(
+    () => applications.filter(isApplicationArchived),
+    [applications]
+  );
+  const archivedExportRows = useMemo<ArchivedApplicationExportRow[]>(
+    () =>
+      sortJobOsApplications(archivedApplications, companiesById, rolesById, "date", "desc").map(
+        (application, index) => ({
+          no: index + 1,
+          company: companiesById.get(application.companyId)?.name ?? "Unknown company",
+          role: rolesById.get(application.roleId)?.title ?? "Unknown role",
+          status: APPLICATION_STATUS_LABELS[application.status],
+          dateApplied: application.dateApplied,
+          channel: application.channel,
+          archivedAt: application.archivedAt ?? "",
+          archivedReason: application.archivedReason ?? "",
+          notes: application.notes,
+        })
+      ),
+    [archivedApplications, companiesById, rolesById]
+  );
 
   const groupStatuses = APPLICATION_STAGE_GROUPS[stageGroup].statuses;
   const filteredApplications = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
     const visibleApplications = applications.filter((application) => {
+      const isArchived = isApplicationArchived(application);
+      if (stageGroup === "archived") {
+        if (!isArchived) return false;
+      } else if (isArchived) {
+        return false;
+      }
       if (!groupStatuses.includes(application.status)) return false;
       if (
         stageGroup === "closed" &&
@@ -289,6 +369,137 @@ export default function JobOsApplicationsPage() {
     setSelectedIds([]);
   }
 
+  async function archiveApplications(ids: string[], reason = "Historical cleanup"): Promise<void> {
+    await Promise.all(
+      ids.map((id) => updateApplication(id, buildArchiveApplicationUpdates(reason)))
+    );
+    setSelectedIds([]);
+  }
+
+  async function restoreApplications(ids: string[]): Promise<void> {
+    await Promise.all(
+      ids.map((id) => updateApplication(id, buildRestoreApplicationUpdates()))
+    );
+    setSelectedIds([]);
+  }
+
+  async function handleArchiveAllApplications(): Promise<void> {
+    await archiveApplications(
+      unarchivedApplications.map((application) => application.id),
+      "Historical cleanup before new targeted application list"
+    );
+    setArchiveAllConfirmOpen(false);
+    toast.success(`${unarchivedApplications.length} application${unarchivedApplications.length === 1 ? "" : "s"} archived`);
+  }
+
+  function handleExportArchivedCsv(): void {
+    if (archivedExportRows.length === 0) return;
+
+    const headers = [
+      "No.",
+      "Company",
+      "Role",
+      "Status",
+      "Date applied",
+      "Channel",
+      "Archived at",
+      "Archive reason",
+      "Notes",
+    ];
+    const rows = archivedExportRows.map((row) => [
+      String(row.no),
+      row.company,
+      row.role,
+      row.status,
+      row.dateApplied,
+      row.channel,
+      row.archivedAt,
+      row.archivedReason,
+      row.notes,
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((value) => escapeCsvValue(value)).join(","))
+      .join("\n");
+    const date = new Date().toISOString().slice(0, 10);
+
+    downloadTextFile(
+      `jobsprint-archived-applications-${date}.csv`,
+      `\uFEFF${csv}`,
+      "text/csv;charset=utf-8"
+    );
+    toast.success("Archived applications CSV exported");
+  }
+
+  function handleExportArchivedPdf(): void {
+    if (archivedExportRows.length === 0) return;
+
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) {
+      toast.error("Pop-up blocked. Please allow pop-ups to export the PDF.");
+      return;
+    }
+
+    const exportedAt = new Date().toLocaleString();
+    const rowsHtml = archivedExportRows
+      .map(
+        (row) => `
+          <tr>
+            <td>${row.no}</td>
+            <td>${escapeHtml(row.company)}</td>
+            <td>${escapeHtml(row.role)}</td>
+            <td>${escapeHtml(row.status)}</td>
+            <td>${escapeHtml(row.dateApplied)}</td>
+            <td>${escapeHtml(row.channel)}</td>
+            <td>${escapeHtml(row.archivedAt ? new Date(row.archivedAt).toLocaleDateString() : "")}</td>
+            <td>${escapeHtml(row.archivedReason)}</td>
+            <td>${escapeHtml(row.notes)}</td>
+          </tr>`
+      )
+      .join("");
+
+    reportWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>JobSprint Archived Applications</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #111827; margin: 32px; }
+            h1 { margin: 0; font-size: 24px; }
+            .meta { margin: 6px 0 24px; color: #6b7280; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th, td { border: 1px solid #d1d5db; padding: 7px; text-align: left; vertical-align: top; }
+            th { background: #f3f4f6; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+            td:nth-child(8) { max-width: 220px; }
+            @media print { body { margin: 18mm; } }
+          </style>
+        </head>
+        <body>
+          <h1>JobSprint Archived Applications</h1>
+          <div class="meta">${archivedExportRows.length} archived application${archivedExportRows.length === 1 ? "" : "s"} exported ${escapeHtml(exportedAt)}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>No.</th>
+                <th>Company</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Date applied</th>
+                <th>Channel</th>
+                <th>Archived at</th>
+                <th>Archive reason</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <script>window.onload=function(){window.print();}</script>
+        </body>
+      </html>
+    `);
+    reportWindow.document.close();
+    toast.success("Archived applications PDF opened");
+  }
+
   async function bulkFollowUp(): Promise<void> {
     await Promise.all(selectedIds.map((id) => updateApplication(id, { nextAction: "Follow up" })));
     setSelectedIds([]);
@@ -317,14 +528,15 @@ export default function JobOsApplicationsPage() {
 
   const closedInterviewCount = useMemo(
     () =>
-      applications.filter(
+      unarchivedApplications.filter(
         (application) =>
           APPLICATION_STAGE_GROUPS.closed.statuses.includes(application.status) &&
           applicationReachedInterview(application)
       ).length,
-    [applications]
+    [unarchivedApplications]
   );
   const isClosedStageGroup = stageGroup === "closed";
+  const isArchivedStageGroup = stageGroup === "archived";
 
   function handleCreateDialogKeyDown(
     event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -380,6 +592,16 @@ export default function JobOsApplicationsPage() {
         <Plus className="h-4 w-4" />
         Add Application
       </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="gap-2"
+        onClick={() => setArchiveAllConfirmOpen(true)}
+        disabled={unarchivedApplications.length === 0}
+      >
+        <Archive className="h-4 w-4" />
+        Archive All
+      </Button>
     </>
   );
 
@@ -406,9 +628,11 @@ export default function JobOsApplicationsPage() {
                 className="ml-1 rounded-full bg-background/70 px-1.5 py-0 text-[10px]"
               >
                 {
-                  applications.filter((application) =>
-                    APPLICATION_STAGE_GROUPS[group].statuses.includes(application.status)
-                  ).length
+                  group === "archived"
+                    ? archivedApplications.length
+                    : unarchivedApplications.filter((application) =>
+                        APPLICATION_STAGE_GROUPS[group].statuses.includes(application.status)
+                      ).length
                 }
               </Badge>
             </TabsTrigger>
@@ -444,12 +668,39 @@ export default function JobOsApplicationsPage() {
           </div>
         ) : null}
 
+        {stageGroup === "archived" ? (
+          <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-background/70 p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="rounded-lg gap-1.5"
+              onClick={handleExportArchivedCsv}
+              disabled={archivedApplications.length === 0}
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="rounded-lg gap-1.5"
+              onClick={handleExportArchivedPdf}
+              disabled={archivedApplications.length === 0}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
+        ) : null}
+
         <div className="relative w-full sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder={isClosedStageGroup ? "Search company, role, notes" : "Search company, role, next action, notes"}
+            placeholder={isClosedStageGroup || isArchivedStageGroup ? "Search company, role, notes" : "Search company, role, next action, notes"}
             className="pl-9"
           />
         </div>
@@ -483,12 +734,25 @@ export default function JobOsApplicationsPage() {
                       Set Follow-up
                     </Button>
                   ) : null}
-                  <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("screen")}>
-                    Move to Screen
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("rejected")}>
-                    Mark Rejected
-                  </Button>
+                  {isArchivedStageGroup ? (
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void restoreApplications(selectedIds)}>
+                      <ArchiveRestore className="h-3.5 w-3.5" />
+                      Restore
+                    </Button>
+                  ) : (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("screen")}>
+                        Move to Screen
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => void applyBulkStatus("rejected")}>
+                        Mark Rejected
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void archiveApplications(selectedIds)}>
+                        <Archive className="h-3.5 w-3.5" />
+                        Archive
+                      </Button>
+                    </>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
                     Clear
                   </Button>
@@ -516,21 +780,23 @@ export default function JobOsApplicationsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead />
+                      <TableHead className="w-14">No.</TableHead>
                       <TableHead>{renderSortHeader("Company", "company")}</TableHead>
                       <TableHead>{renderSortHeader("Role", "role")}</TableHead>
                       <TableHead>Quality</TableHead>
                       <TableHead>{renderSortHeader("Status", "status")}</TableHead>
                       <TableHead>{renderSortHeader("Date", "date")}</TableHead>
-                      {!isClosedStageGroup ? (
+                      {!isClosedStageGroup && !isArchivedStageGroup ? (
                         <TableHead>{renderSortHeader("Next Action", "nextAction")}</TableHead>
                       ) : null}
                       <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pagedApplications.map((application) => {
+                    {pagedApplications.map((application, index) => {
                       const reachedInterview = applicationReachedInterview(application);
                       const isClosedApplication = APPLICATION_STAGE_GROUPS.closed.statuses.includes(application.status);
+                      const rowNumber = (appPage - 1) * PAGE_SIZE + index + 1;
 
                       return (
                         <TableRow
@@ -546,12 +812,20 @@ export default function JobOsApplicationsPage() {
                               onChange={() => toggleSelection(application.id)}
                             />
                           </TableCell>
+                          <TableCell className="text-sm tabular-nums text-muted-foreground">
+                            {rowNumber}
+                          </TableCell>
                           <TableCell>
                             {companiesById.get(application.companyId)?.name ?? "-"}
                           </TableCell>
                           <TableCell>{rolesById.get(application.roleId)?.title ?? "-"}</TableCell>
                           <TableCell>
-                            {isClosedApplication ? (
+                            {isApplicationArchived(application) ? (
+                              <Badge variant="outline" className="gap-1 rounded-full">
+                                <Archive className="h-3.5 w-3.5" />
+                                Archived
+                              </Badge>
+                            ) : isClosedApplication ? (
                               reachedInterview ? (
                                 <Badge variant="secondary" className="gap-1 rounded-full">
                                   <MessageSquare className="h-3.5 w-3.5" />
@@ -591,7 +865,7 @@ export default function JobOsApplicationsPage() {
                             </Select>
                           </TableCell>
                           <TableCell>{application.dateApplied}</TableCell>
-                          {!isClosedStageGroup ? (
+                          {!isClosedStageGroup && !isArchivedStageGroup ? (
                             <TableCell className="max-w-[220px] truncate">
                               {application.nextAction || "-"}
                             </TableCell>
@@ -614,7 +888,7 @@ export default function JobOsApplicationsPage() {
                     {filteredApplications.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={isClosedStageGroup ? 7 : 8}
+                          colSpan={isClosedStageGroup || isArchivedStageGroup ? 8 : 9}
                           className="py-10 text-center text-sm text-muted-foreground"
                         >
                           <div className="mx-auto flex max-w-md flex-col items-center gap-3">
@@ -678,7 +952,7 @@ export default function JobOsApplicationsPage() {
                 <SelectValue placeholder="Company" />
               </SelectTrigger>
               <SelectContent>
-                {companies.map((company) => (
+                {activeCompanies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}
                   </SelectItem>
@@ -690,7 +964,7 @@ export default function JobOsApplicationsPage() {
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
               <SelectContent>
-                {roles
+                {activeRoles
                   .filter((role) => !draft.companyId || role.companyId === draft.companyId)
                   .map((role) => (
                     <SelectItem key={role.id} value={role.id}>
@@ -788,12 +1062,30 @@ export default function JobOsApplicationsPage() {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={archiveAllConfirmOpen} onOpenChange={setArchiveAllConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive all existing applications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This preserves every record and moves {unarchivedApplications.length} application{unarchivedApplications.length === 1 ? "" : "s"} out of the active pipeline. Archived applications remain available in the Archived filter.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleArchiveAllApplications()}>
+              Archive All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={Boolean(detailApplication)} onOpenChange={(isOpen) => { if (!isOpen) handleCloseDetails(); }}>
         <DialogContent className="max-w-2xl">
           {detailApplication && detailDraft ? (
             <>
               {(() => {
                 const isClosedDetail = APPLICATION_STAGE_GROUPS.closed.statuses.includes(detailDraft.status);
+                const isArchivedDetail = isApplicationArchived(detailApplication);
 
                 return (
                   <>
@@ -803,6 +1095,9 @@ export default function JobOsApplicationsPage() {
                 </DialogTitle>
                 <DialogDescription>
                   {rolesById.get(detailApplication.roleId)?.title ?? "Unknown role"}
+                  {isArchivedDetail && detailApplication.archivedAt
+                    ? ` - Archived ${new Date(detailApplication.archivedAt).toLocaleDateString()}`
+                    : ""}
                 </DialogDescription>
               </DialogHeader>
 
@@ -875,7 +1170,7 @@ export default function JobOsApplicationsPage() {
                   />
                   Reached interview stage
                 </label>
-                {!isClosedDetail ? (
+                {!isClosedDetail && !isArchivedDetail ? (
                   <div className="md:col-span-2">
                     <Input
                       value={detailDraft.nextAction}
@@ -904,37 +1199,35 @@ export default function JobOsApplicationsPage() {
                   <Button asChild variant="outline">
                     <Link to={`${appPath("/cv-optimizer")}?applicationId=${detailApplication.id}`}>Tailor CV</Link>
                   </Button>
-                  <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                  {isApplicationArchived(detailApplication) ? (
                     <Button
-                      variant="ghost"
-                      className="text-red-500"
-                      onClick={() => setDeleteConfirmOpen(true)}
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => {
+                        void restoreApplications([detailApplication.id]).then(() =>
+                          toast.success("Application restored")
+                        );
+                        closeDetails();
+                      }}
                     >
-                      Delete
+                      <ArchiveRestore className="h-4 w-4" />
+                      Restore
                     </Button>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this application?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This record will be permanently removed.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                          onClick={() => {
-                            void removeApplication(detailApplication.id).then(() =>
-                              toast.success("Application deleted")
-                            );
-                            closeDetails();
-                          }}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => {
+                        void archiveApplications([detailApplication.id]).then(() =>
+                          toast.success("Application archived")
+                        );
+                        closeDetails();
+                      }}
+                    >
+                      <Archive className="h-4 w-4" />
+                      Archive
+                    </Button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">Cmd/Ctrl + Enter saves</span>

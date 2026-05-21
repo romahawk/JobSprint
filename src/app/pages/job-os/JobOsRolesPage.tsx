@@ -2,27 +2,18 @@ import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../../components/ui/alert-dialog";
-import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Archive,
+  ArchiveRestore,
   BriefcaseBusiness,
+  Check,
   CheckCircle2,
   Pencil,
   Rocket,
   Search,
   SlidersHorizontal,
-  Trash2,
   WandSparkles,
   X,
 } from "lucide-react";
@@ -41,6 +32,7 @@ import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { appPath } from "../../routing";
 import { getRecommendedCvForTrack } from "../../services/cvAssets";
+import { buildArchiveUpdates, buildRestoreUpdates, isArchived } from "../../services/jobOsArchive";
 import type { JobOsRole, JobTrack, RoleStatus } from "../../types/jobOs";
 
 type RoleOrigin = "self_sourced" | "recruiter";
@@ -87,14 +79,13 @@ export default function JobOsRolesPage() {
     cvProfiles,
     updateRole,
     addApplication,
-    removeRole,
     syncNotice,
     exportState,
     replaceState,
   } = useJobOsContext();
 
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "createdAt" | "updatedAt"> | null>(null);
+  const [editDraft, setEditDraft] = useState<Omit<JobOsRole, "id" | "updatedAt"> | null>(null);
   const [actionNotice, setActionNotice] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [sortKey, setSortKey] = useState<RoleSortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -109,11 +100,20 @@ export default function JobOsRolesPage() {
   });
   const [unifiedSearch, setUnifiedSearch] = useState("");
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedJdRoleId, setSelectedJdRoleId] = useState<string | null>(null);
 
   const companiesById = useMemo(
     () => new Map(companies.map((company) => [company.id, company])),
     [companies]
+  );
+  const activeCompanyIds = useMemo(
+    () => new Set(companies.filter((company) => !isArchived(company)).map((company) => company.id)),
+    [companies]
+  );
+  const archivedRolesCount = useMemo(
+    () => roles.filter(isArchived).length,
+    [roles]
   );
 
   const filtered = useMemo(() => {
@@ -122,6 +122,11 @@ export default function JobOsRolesPage() {
 
     return roles.filter((role) => {
       const companyName = companiesById.get(role.companyId)?.name ?? "";
+      if (showArchived) {
+        if (!isArchived(role)) return false;
+      } else if (isArchived(role) || !activeCompanyIds.has(role.companyId)) {
+        return false;
+      }
 
       if (searchQuery) {
         const haystack = `${companyName} ${role.title}`.toLowerCase();
@@ -142,7 +147,7 @@ export default function JobOsRolesPage() {
 
       return true;
     });
-  }, [companiesById, roles, tableFilters, unifiedSearch]);
+  }, [activeCompanyIds, companiesById, roles, showArchived, tableFilters, unifiedSearch]);
 
   const sortedRoles = useMemo(() => {
     const statusRank: Record<RoleStatus, number> = {
@@ -212,7 +217,7 @@ export default function JobOsRolesPage() {
   }, [resetRolesPage, sortDir, sortKey, tableFilters, unifiedSearch]);
 
   const applicationRoleIds = useMemo(
-    () => new Set(applications.map((application) => application.roleId).filter(Boolean)),
+    () => new Set(applications.filter((application) => !isArchived(application)).map((application) => application.roleId).filter(Boolean)),
     [applications]
   );
   const selectedJdRole =
@@ -266,7 +271,15 @@ export default function JobOsRolesPage() {
       origin: role.origin ?? "self_sourced",
       jobDescription: role.jobDescription ?? "",
       jobDescriptionUpdatedAt: role.jobDescriptionUpdatedAt,
+      createdAt: role.createdAt,
     });
+  }
+
+  function openJdEditor(role: JobOsRole): void {
+    if (editingRoleId !== role.id) {
+      startEdit(role);
+    }
+    setSelectedJdRoleId(role.id);
   }
 
   function cancelEdit(): void {
@@ -325,6 +338,19 @@ export default function JobOsRolesPage() {
     }
   }
 
+  async function archiveRole(role: JobOsRole): Promise<void> {
+    await updateRole(role.id, {
+      ...buildArchiveUpdates("Archived from Roles page"),
+      status: "closed",
+    });
+    toast.success("Role archived");
+  }
+
+  async function restoreRole(role: JobOsRole): Promise<void> {
+    await updateRole(role.id, buildRestoreUpdates());
+    toast.success("Role restored");
+  }
+
   return (
     <JobOsLayout
       title="Roles"
@@ -361,6 +387,15 @@ export default function JobOsRolesPage() {
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           {showMoreFilters ? "Fewer filters" : "More filters"}
+        </Button>
+        <Button
+          variant={showArchived ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setShowArchived((value) => !value)}
+          className="gap-1.5 text-xs"
+        >
+          {showArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+          {showArchived ? "Show Active" : `Archived (${archivedRolesCount})`}
         </Button>
         {(unifiedSearch || tableFilters.status !== "all" || tableFilters.location || tableFilters.seniority !== "all" || tableFilters.track !== "all" || tableFilters.fitMin !== "all") && (
           <Button
@@ -583,14 +618,29 @@ export default function JobOsRolesPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                    {role.createdAt ? role.createdAt.slice(0, 10) : "—"}
+                    {editingRoleId === role.id && editDraft ? (
+                      <Input
+                        type="date"
+                        className="h-8 w-36 text-xs"
+                        value={editDraft.createdAt ? editDraft.createdAt.slice(0, 10) : ""}
+                        onChange={(e) =>
+                          setEditDraft((current) =>
+                            current
+                              ? { ...current, createdAt: e.target.value ? `${e.target.value}T00:00:00.000Z` : current.createdAt }
+                              : current
+                          )
+                        }
+                      />
+                    ) : (
+                      role.createdAt ? role.createdAt.slice(0, 10) : "—"
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {role.jobDescription || (editingRoleId === role.id && editDraft?.jobDescription) ? (
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setSelectedJdRoleId(role.id)}
+                        onClick={() => openJdEditor(role)}
                       >
                         {editingRoleId === role.id ? "Edit JD" : "View JD"}
                       </Button>
@@ -598,7 +648,7 @@ export default function JobOsRolesPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setSelectedJdRoleId(role.id)}
+                        onClick={() => openJdEditor(role)}
                       >
                         Add JD
                       </Button>
@@ -717,53 +767,25 @@ export default function JobOsRolesPage() {
                       </TooltipTrigger>
                       <TooltipContent side="top">Quick apply</TooltipContent>
                     </Tooltip>
-                    <AlertDialog>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex">
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                aria-label="Delete role"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">Delete</TooltipContent>
-                      </Tooltip>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete this role?</AlertDialogTitle>
-                          <AlertDialogDescription asChild>
-                            <div>
-                              <span>{role.title} will be permanently removed.</span>
-                              {(() => {
-                                const linkedApps = applications.filter((a) => a.roleId === role.id).length;
-                                if (linkedApps === 0) return null;
-                                return (
-                                  <span className="mt-2 block rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-                                    Warning: {linkedApps} application{linkedApps !== 1 ? "s" : ""} linked to this role will also be deleted.
-                                  </span>
-                                );
-                              })()}
-                            </div>
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                            onClick={() => void removeRole(role.id).then(() => toast.success("Role deleted"))}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => void (isArchived(role) ? restoreRole(role) : archiveRole(role))}
+                            aria-label={isArchived(role) ? "Restore role" : "Archive role"}
                           >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            {isArchived(role) ? (
+                              <ArchiveRestore className="h-4 w-4" />
+                            ) : (
+                              <Archive className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{isArchived(role) ? "Restore" : "Archive"}</TooltipContent>
+                    </Tooltip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -787,51 +809,109 @@ export default function JobOsRolesPage() {
           if (!open) setSelectedJdRoleId(null);
         }}
       >
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{selectedJdRole?.title ?? "Job Description"}</DialogTitle>
+        <DialogContent className="flex max-h-[calc(100vh-4rem)] w-[min(960px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
+          <DialogHeader className="border-b border-border px-6 py-5 pr-12">
+            <DialogTitle className="truncate">{selectedJdRole?.title ?? "Job Description"}</DialogTitle>
           </DialogHeader>
           {selectedJdRole ? (
-            <div className="space-y-4">
-              <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                <div>
-                  <span className="font-medium text-foreground">Company:</span>{" "}
-                  {companiesById.get(selectedJdRole.companyId)?.name ?? "-"}
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Company</div>
+                    <div className="truncate font-medium text-foreground">
+                      {companiesById.get(selectedJdRole.companyId)?.name ?? "-"}
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Location</div>
+                    <div className="truncate text-foreground">
+                      {(selectedJdDraft?.location ?? selectedJdRole.location) || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Seniority</div>
+                    <div className="text-foreground">
+                      {normalizeSeniority(selectedJdDraft?.seniority ?? selectedJdRole.seniority) || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Track</div>
+                    <div className="text-foreground">{selectedJdDraft?.track ?? selectedJdRole.track}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Fit</div>
+                    <div className="text-foreground">
+                      {selectedJdDraft?.fitScore ?? selectedJdRole.fitScore}/5
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-foreground">Location:</span>{" "}
-                  {(selectedJdDraft?.location ?? selectedJdRole.location) || "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-foreground">Seniority:</span>{" "}
-                  {normalizeSeniority(selectedJdDraft?.seniority ?? selectedJdRole.seniority) || "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-foreground">Track:</span>{" "}
-                  {selectedJdDraft?.track ?? selectedJdRole.track}
-                </div>
-                <div>
-                  <span className="font-medium text-foreground">Fit:</span>{" "}
-                  {selectedJdDraft?.fitScore ?? selectedJdRole.fitScore}/5
-                </div>
+
+                {selectedJdDraft ? (
+                  <div className="space-y-5">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium" htmlFor="role-jd-url">
+                        Job link
+                      </label>
+                      <Input
+                        id="role-jd-url"
+                        className="w-full"
+                        value={selectedJdDraft.url ?? ""}
+                        onChange={(event) =>
+                          setEditDraft((current) =>
+                            current ? { ...current, url: event.target.value } : current
+                          )
+                        }
+                        placeholder="https://company.com/careers/role"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium" htmlFor="role-jd-description">
+                        Full job description
+                      </label>
+                      <Textarea
+                        id="role-jd-description"
+                        value={selectedJdDraft.jobDescription ?? ""}
+                        onChange={(event) =>
+                          setEditDraft((current) =>
+                            current ? { ...current, jobDescription: event.target.value } : current
+                          )
+                        }
+                        rows={20}
+                        className="max-h-[52vh] min-h-[24rem] w-full resize-y font-mono text-sm leading-6"
+                        placeholder="Paste the full job description here, including responsibilities, requirements, benefits, and hiring process notes."
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="max-h-[60vh] overflow-y-auto rounded-md border bg-muted/10 p-4 text-sm leading-6 whitespace-pre-wrap">
+                    {selectedJdRole.jobDescription || "No job description stored."}
+                  </div>
+                )}
               </div>
+
               {selectedJdDraft ? (
-                <Textarea
-                  value={selectedJdDraft.jobDescription ?? ""}
-                  onChange={(event) =>
-                    setEditDraft((current) =>
-                      current ? { ...current, jobDescription: event.target.value } : current
-                    )
-                  }
-                  rows={18}
-                  className="min-h-[26rem]"
-                  placeholder="Paste or refine the full job description here."
-                />
-              ) : (
-                <div className="max-h-[60vh] overflow-y-auto rounded-md border bg-muted/10 p-4 text-sm leading-6 whitespace-pre-wrap">
-                  {selectedJdRole.jobDescription || "No job description stored."}
+                <div className="flex flex-col gap-3 border-t border-border bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Saves to the role record and keeps the link available for Quick Apply.
+                  </div>
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelectedJdRoleId(null)}
+                    >
+                      Continue editing row
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        void saveEdit(selectedJdRole.id).then(() => setSelectedJdRoleId(null))
+                      }
+                    >
+                      Save JD
+                    </Button>
+                  </div>
                 </div>
-              )}
+              ) : null}
             </div>
           ) : null}
         </DialogContent>

@@ -26,6 +26,7 @@ import { AppPageShell } from "../../components/layout/AppPageShell";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 import { WeeklyExecutionPanel } from "../../components/WeeklyExecutionPanel";
 import { appPath } from "../../routing";
+import { isArchived } from "../../services/jobOsArchive";
 
 export function DashboardPage() {
   const { session } = useApp();
@@ -68,6 +69,33 @@ export function DashboardPage() {
     [companies, roles, applications, loading]
   );
 
+  const activeCompanies = useMemo(
+    () => companies.filter((company) => !isArchived(company)),
+    [companies]
+  );
+  const activeCompanyIds = useMemo(
+    () => new Set(activeCompanies.map((company) => company.id)),
+    [activeCompanies]
+  );
+  const activeRoles = useMemo(
+    () => roles.filter((role) => !isArchived(role) && activeCompanyIds.has(role.companyId)),
+    [activeCompanyIds, roles]
+  );
+  const activeRoleIds = useMemo(
+    () => new Set(activeRoles.map((role) => role.id)),
+    [activeRoles]
+  );
+  const activeApplications = useMemo(
+    () =>
+      applications.filter(
+        (application) =>
+          !isArchived(application) &&
+          activeCompanyIds.has(application.companyId) &&
+          activeRoleIds.has(application.roleId)
+      ),
+    [activeCompanyIds, activeRoleIds, applications]
+  );
+
   const hotOpportunities = useMemo(
     () => (loading ? [] : getHotOpportunities(roles, companies, applications)),
     [companies, roles, applications, loading]
@@ -93,7 +121,7 @@ export function DashboardPage() {
     [companies, roles, applications, loading]
   );
 
-  const isEmpty = !loading && companies.length === 0 && roles.length === 0;
+  const isEmpty = !loading && activeCompanies.length === 0 && activeRoles.length === 0;
   const showFirstRun = isEmpty;
   const holdDashboard = loading;
   const primaryAction = actions[0];
@@ -151,7 +179,7 @@ export function DashboardPage() {
 
         {showFirstRun ? (
           <FirstRunScreen
-            existingCompanies={companies}
+            existingCompanies={activeCompanies}
             addCompany={addCompany}
             updateCompany={updateCompany}
             addRole={addRole}
@@ -181,7 +209,7 @@ export function DashboardPage() {
 
             <div className="min-w-0 lg:self-start">
               <div className="space-y-4 lg:sticky lg:top-24">
-                <WeeklyExecutionPanel applications={applications} />
+                <WeeklyExecutionPanel applications={activeApplications} />
                 <PipelineStats stats={stats} isLoading={loading} />
                 <ProbabilityPanel stats={stats} isLoading={loading} />
                 <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>

@@ -45,6 +45,7 @@ import {
   normalizeCvDefaults,
 } from "../services/cvAssets";
 import { normalizeApplicationNextActionForStatus } from "../services/jobOsApplications";
+import { isArchived } from "../services/jobOsArchive";
 
 const LOCAL_KEY_PREFIX = "job_os_v1";
 const MUTATION_TIMEOUT_MS = 12000;
@@ -266,6 +267,15 @@ function mapApplicationStatusToRoleStatus(
     default:
       return null;
   }
+}
+
+function hasOpenApplicationForRole(
+  applications: JobOsApplication[],
+  roleId: string
+): boolean {
+  return applications.some(
+    (application) => application.roleId === roleId && !isArchived(application)
+  );
 }
 
 function isInterviewStageStatus(status: ApplicationStatus): boolean {
@@ -498,6 +508,9 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                 roles: prev.roles,
                 applications: prev.applications,
                 outreach: prev.outreach,
+                cvProfiles: prev.cvProfiles,
+                jobDescriptions: prev.jobDescriptions,
+                cvTailoringRuns: prev.cvTailoringRuns,
               })
             : prev;
           const next: JobOsState = {
@@ -1255,7 +1268,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           const syncedApplicationStatus =
             updates.status ? mapRoleStatusToApplicationStatus(updates.status) : null;
           const linkedApplications = state.applications.filter(
-            (application) => application.roleId === id
+            (application) => application.roleId === id && !isArchived(application)
           );
 
           await mutate(
@@ -1331,7 +1344,7 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           const roleId = payload.roleId?.trim();
           if (
             roleId &&
-            state.applications.some((application) => application.roleId === roleId)
+            hasOpenApplicationForRole(state.applications, roleId)
           ) {
             throw new Error("An application for this role already exists.");
           }
@@ -1385,6 +1398,13 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
           const linkedRoleId = targetApplication?.roleId ?? updates.roleId;
           const syncedRoleStatus =
             updates.status ? mapApplicationStatusToRoleStatus(updates.status) : null;
+          const archiveSyncedRoleStatus =
+            updates.archived === true
+              ? "closed"
+              : updates.archived === false && targetApplication
+                ? mapApplicationStatusToRoleStatus(updates.status ?? targetApplication.status)
+                : null;
+          const nextRoleStatus = archiveSyncedRoleStatus ?? syncedRoleStatus;
           const hasExplicitInterviewMarker = typeof updates.interviewStageReached === "boolean";
           const shouldMarkInterviewReached =
             !hasExplicitInterviewMarker &&
@@ -1419,13 +1439,14 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                 application.id === id ? { ...application, ...normalizedUpdates, updatedAt: now } : application
               ),
               roles:
-                !linkedRoleId || syncedRoleStatus == null
+                !linkedRoleId || nextRoleStatus == null
                   ? prev.roles
                   : prev.roles.map((role) =>
                       role.id === linkedRoleId
                         ? {
                             ...role,
-                            status: syncedRoleStatus,
+                            status: nextRoleStatus,
+                            hasApplication: updates.archived === true ? false : true,
                             updatedAt: now,
                           }
                         : role
@@ -1444,14 +1465,15 @@ export function useJobOs(userId: string | null): UseJobOsReturn {
                     { merge: true }
                   );
 
-                  if (!linkedRoleId || syncedRoleStatus == null) {
+                  if (!linkedRoleId || nextRoleStatus == null) {
                     return;
                   }
 
                   await setDoc(
                     doc(firebase.db, "users", userId, "roles", linkedRoleId),
                     {
-                      status: syncedRoleStatus,
+                      status: nextRoleStatus,
+                      hasApplication: updates.archived === true ? false : true,
                       updatedAt: serverTimestamp(),
                     },
                     { merge: true }

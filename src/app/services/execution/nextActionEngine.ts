@@ -6,6 +6,7 @@ import type {
   CompanyPriority,
 } from "../../types/jobOs";
 import { appPath } from "../../routing";
+import { isArchived } from "../jobOsArchive";
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
 
@@ -451,11 +452,16 @@ export function getHotOpportunities(
   companies: JobOsCompany[],
   applications: JobOsApplication[]
 ): HotOpportunity[] {
-  const companyMap = new Map(companies.map((c) => [c.id, c]));
-  const appliedRoleIds = new Set(applications.map((a) => a.roleId));
+  const activeCompanies = companies.filter((company) => !isArchived(company));
+  const companyMap = new Map(activeCompanies.map((c) => [c.id, c]));
+  const activeCompanyIds = new Set(activeCompanies.map((company) => company.id));
+  const activeApplications = applications.filter(
+    (application) => !isArchived(application) && activeCompanyIds.has(application.companyId)
+  );
+  const appliedRoleIds = new Set(activeApplications.map((a) => a.roleId));
 
   return roles
-    .filter((r) => r.status === "to_apply" && !appliedRoleIds.has(r.id))
+    .filter((r) => !isArchived(r) && activeCompanyIds.has(r.companyId) && r.status === "to_apply" && !appliedRoleIds.has(r.id))
     .map((role) => {
       const company = companyMap.get(role.companyId);
       const priorityBonus = company ? PRIORITY_WEIGHT[company.priority] : 0;
@@ -502,19 +508,31 @@ export function getPipelineStats(
   roles: JobOsRole[],
   applications: JobOsApplication[]
 ): PipelineStats {
-  const toApply = roles.filter((r) => r.status === "to_apply").length;
-  const applied = applications.length;
-  const inReview = applications.filter(
+  const activeCompanies = companies.filter((company) => !isArchived(company));
+  const activeCompanyIds = new Set(activeCompanies.map((company) => company.id));
+  const activeRoles = roles.filter(
+    (role) => !isArchived(role) && activeCompanyIds.has(role.companyId)
+  );
+  const activeRoleIds = new Set(activeRoles.map((role) => role.id));
+  const activeApplications = applications.filter(
+    (application) =>
+      !isArchived(application) &&
+      activeCompanyIds.has(application.companyId) &&
+      activeRoleIds.has(application.roleId)
+  );
+  const toApply = activeRoles.filter((r) => r.status === "to_apply").length;
+  const applied = activeApplications.length;
+  const inReview = activeApplications.filter(
     (a) => a.status === "sent" || a.status === "screen"
   ).length;
-  const interviewing = applications.filter(
+  const interviewing = activeApplications.filter(
     (a) => a.status === "interview" || a.status === "final" || a.status === "case"
   ).length;
-  const offers = applications.filter((a) => a.status === "offer").length;
-  const responded = applications.filter((a) =>
+  const offers = activeApplications.filter((a) => a.status === "offer").length;
+  const responded = activeApplications.filter((a) =>
     ["screen", "case", "interview", "final", "offer", "rejected"].includes(a.status)
   ).length;
-  const interviewed = applications.filter((a) =>
+  const interviewed = activeApplications.filter((a) =>
     ["interview", "final", "offer"].includes(a.status)
   ).length;
 
@@ -524,8 +542,8 @@ export function getPipelineStats(
   const offerRate = interviewed > 0 ? Math.round((offers / interviewed) * 100) : 0;
 
   return {
-    totalCompanies: companies.length,
-    totalRoles: roles.length,
+    totalCompanies: activeCompanies.length,
+    totalRoles: activeRoles.length,
     toApply,
     applied,
     inReview,
@@ -586,18 +604,36 @@ export function getNextActions(
   limit = 5
 ): NextAction[] {
   const { companies, roles, applications, outreach = [] } = data;
+  const activeCompanies = companies.filter((company) => !isArchived(company));
+  const activeCompanyIds = new Set(activeCompanies.map((company) => company.id));
+  const activeRoles = roles.filter(
+    (role) => !isArchived(role) && activeCompanyIds.has(role.companyId)
+  );
+  const activeRoleIds = new Set(activeRoles.map((role) => role.id));
+  const activeApplications = applications.filter(
+    (application) =>
+      !isArchived(application) &&
+      activeCompanyIds.has(application.companyId) &&
+      activeRoleIds.has(application.roleId)
+  );
+  const activeOutreach = outreach.filter(
+    (item) =>
+      !isArchived(item) &&
+      activeCompanyIds.has(item.companyId) &&
+      (!item.roleId || activeRoleIds.has(item.roleId))
+  );
 
   const all: NextAction[] = [
-    ...generateOptimizeCvActions(applications, companies),
-    ...generateOverdueOutreachActions(outreach, companies),
-    ...generateStalledApplicationActions(applications, outreach, companies),
-    ...generateFollowUpActions(applications, companies),
-    ...generateAddJdActions(applications, companies),
-    ...generateLogApplicationActions(roles, companies, applications),
-    ...generateApplyActions(roles, companies, applications),
-    ...generateAddRoleActions(companies, roles),
-    ...generateResearchActions(companies, roles),
-    ...generateArchiveActions(applications, companies),
+    ...generateOptimizeCvActions(activeApplications, activeCompanies),
+    ...generateOverdueOutreachActions(activeOutreach, activeCompanies),
+    ...generateStalledApplicationActions(activeApplications, activeOutreach, activeCompanies),
+    ...generateFollowUpActions(activeApplications, activeCompanies),
+    ...generateAddJdActions(activeApplications, activeCompanies),
+    ...generateLogApplicationActions(activeRoles, activeCompanies, activeApplications),
+    ...generateApplyActions(activeRoles, activeCompanies, activeApplications),
+    ...generateAddRoleActions(activeCompanies, activeRoles),
+    ...generateResearchActions(activeCompanies, activeRoles),
+    ...generateArchiveActions(activeApplications, activeCompanies),
   ];
 
   // Deduplicate by id

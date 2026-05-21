@@ -1,4 +1,5 @@
 import type { ApplicationStatus, JobOsApplication, JobOsCompany, JobOsRole } from "../types/jobOs";
+import { buildArchiveUpdates, buildRestoreUpdates, isArchived } from "./jobOsArchive";
 
 export type ApplicationSortField =
   | "company"
@@ -32,6 +33,8 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   ghosted: "Ghosted",
 };
 
+export const APPLICATION_ARCHIVE_REASON = "Historical cleanup";
+
 const GENERIC_FOLLOW_UP_NEXT_ACTIONS = new Set([
   "send follow-up in 5 days",
   "follow up in 5 days",
@@ -53,10 +56,40 @@ export function normalizeApplicationNextActionForStatus(
 }
 
 export function getApplicationVisibleNextAction(application: JobOsApplication): string {
+  if (application.archived) {
+    return "";
+  }
+
   return normalizeApplicationNextActionForStatus(
     application.nextAction,
     application.status
   );
+}
+
+export function isApplicationArchived(application: JobOsApplication): boolean {
+  return isArchived(application);
+}
+
+export function isApplicationActiveRecord(application: JobOsApplication): boolean {
+  return !isApplicationArchived(application);
+}
+
+export function buildArchiveApplicationUpdates(
+  reason = APPLICATION_ARCHIVE_REASON
+): Pick<JobOsApplication, "archived" | "archivedAt" | "archivedReason" | "nextAction"> {
+  return {
+    ...buildArchiveUpdates(reason),
+    nextAction: "",
+  };
+}
+
+export function buildRestoreApplicationUpdates(): Pick<JobOsApplication, "archived"> & {
+  archivedAt: undefined;
+  archivedReason: undefined;
+} {
+  return {
+    ...buildRestoreUpdates(),
+  };
 }
 
 export function applicationReachedInterview(application: JobOsApplication): boolean {
@@ -68,6 +101,7 @@ export function applicationReachedInterview(application: JobOsApplication): bool
 
 export function applicationHasActiveInterview(application: JobOsApplication): boolean {
   return (
+    !application.archived &&
     INTERVIEW_RELATED_APPLICATION_STATUSES.has(application.status) &&
     !CLOSED_APPLICATION_STATUSES.has(application.status)
   );

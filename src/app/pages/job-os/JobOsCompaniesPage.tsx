@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -15,6 +15,8 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Archive,
+  ArchiveRestore,
   ChevronDown,
   ChevronRight,
   Download,
@@ -22,7 +24,6 @@ import {
   Link,
   Pencil,
   Plus,
-  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -66,6 +67,7 @@ import { JobOsLayout } from "../../components/job-os/JobOsLayout";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { PasteLinkImportDialog } from "../../components/job-os/PasteLinkImportDialog";
 import { getDefaultCvAsset } from "../../services/cvAssets";
+import { buildArchiveUpdates, buildRestoreUpdates, isArchived, STRATEGIC_RESET_ARCHIVE_REASON } from "../../services/jobOsArchive";
 import type { CompanyPriority, CompanyStatus, JobOsCompany } from "../../types/jobOs";
 
 const STATUS_VALUES: CompanyStatus[] = [
@@ -76,6 +78,7 @@ const STATUS_VALUES: CompanyStatus[] = [
   "Interviewing",
   "Closed",
 ];
+const ROMAN_TARGET_COMPANIES_IMPORT_URL = "/templates/roman-target-companies-jobsprint-import.csv";
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
@@ -103,6 +106,28 @@ function parseCsvLine(line: string): string[] {
   }
   values.push(current.trim());
   return values;
+}
+
+function getTierFromNotes(notes?: string): string | null {
+  const tier = notes?.match(/\bTier:\s*([^|]+)/i)?.[1]?.trim();
+  return tier || null;
+}
+
+function getTierExplanation(tier: string | null): string {
+  const normalizedTier = tier?.toUpperCase();
+  if (normalizedTier === "S") {
+    return "Tier S: strongest strategic fit. Prioritize first for applications, tailoring, and networking.";
+  }
+  if (normalizedTier === "A") {
+    return "Tier A: strong fit. Keep in the active weekly target set after Tier S companies.";
+  }
+  if (normalizedTier === "B") {
+    return "Tier B: secondary target. Pursue when a matching role appears or capacity allows.";
+  }
+  if (normalizedTier === "C") {
+    return "Tier C: exploratory or lower-fit target. Keep for research, not daily execution.";
+  }
+  return "No tier marker found. This note is general research context for the company.";
 }
 
 function normalizePriority(value: string): CompanyPriority | null {
@@ -151,9 +176,11 @@ export default function JobOsCompaniesPage() {
     addCompany,
     updateCompany,
     addRole,
+    updateRole,
     addOutreach,
+    updateOutreach,
     addApplication,
-    removeCompany,
+    updateApplication,
     syncNotice,
     exportState,
     replaceState,
@@ -161,6 +188,7 @@ export default function JobOsCompaniesPage() {
 
   const { session } = useApp();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const targetListAutoImportRef = useRef(false);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isImporting, setIsImporting] = useState(false);
@@ -170,6 +198,7 @@ export default function JobOsCompaniesPage() {
   const [companyListLocked, setCompanyListLocked] = useState(false);
   const [sortKey, setSortKey] = useState<CompanySortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [editDraft, setEditDraft] = useState<Partial<JobOsCompany>>({});
@@ -193,10 +222,19 @@ export default function JobOsCompaniesPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return companies.filter((c) =>
-      [c.name, c.industry, c.notes].join(" ").toLowerCase().includes(q)
+      (showArchived ? isArchived(c) : !isArchived(c)) &&
+      [c.name, c.industry, c.notes, c.archivedReason ?? ""].join(" ").toLowerCase().includes(q)
     );
-  }, [companies, search]);
+  }, [companies, search, showArchived]);
   const defaultCv = getDefaultCvAsset(assets.cvs);
+  const activeCompanies = useMemo(
+    () => companies.filter((company) => !isArchived(company)),
+    [companies]
+  );
+  const archivedCompanies = useMemo(
+    () => companies.filter(isArchived),
+    [companies]
+  );
 
   const sortedCompanies = useMemo(() => {
     const priorityRank: Record<CompanyPriority, number> = { A: 0, B: 1, C: 2 };
@@ -242,7 +280,7 @@ export default function JobOsCompaniesPage() {
   const industryStorageKey = `job_os_industries_${session?.userId ?? "anon"}`;
   const industryOptions = useMemo(() => {
     const byKey = new Map<string, string>();
-    [...companies.map((company) => company.industry), ...customIndustries].forEach((industry) => {
+    [...activeCompanies.map((company) => company.industry), ...customIndustries].forEach((industry) => {
       const cleaned = industry.trim().replace(/\s+/g, " ");
       if (!cleaned) return;
       byKey.set(normalizeIndustryKey(cleaned), cleaned);
@@ -250,7 +288,7 @@ export default function JobOsCompaniesPage() {
     return Array.from(byKey.values()).sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: "base" })
     );
-  }, [companies, customIndustries]);
+  }, [activeCompanies, customIndustries]);
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -285,7 +323,7 @@ export default function JobOsCompaniesPage() {
 
   useEffect(() => {
     resetCompaniesPage();
-  }, [resetCompaniesPage, search, sortDir, sortKey]);
+  }, [resetCompaniesPage, search, showArchived, sortDir, sortKey]);
 
   function toggleSort(nextKey: CompanySortKey): void {
     if (sortKey === nextKey) {
@@ -312,7 +350,7 @@ export default function JobOsCompaniesPage() {
     );
   }
 
-  async function importCompanyText(text: string, sourceLabel: "CSV" | "paste"): Promise<void> {
+  const importCompanyText = useCallback(async (text: string, sourceLabel: "CSV" | "paste"): Promise<void> => {
     const lines = text
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -356,7 +394,7 @@ export default function JobOsCompaniesPage() {
     let updated = 0;
     const errors: string[] = [];
     const existingByName = new Map(
-      companies.map((company) => [normalizeCompanyKey(company.name), company.id])
+      activeCompanies.map((company) => [normalizeCompanyKey(company.name), company.id])
     );
     const seenInBatch = new Set<string>();
     const pick = (row: string[], key: string): string => {
@@ -435,7 +473,7 @@ export default function JobOsCompaniesPage() {
         prev ? `${prev} Company list is now locked.` : "Company list is now locked."
       );
     }
-  }
+  }, [activeCompanies, addCompany, lockAfterImport, updateCompany]);
 
   async function handleImportCsv(file: File): Promise<void> {
     setIsImporting(true);
@@ -513,7 +551,7 @@ export default function JobOsCompaniesPage() {
       setEditDraft((current) => ({ ...current, industry: nextIndustry }));
     }
 
-    const companiesToUpdate = companies.filter(
+    const companiesToUpdate = activeCompanies.filter(
       (company) => normalizeIndustryKey(company.industry) === originalKey
     );
     await Promise.all(
@@ -537,14 +575,74 @@ export default function JobOsCompaniesPage() {
     }
   }
 
-  const [clearAllOpen, setClearAllOpen] = useState(false);
+  const [archiveAllOpen, setArchiveAllOpen] = useState(false);
 
-  async function clearAllCompanies(): Promise<void> {
-    const count = companies.length;
-    await Promise.all(companies.map((company) => removeCompany(company.id)));
+  async function archiveCompanies(companyIds: string[], reason = STRATEGIC_RESET_ARCHIVE_REASON): Promise<void> {
+    const archiveUpdates = buildArchiveUpdates(reason);
+    const companyIdSet = new Set(companyIds);
+    const linkedRoles = roles.filter((role) => companyIdSet.has(role.companyId) && !isArchived(role));
+    const linkedApplications = applications.filter((application) => companyIdSet.has(application.companyId) && !isArchived(application));
+    const linkedOutreach = outreach.filter((item) => companyIdSet.has(item.companyId) && !isArchived(item));
+
+    await Promise.all([
+      ...companyIds.map((id) => updateCompany(id, { ...archiveUpdates, status: "Closed" })),
+      ...linkedRoles.map((role) => updateRole(role.id, { ...archiveUpdates, status: "closed" })),
+      ...linkedApplications.map((application) =>
+        updateApplication(application.id, { ...archiveUpdates, nextAction: "" })
+      ),
+      ...linkedOutreach.map((item) => updateOutreach(item.id, { ...archiveUpdates, status: "closed" })),
+    ]);
+  }
+
+  const handleLoadRomanTargetCompanies = useCallback(async (): Promise<void> => {
+    setIsImporting(true);
+    setImportNotice(null);
+    try {
+      const response = await fetch(ROMAN_TARGET_COMPANIES_IMPORT_URL);
+      if (!response.ok) {
+        throw new Error(`Target company import failed (${response.status})`);
+      }
+      await importCompanyText(await response.text(), "CSV");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Target companies could not be loaded.";
+      setImportNotice(message);
+      toast.error(message);
+    } finally {
+      setIsImporting(false);
+    }
+  }, [importCompanyText]);
+
+  useEffect(() => {
+    if (targetListAutoImportRef.current || isImporting || activeCompanies.length > 0) {
+      return;
+    }
+
+    targetListAutoImportRef.current = true;
+    void handleLoadRomanTargetCompanies();
+  }, [activeCompanies.length, handleLoadRomanTargetCompanies, isImporting]);
+
+  async function restoreCompanies(companyIds: string[]): Promise<void> {
+    const restoreUpdates = buildRestoreUpdates();
+    const companyIdSet = new Set(companyIds);
+    const linkedRoles = roles.filter((role) => companyIdSet.has(role.companyId) && isArchived(role));
+    const linkedApplications = applications.filter((application) => companyIdSet.has(application.companyId) && isArchived(application));
+    const linkedOutreach = outreach.filter((item) => companyIdSet.has(item.companyId) && isArchived(item));
+
+    await Promise.all([
+      ...companyIds.map((id) => updateCompany(id, restoreUpdates)),
+      ...linkedRoles.map((role) => updateRole(role.id, restoreUpdates)),
+      ...linkedApplications.map((application) => updateApplication(application.id, restoreUpdates)),
+      ...linkedOutreach.map((item) => updateOutreach(item.id, restoreUpdates)),
+    ]);
+  }
+
+  async function archiveAllCompanies(): Promise<void> {
+    const count = activeCompanies.length;
+    await archiveCompanies(activeCompanies.map((company) => company.id), "Strategic reset: archived historical company workspace");
     setSelectedCompanyId(null);
-    setImportNotice(`Deleted ${count} companies.`);
-    toast.success(`Deleted ${count} companies`);
+    setArchiveAllOpen(false);
+    setImportNotice(`Archived ${count} companies and linked records.`);
+    toast.success(`Archived ${count} companies`);
   }
 
   return (
@@ -603,36 +701,45 @@ export default function JobOsCompaniesPage() {
               <Button
                 size="sm"
                 variant="outline"
+                className="gap-1.5"
+                onClick={() => void handleLoadRomanTargetCompanies()}
+                disabled={isImporting || companyListLocked}
+              >
+                <Download className="w-3.5 h-3.5" />
+                Load Target List
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => setCompanyListLocked((prev) => !prev)}
               >
                 {companyListLocked ? "Unlock Companies" : "Lock Companies"}
               </Button>
-              <AlertDialog open={clearAllOpen} onOpenChange={setClearAllOpen}>
+              <AlertDialog open={archiveAllOpen} onOpenChange={setArchiveAllOpen}>
                 <AlertDialogTrigger asChild>
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="text-red-500"
-                    disabled={companyListLocked || companies.length === 0}
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={companyListLocked || activeCompanies.length === 0}
                   >
-                    Clear All
+                    <Archive className="h-3.5 w-3.5" />
+                    Strategic Reset
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete all {companies.length} companies?</AlertDialogTitle>
+                    <AlertDialogTitle>Archive active workspace?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Every company and all linked roles, applications, and outreach records will
-                      be permanently removed. This cannot be undone.
+                      This preserves {activeCompanies.length} active compan{activeCompanies.length === 1 ? "y" : "ies"} and all linked roles, applications, and outreach records, then moves them out of default workspace views.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                      onClick={() => void clearAllCompanies()}
+                      onClick={() => void archiveAllCompanies()}
                     >
-                      Delete all
+                      Archive workspace
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -821,17 +928,33 @@ export default function JobOsCompaniesPage() {
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="text-sm">
-              Target Companies{" "}
-              {companies.length > 0 && (
-                <span className="text-neutral-400 font-normal">({companies.length})</span>
+              {showArchived ? "Archived Companies" : "Target Companies"}{" "}
+              {sortedCompanies.length > 0 && (
+                <span className="text-neutral-400 font-normal">({sortedCompanies.length})</span>
               )}
             </CardTitle>
-            <Input
-              className="max-w-xs"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter company…"
-            />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={showArchived ? "secondary" : "outline"}
+                className="gap-1.5"
+                onClick={() => setShowArchived((value) => !value)}
+              >
+                {showArchived ? (
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                ) : (
+                  <Archive className="h-3.5 w-3.5" />
+                )}
+                {showArchived ? "Show Active" : `Archived (${archivedCompanies.length})`}
+              </Button>
+              <Input
+                className="max-w-xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Filter company..."
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -876,8 +999,22 @@ export default function JobOsCompaniesPage() {
                     <TableCell>{company.remotePolicy}</TableCell>
                     <TableCell>{company.priority}</TableCell>
                     <TableCell>{company.status}</TableCell>
-                    <TableCell className="max-w-[260px] truncate">
-                      {company.notes || "-"}
+                    <TableCell className="max-w-[260px]">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block cursor-help truncate underline decoration-dotted underline-offset-4">
+                            {company.notes || "-"}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-sm">
+                          <div className="space-y-1 text-xs">
+                            <p className="font-medium">{getTierExplanation(getTierFromNotes(company.notes))}</p>
+                            {company.notes && (
+                              <p className="text-muted-foreground">{company.notes}</p>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -915,53 +1052,47 @@ export default function JobOsCompaniesPage() {
                         </TooltipTrigger>
                         <TooltipContent side="top">Edit</TooltipContent>
                       </Tooltip>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <span className="inline-flex">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                              disabled={companyListLocked}
-                              aria-label="Delete company"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </span>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete {company.name}?</AlertDialogTitle>
-                            <AlertDialogDescription asChild>
-                              <div>
-                                <span>This will permanently remove the company record.</span>
-                                {(() => {
-                                  const linkedRoles = roles.filter((r) => r.companyId === company.id).length;
-                                  const linkedApps = applications.filter((a) => a.companyId === company.id).length;
-                                  if (linkedRoles === 0 && linkedApps === 0) return null;
-                                  return (
-                                    <span className="mt-2 block rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-                                      Warning: {linkedRoles > 0 && `${linkedRoles} role${linkedRoles !== 1 ? "s" : ""}`}
-                                      {linkedRoles > 0 && linkedApps > 0 && " and "}
-                                      {linkedApps > 0 && `${linkedApps} application${linkedApps !== 1 ? "s" : ""}`}
-                                      {" "}linked to this company will also be deleted.
-                                    </span>
-                                  );
-                                })()}
-                              </div>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                              onClick={() => void removeCompany(company.id).then(() => toast.success("Company deleted"))}
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {isArchived(company) ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                disabled={companyListLocked}
+                                onClick={() =>
+                                  void restoreCompanies([company.id]).then(() => toast.success("Company restored"))
+                                }
+                                aria-label="Restore company"
+                              >
+                                <ArchiveRestore className="h-4 w-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">Restore linked records</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                disabled={companyListLocked}
+                                onClick={() =>
+                                  void archiveCompanies([company.id], "Archived from Companies page").then(() =>
+                                    toast.success("Company archived")
+                                  )
+                                }
+                                aria-label="Archive company"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">Archive linked records</TooltipContent>
+                        </Tooltip>
+                      )}
                       </div>
                     </TableCell>
                 </TableRow>
@@ -1070,19 +1201,19 @@ export default function JobOsCompaniesPage() {
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="rounded border p-2 text-center">
                   <div className="font-semibold text-base">
-                    {roles.filter((r) => r.companyId === selectedCompany.id).length}
+                    {roles.filter((r) => r.companyId === selectedCompany.id && !isArchived(r)).length}
                   </div>
                   <div className="text-neutral-500">Roles</div>
                 </div>
                 <div className="rounded border p-2 text-center">
                   <div className="font-semibold text-base">
-                    {outreach.filter((o) => o.companyId === selectedCompany.id).length}
+                    {outreach.filter((o) => o.companyId === selectedCompany.id && !isArchived(o)).length}
                   </div>
                   <div className="text-neutral-500">Outreach</div>
                 </div>
                 <div className="rounded border p-2 text-center">
                   <div className="font-semibold text-base">
-                    {applications.filter((a) => a.companyId === selectedCompany.id).length}
+                    {applications.filter((a) => a.companyId === selectedCompany.id && !isArchived(a)).length}
                   </div>
                   <div className="text-neutral-500">Applications</div>
                 </div>
@@ -1341,7 +1472,7 @@ export default function JobOsCompaniesPage() {
             <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border border-border p-2">
               {industryOptions.length > 0 ? (
                 industryOptions.map((industry) => {
-                  const usageCount = companies.filter(
+                  const usageCount = activeCompanies.filter(
                     (company) => normalizeIndustryKey(company.industry) === normalizeIndustryKey(industry)
                   ).length;
                   const isEditing = editingIndustry === industry;
@@ -1428,7 +1559,7 @@ export default function JobOsCompaniesPage() {
       <PasteLinkImportDialog
         open={pasteLinkOpen}
         onClose={() => setPasteLinkOpen(false)}
-        existingCompanies={companies}
+        existingCompanies={activeCompanies}
         addCompany={addCompany}
         updateCompany={updateCompany}
         addRole={addRole}

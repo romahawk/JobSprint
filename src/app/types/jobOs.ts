@@ -276,6 +276,9 @@ export interface JobOsCompany {
   sourcePlatform?: string;
   importConfidence?: number;
   aiEnrichment?: AiImportEnrichmentV1;
+  archived?: boolean;
+  archivedAt?: string;
+  archivedReason?: string;
   // Execution engine metadata
   lastInteractionAt?: string;
   createdAt: string;
@@ -342,6 +345,9 @@ export interface JobOsRole {
   sourcePlatform?: string;
   importConfidence?: number;
   aiEnrichment?: AiImportEnrichmentV1;
+  archived?: boolean;
+  archivedAt?: string;
+  archivedReason?: string;
   // Execution engine metadata
   lastInteractionAt?: string;
   hasApplication?: boolean;
@@ -368,6 +374,9 @@ export interface JobOsApplication {
   tailoredCvText?: string;
   tailoredCvUpdatedAt?: string;
   aiEnrichment?: AiImportEnrichmentV1;
+  archived?: boolean;
+  archivedAt?: string;
+  archivedReason?: string;
   // Execution engine metadata
   lastResponseAt?: string;
   interviewStageReached?: boolean;
@@ -389,6 +398,9 @@ export interface JobOsOutreach {
   followUpCount: number;
   nextFollowUpDate: string | null;
   notes: string;
+  archived?: boolean;
+  archivedAt?: string;
+  archivedReason?: string;
   createdAt: string;
   updatedAt: string;
 }

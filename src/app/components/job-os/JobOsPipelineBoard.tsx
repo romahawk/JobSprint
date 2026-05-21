@@ -25,6 +25,11 @@ export const APPLICATION_STAGE_GROUPS = {
     description: "Finished outcomes kept for reference and cleanup.",
     statuses: ["rejected", "ghosted"] as ApplicationStatus[],
   },
+  archived: {
+    label: "Archived",
+    description: "Historical records preserved outside the active pipeline.",
+    statuses: ["sent", "screen", "case", "interview", "final", "offer", "rejected", "ghosted"] as ApplicationStatus[],
+  },
 } as const;
 
 type ApplicationStageGroup = keyof typeof APPLICATION_STAGE_GROUPS;

@@ -5,6 +5,8 @@ import type {
   JobOsApplication,
   JobOsCompany,
   JobOsCvAsset,
+  JobOsOutreach,
+  JobOsRole,
   JobSource,
   JobOsScriptAsset,
   JobOsState,
@@ -759,14 +761,16 @@ export function normalizeJobOsState(raw: unknown): JobOsState {
     sources: normalizedSources,
     savedSearches: normalizedSavedSearches,
     companies: Array.isArray(maybe.companies)
-      ? (maybe.companies.map((value) =>
-          withTimestamps(value as Record<string, unknown>)
-        ) as JobOsCompany[])
+      ? (maybe.companies.map((value) => {
+          const normalized = withTimestamps(value as Record<string, unknown>) as JobOsCompany;
+          return { ...normalized, archived: normalized.archived === true };
+        }) as JobOsCompany[])
       : [],
     roles: Array.isArray(maybe.roles)
-      ? (maybe.roles.map((value) =>
-          withTimestamps(value as Record<string, unknown>)
-        ) as JobOsState["roles"])
+      ? (maybe.roles.map((value) => {
+          const normalized = withTimestamps(value as Record<string, unknown>) as JobOsRole;
+          return { ...normalized, archived: normalized.archived === true };
+        }) as JobOsState["roles"])
       : [],
     applications: Array.isArray(maybe.applications)
       ? (maybe.applications.map((value) => {
@@ -776,15 +780,17 @@ export function normalizeJobOsState(raw: unknown): JobOsState {
             : normalizedCvs.find((cv) => cv.name === normalized.cvVersion);
           return {
             ...normalized,
+            archived: normalized.archived === true,
             cvAssetId: matchedCv?.id ?? (typeof normalized.cvAssetId === "string" ? normalized.cvAssetId : undefined),
             cvVersion: matchedCv?.name ?? String(normalized.cvVersion ?? ""),
           };
         }) as JobOsState["applications"])
       : [],
     outreach: Array.isArray(maybe.outreach)
-      ? (maybe.outreach.map((value) =>
-          withTimestamps(value as Record<string, unknown>)
-        ) as JobOsState["outreach"])
+      ? (maybe.outreach.map((value) => {
+          const normalized = withTimestamps(value as Record<string, unknown>) as JobOsOutreach;
+          return { ...normalized, archived: normalized.archived === true };
+        }) as JobOsState["outreach"])
       : [],
     cvProfiles: [...completeProfiles, ...customProfiles],
     jobDescriptions: Array.isArray(maybe.jobDescriptions)

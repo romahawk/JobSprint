@@ -1,16 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../../components/ui/alert-dialog";
+import { Archive, ArchiveRestore } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -20,12 +10,31 @@ import { Textarea } from "../../components/ui/textarea";
 import { useJobOsContext } from "../../context/JobOsContext";
 import { JobOsTransferControls } from "../../components/job-os/JobOsTransferControls";
 import { JobOsLayout } from "../../components/job-os/JobOsLayout";
+import { buildArchiveUpdates, buildRestoreUpdates, isArchived } from "../../services/jobOsArchive";
 import type { ApplicationStatus, JobOsOutreach, OutreachStatus } from "../../types/jobOs";
 
 const OUTREACH_STATUSES: OutreachStatus[] = ["sent", "replied", "meeting", "no_reply", "closed"];
 
 export default function JobOsOutreachPage() {
-  const { outreach, applications, companies, roles, assets, addOutreach, updateOutreach, updateApplication, removeOutreach, syncNotice, exportState, replaceState } = useJobOsContext();
+  const { outreach, applications, companies, roles, assets, addOutreach, updateOutreach, updateApplication, syncNotice, exportState, replaceState } = useJobOsContext();
+  const [showArchived, setShowArchived] = useState(false);
+
+  const activeCompanies = useMemo(() => companies.filter((company) => !isArchived(company)), [companies]);
+  const activeCompanyIds = useMemo(() => new Set(activeCompanies.map((company) => company.id)), [activeCompanies]);
+  const activeRoles = useMemo(
+    () => roles.filter((role) => !isArchived(role) && activeCompanyIds.has(role.companyId)),
+    [activeCompanyIds, roles]
+  );
+  const visibleOutreach = useMemo(
+    () =>
+      outreach.filter((item) =>
+        showArchived
+          ? isArchived(item)
+          : !isArchived(item) && activeCompanyIds.has(item.companyId) && (!item.roleId || activeRoles.some((role) => role.id === item.roleId))
+      ),
+    [activeCompanyIds, activeRoles, outreach, showArchived]
+  );
+  const archivedOutreachCount = useMemo(() => outreach.filter(isArchived).length, [outreach]);
 
   async function handleOutreachStatusChange(item: JobOsOutreach, newStatus: OutreachStatus): Promise<void> {
     await updateOutreach(item.id, { status: newStatus });
@@ -33,7 +42,7 @@ export default function JobOsOutreachPage() {
     if ((newStatus === "replied" || newStatus === "meeting") && item.roleId) {
       const targetAppStatus: ApplicationStatus = newStatus === "meeting" ? "interview" : "screen";
       const linkedApp = applications.find(
-        (a) => a.roleId === item.roleId && a.status !== "rejected" && a.status !== "ghosted" && a.status !== "offer"
+        (a) => !isArchived(a) && a.roleId === item.roleId && a.status !== "rejected" && a.status !== "ghosted" && a.status !== "offer"
       );
 
       if (linkedApp) {
@@ -77,13 +86,13 @@ export default function JobOsOutreachPage() {
         <CardContent className="grid md:grid-cols-4 gap-3">
           <Select value={draft.companyId} onValueChange={(v) => setDraft((p) => ({ ...p, companyId: v }))}>
             <SelectTrigger><SelectValue placeholder="Company" /></SelectTrigger>
-            <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{activeCompanies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={draft.roleId ?? "none"} onValueChange={(v) => setDraft((p) => ({ ...p, roleId: v === "none" ? null : v }))}>
             <SelectTrigger><SelectValue placeholder="Role (optional)" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No role linked</SelectItem>
-              {roles.filter((r) => !draft.companyId || r.companyId === draft.companyId).map((r) => <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>)}
+              {activeRoles.filter((r) => !draft.companyId || r.companyId === draft.companyId).map((r) => <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>)}
             </SelectContent>
           </Select>
           <Input value={draft.contactName} onChange={(e) => setDraft((p) => ({ ...p, contactName: e.target.value }))} placeholder="Contact name" />
@@ -128,7 +137,21 @@ export default function JobOsOutreachPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Outreach Log</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-sm">Outreach Log</CardTitle>
+            <Button
+              type="button"
+              size="sm"
+              variant={showArchived ? "secondary" : "outline"}
+              className="gap-1.5"
+              onClick={() => setShowArchived((value) => !value)}
+            >
+              {showArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+              {showArchived ? "Show Active" : `Archived (${archivedOutreachCount})`}
+            </Button>
+          </div>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -146,7 +169,7 @@ export default function JobOsOutreachPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {outreach.map((item) => (
+              {visibleOutreach.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{companies.find((c) => c.id === item.companyId)?.name ?? "-"}</TableCell>
                   <TableCell>{roles.find((r) => r.id === item.roleId)?.title ?? "-"}</TableCell>
@@ -180,28 +203,22 @@ export default function JobOsOutreachPage() {
                     >
                       Schedule follow-up
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="ghost" className="text-red-500">Delete</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete outreach record?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This record will be permanently removed.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                            onClick={() => void removeOutreach(item.id).then(() => toast.success("Outreach record deleted"))}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5"
+                      onClick={() =>
+                        void updateOutreach(
+                          item.id,
+                          isArchived(item)
+                            ? buildRestoreUpdates()
+                            : { ...buildArchiveUpdates("Archived from Outreach page"), status: "closed" }
+                        ).then(() => toast.success(isArchived(item) ? "Outreach restored" : "Outreach archived"))
+                      }
+                    >
+                      {isArchived(item) ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+                      {isArchived(item) ? "Restore" : "Archive"}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
